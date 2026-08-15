@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { listProjectsForUser } from '../../domain/projects/repository.js';
 import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
 import { requireOrganizationCapability } from '../middleware/requireOrganizationCapability.js';
@@ -7,11 +8,34 @@ import { validateCreateProjectPayload } from '../../domain/project-setup/validat
 import { listSupportedLocales } from '../../domain/project-setup/repository.js';
 import {
   insertProject, insertProjectIdentity, insertProjectSettings,
-  insertProjectModules, insertProjectMembership, insertProjectInvitation
+  insertProjectModules, insertProjectMembership, insertProjectInvitation,
+  insertAsset, updateProjectIdentityLogo
 } from '../../domain/project-setup/repository.js';
 import { Errors } from '../../errors/AppError.js';
 
-export function createProjectsRouter({ pool }) {
+// SVG volontairement exclu de Phase 1B : c'est du XML actif, pas une
+// image inerte — servir un SVG uploadé sans sanitisation depuis le
+// même origin est un vrai risque. Réintroduction possible plus tard,
+// derrière une politique de sanitisation explicite et testée.
+const ALLOWED_MIME_TO_EXTENSION = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg'
+};
+const MAX_LOGO_BYTES = 5 * 1024 * 1024; // 5 Mo
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_LOGO_BYTES } });
+
+// Ne jamais faire confiance uniquement au Content-Type annoncé par le
+// client — vérifier la signature binaire réelle avant persistance.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
+
+function matchesRealFileSignature(buffer, mimetype) {
+  if (mimetype === 'image/png') return buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE);
+  if (mimetype === 'image/jpeg') return buffer.subarray(0, JPEG_SIGNATURE.length).equals(JPEG_SIGNATURE);
+  return false;
+}
+
+export function createProjectsRouter({ pool, storageAdapter }) {
   const router = Router();
 
   // Liste "mes projets" — strictement via project_memberships, jamais
@@ -73,6 +97,56 @@ export function createProjectsRouter({ pool }) {
         next(err);
       } finally {
         client.release();
+      }
+    }
+  );
+
+  // Upload réel du logo — scopé à un projet déjà existant (le fichier
+  // reste en mémoire navigateur, simple aperçu local, tant que le
+  // projet n'existe pas encore). Voir docs/adr/0003-storage-adapter.md.
+  //
+  // Contrat de séquence, à respecter côté front (Lot 3B) :
+  //   validation finale → POST /api/projects → 201 + projectId
+  //   → si un logo a été choisi → POST /api/projects/:projectId/logo
+  // Si CET upload échoue, le projet n'est JAMAIS recréé — il existe
+  // déjà et reste valide. "Réessayer" ne doit réexécuter que cet
+  // upload, jamais POST /api/projects à nouveau (pas de projet en
+  // double). Le logo est une configuration optionnelle, retentable
+  // indépendamment de la création elle-même.
+  router.post(
+    '/:projectId/logo',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    upload.single('logo'),
+    async (req, res, next) => {
+      if (!req.file) {
+        next(Errors.invalid('Aucun fichier reçu (champ "logo" attendu).'));
+        return;
+      }
+      const extension = ALLOWED_MIME_TO_EXTENSION[req.file.mimetype];
+      if (!extension) {
+        next(Errors.invalid(`Type de fichier non autorisé : ${req.file.mimetype}. Formats acceptés : PNG, JPG.`));
+        return;
+      }
+      if (!matchesRealFileSignature(req.file.buffer, req.file.mimetype)) {
+        next(Errors.invalid('Le contenu du fichier ne correspond pas au type annoncé.'));
+        return;
+      }
+
+      try {
+        const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
+        const assetId = await insertAsset(pool, {
+          tenantId: req.project.tenant_id,
+          projectId: req.project.id,
+          kind: 'logo',
+          storageKey,
+          contentType: req.file.mimetype,
+          byteSize: req.file.size
+        });
+        await updateProjectIdentityLogo(pool, { projectId: req.project.id, logoAssetId: assetId });
+
+        res.status(201).json({ assetId, url: `/api/assets/${assetId}` });
+      } catch (err) {
+        next(err);
       }
     }
   );

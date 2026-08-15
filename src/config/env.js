@@ -41,6 +41,12 @@ export function loadConfig() {
         ? requireString('DB_PASSWORD')
         : requireString('DB_PASSWORD', 'storm_orogeny_dev'),
       ssl: process.env.DB_SSL === '1'
+    },
+    // Storage — implémentation locale uniquement pour l'instant,
+    // strictement derrière l'adapter (voir docs/adr/0003-storage-adapter.md).
+    // Jamais gravé comme solution métier durable.
+    storage: {
+      localDir: requireString('STORAGE_LOCAL_DIR', 'storage-data')
     }
   };
 }

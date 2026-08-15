@@ -23,7 +23,7 @@ export async function listProjectsForUser(pool, userId) {
 // l'existence d'un projet à quelqu'un qui n'a aucune relation avec lui.
 export async function findAccessibleProjectForUser(pool, { userId, projectId }) {
   const { rows } = await pool.query(
-    `select p.id, p.name, p.status, pm.permission_bundle as my_bundle
+    `select p.id, p.tenant_id, p.name, p.status, pm.permission_bundle as my_bundle
      from project_memberships pm
      join projects p on p.id = pm.project_id and p.tenant_id = pm.tenant_id
      where pm.user_id = $1 and pm.project_id = $2 and pm.status = 'active'`,

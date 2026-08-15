@@ -68,3 +68,34 @@ export async function listSupportedLocales(pool) {
   const { rows } = await pool.query('select code from supported_locales order by code');
   return rows.map(r => r.code);
 }
+
+// Assets — voir docs/adr/0003-storage-adapter.md. storage_key reste
+// opaque au domaine et aux routes ; seul l'adapter de storage sait
+// comment le résoudre en octets réels.
+export async function insertAsset(client, { tenantId, projectId, kind, storageKey, contentType, byteSize }) {
+  const { rows: [row] } = await client.query(
+    `insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size)
+     values ($1, $2, $3, $4, $5, $6) returning id`,
+    [tenantId, projectId, kind, storageKey, contentType, byteSize]
+  );
+  return row.id;
+}
+
+export async function updateProjectIdentityLogo(pool, { projectId, logoAssetId }) {
+  const result = await pool.query('update project_identity set logo_asset_id = $1 where project_id = $2', [logoAssetId, projectId]);
+  if (result.rowCount === 0) {
+    // Ne devrait jamais arriver pour un projet créé via POST /api/projects
+    // (project_identity y est toujours créée dans la même transaction) —
+    // mais un succès silencieux serait pire qu'une erreur explicite si
+    // ce cas se présentait un jour pour une autre raison.
+    throw new Error(`Aucune project_identity trouvée pour le projet ${projectId} — mise à jour du logo impossible.`);
+  }
+}
+
+export async function findAsset(pool, assetId) {
+  const { rows } = await pool.query(
+    'select id, tenant_id, project_id, storage_key, content_type from assets where id = $1',
+    [assetId]
+  );
+  return rows[0] ?? null;
+}

@@ -177,8 +177,8 @@ test('repository : une séquence complète (identity, settings, modules, members
   await cleanAll();
 });
 
-test('migrations idempotentes après 0002 (aucune nouvelle application sur un schéma à jour)', async () => {
+test('migrations idempotentes (aucune nouvelle application sur un schéma à jour)', async () => {
   const result = await runMigrations();
   assert.equal(result.appliedCount, 0);
-  assert.equal(result.total, 2);
+  assert.ok(result.total >= 3, 'au moins les 3 migrations connues à ce jour doivent être présentes');
 });

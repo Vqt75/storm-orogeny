@@ -60,6 +60,23 @@ async function insertProjectMembership(client, tenantId, projectId, userId, bund
   );
 }
 
+// Depuis Phase 1B (Project Setup), tout projet créé via POST /api/projects
+// possède réellement une project_identity et des project_settings. Le
+// seed doit rester représentatif de cet état — sinon un projet seedé
+// se comporte différemment d'un projet réellement créé (découvert
+// concrètement : l'upload de logo échouait silencieusement sur un
+// projet seedé sans project_identity).
+async function insertProjectIdentityAndSettings(client, tenantId, projectId, { workspaceLocale, contentLocale }) {
+  await client.query(
+    'insert into project_identity (tenant_id, project_id, theme) values ($1, $2, $3)',
+    [tenantId, projectId, 'ivory']
+  );
+  await client.query(
+    'insert into project_settings (tenant_id, project_id, workspace_locale, content_locale) values ($1, $2, $3, $4)',
+    [tenantId, projectId, workspaceLocale, contentLocale]
+  );
+}
+
 export async function seed() {
   const config = loadConfig();
   const pool = getPool(config);
@@ -84,6 +101,10 @@ export async function seed() {
     const clermont = await insertProject(client, parella, 'Clermont-Ferrand');
     const tours = await insertProject(client, parella, 'Tours');
     const peugeot = await insertProject(client, parella, 'Peugeot');
+
+    await insertProjectIdentityAndSettings(client, parella, clermont, { workspaceLocale: 'fr', contentLocale: 'fr' });
+    await insertProjectIdentityAndSettings(client, parella, tours, { workspaceLocale: 'fr', contentLocale: 'fr' });
+    await insertProjectIdentityAndSettings(client, parella, peugeot, { workspaceLocale: 'fr', contentLocale: 'fr' });
 
     await insertProjectMembership(client, parella, clermont, vivien, 'project_admin');
     await insertProjectMembership(client, parella, clermont, alice, 'editor');

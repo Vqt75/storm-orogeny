@@ -841,8 +841,8 @@
     Development only: ?devUser=<uuid> forwards X-Storm-Dev-User.
   */
 
-  // createProject mène désormais à une vraie route (Project Setup,
-  // Phase 1B). project/meetStorm/control restent en attente de leur
+  // createProject (Phase 1B) et control (Phase 1C) mènent désormais à
+  // de vraies routes. project/meetStorm restent en attente de leur
   // construction — ces destinations affichent un feedback discret
   // plutôt que de naviguer vers une route qui n'existe pas encore
   // côté serveur (voir showComingSoon plus bas).
@@ -905,6 +905,14 @@
   function devHeaders(){
     const devUser = new URLSearchParams(location.search).get('devUser');
     return devUser ? {'X-Storm-Dev-User':devUser} : {};
+  }
+
+  // Préserve ?devUser= lors d'une navigation vers une autre page Storm
+  // — mécanisme de développement uniquement, jamais une convention
+  // d'authentification Orogeny (voir docs/contracts/privacy-and-data-governance.md).
+  function navigateWithDevUser(path){
+    const devUser = new URLSearchParams(location.search).get('devUser');
+    location.assign(devUser ? `${path}?devUser=${encodeURIComponent(devUser)}` : path);
   }
 
   async function getJson(url){
@@ -1030,8 +1038,7 @@
     action.addEventListener('click', event => {
       event.stopPropagation();
       if (action.dataset.action === 'create') {
-        const devUser = new URLSearchParams(location.search).get('devUser');
-        location.assign(devUser ? `${ROUTES.createProject}?devUser=${encodeURIComponent(devUser)}` : ROUTES.createProject);
+        navigateWithDevUser(ROUTES.createProject);
         return;
       }
       showComingSoon();
@@ -1090,8 +1097,8 @@
     if (event.key === 'Escape' && selectedCard) clearSelected({restoreFocus:true});
   });
 
-  controlLink.addEventListener('click', showComingSoon);
-  controlMenuItem.addEventListener('click', showComingSoon);
+  controlLink.addEventListener('click', () => navigateWithDevUser(ROUTES.control));
+  controlMenuItem.addEventListener('click', () => navigateWithDevUser(ROUTES.control));
 
   const avatarBtnEl = document.getElementById('avatarBtn');
   avatarBtnEl.addEventListener('click', event => {

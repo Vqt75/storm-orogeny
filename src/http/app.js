@@ -5,6 +5,7 @@ import { healthRouter } from './routes/health.js';
 import { createMeRouter } from './routes/me.js';
 import { createProjectsRouter } from './routes/projects.js';
 import { createAssetsRouter } from './routes/assets.js';
+import { createControlRouter } from './routes/control.js';
 import { devAuth } from './middleware/devAuth.js';
 import { errorHandler, notFoundHandler } from './errorHandler.js';
 
@@ -36,8 +37,15 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'project-setup.html'));
   });
 
-  // Fichiers statiques (CSS/JS des pages ci-dessus) — jamais de donnée
-  // sensible dans public/, uniquement de l'interface.
+  // Storm Control — même principe. GET /api/control/* protégé par
+  // devAuth + capabilities organisationnelles côté serveur (jamais
+  // seulement masqué côté front).
+  app.get('/control', (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'control.html'));
+  });
+
+  // Fichiers statiques (CSS/JS des pages ci-dessus, polices) — jamais
+  // de donnée sensible dans public/, uniquement de l'interface.
   app.use(express.static(PUBLIC_DIR));
 
   // Toute route de domaine passe par devAuth — AuthN uniquement (qui
@@ -48,6 +56,7 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   app.use('/api/me', authenticated, createMeRouter({ pool }));
   app.use('/api/projects', authenticated, createProjectsRouter({ pool, storageAdapter }));
   app.use('/api/assets', authenticated, createAssetsRouter({ pool, storageAdapter }));
+  app.use('/api/control', authenticated, createControlRouter({ pool }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

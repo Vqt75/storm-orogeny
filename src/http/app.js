@@ -29,6 +29,17 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'home.html'));
   });
 
+  // Project Setup — même principe : page statique publique, les
+  // écritures réelles (POST /api/projects, upload de logo) restent
+  // protégées par devAuth côté client.
+  app.get('/projects/new', (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'project-setup.html'));
+  });
+
+  // Fichiers statiques (CSS/JS des pages ci-dessus) — jamais de donnée
+  // sensible dans public/, uniquement de l'interface.
+  app.use(express.static(PUBLIC_DIR));
+
   // Toute route de domaine passe par devAuth — AuthN uniquement (qui
   // es-tu ?), jamais d'autorisation ici (voir devAuth.js). Scopé
   // explicitement à /api/* : /health et toute route inconnue ne

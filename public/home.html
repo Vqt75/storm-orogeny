@@ -841,11 +841,11 @@
     Development only: ?devUser=<uuid> forwards X-Storm-Dev-User.
   */
 
-  // Conservé pour la prochaine phase de construction (Project Setup,
-  // Meet Storm, Storm Control, Project Shell) — non utilisé pour
-  // l'instant : ces destinations affichent un feedback discret plutôt
-  // que de naviguer vers une route qui n'existe pas encore côté
-  // serveur (voir showComingSoon plus bas).
+  // createProject mène désormais à une vraie route (Project Setup,
+  // Phase 1B). project/meetStorm/control restent en attente de leur
+  // construction — ces destinations affichent un feedback discret
+  // plutôt que de naviguer vers une route qui n'existe pas encore
+  // côté serveur (voir showComingSoon plus bas).
   const ROUTES = Object.freeze({
     project: id => `/projects/${encodeURIComponent(id)}`,
     createProject: '/projects/new',
@@ -1029,6 +1029,11 @@
 
     action.addEventListener('click', event => {
       event.stopPropagation();
+      if (action.dataset.action === 'create') {
+        const devUser = new URLSearchParams(location.search).get('devUser');
+        location.assign(devUser ? `${ROUTES.createProject}?devUser=${encodeURIComponent(devUser)}` : ROUTES.createProject);
+        return;
+      }
       showComingSoon();
     });
   }

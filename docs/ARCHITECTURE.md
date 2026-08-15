@@ -104,24 +104,26 @@ Le tenant est l'unité d'isolation fondamentale. Le projet est l'unité principa
 
 ## Permissions
 
-Le serveur vérifie des **capabilities**, jamais des rôles codés en dur dispersés dans le produit.
-
-Première base :
-
-```
-project.view
-content.edit
-publication.publish
-pilotage.view
-members.manage
-project.manage
-```
+Le serveur vérifie des **capabilities**, jamais des rôles codés en dur dispersés dans le produit — voir `docs/contracts/permissions.md` pour le modèle complet (capabilities de projet, capabilities organisationnelles Storm Control, et l'invariant central : visibilité/gouvernance transverse ≠ droit automatique d'édition sur tous les projets).
 
 Les rôles/bundles humains sont une couche de composition de ces capabilities, jamais l'inverse. Jamais :
 
 ```js
 if (role === 'admin') { ... }
 ```
+
+### AuthN ≠ Authorization
+
+> AuthN answers "who are you?" Authorization answers "what may you do?"
+
+```
+DevAuth (Phase 0) → user_id
+SSO DSI (futur)   → user_id
+                       ↓
+                  memberships → capabilities → allow / deny
+```
+
+Un seul moteur d'autorisation, inchangé quel que soit le mécanisme d'identité en amont — voir `docs/contracts/privacy-and-data-governance.md`.
 
 dispersé dans le produit.
 

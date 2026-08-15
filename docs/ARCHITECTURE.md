@@ -88,6 +88,18 @@ Tenant (Organisation, côté produit)
 
 Une `tenant_membership` ne donne jamais automatiquement accès à un projet. L'accès réel à un projet passe toujours par une `project_membership` explicite, porteuse au minimum d'un bundle de permissions, d'un statut et de métadonnées d'attribution — voir `docs/contracts/schema-and-migrations.md` et `docs/contracts/permissions.md`.
 
+### Identité, adressage et accès d'un projet — frontière posée, pas encore implémentée
+
+```
+Project
+  └── future Project Experience
+      ├── addressing        (slug / domaine / URL)
+      ├── access policy     (ouvert / authentifié / restreint)
+      └── published experience
+```
+
+`project.id` est l'identité technique stable ; `project.name` est le nom métier modifiable. L'adresse de diffusion publique (futur) est un mécanisme séparé, stable à travers les publications. Connaître l'URL ne constitue jamais une autorisation. Voir `docs/adr/0002-project-experience-addressing.md` — aucune implémentation avant Project Setup/Publication (Phases 1B/3).
+
 Le tenant est l'unité d'isolation fondamentale. Le projet est l'unité principale de travail, mais pas nécessairement l'unité organisationnelle maximale. Ne pas ajouter maintenant de hiérarchie Programme/Sous-projet récursive — Orogeny ne doit simplement jamais supposer qu'un projet équivaut à un seul bâtiment, une seule population ou une seule vague ; ces dimensions de contexte pourront être introduites plus tard (Strata) sans que le modèle actuel ne s'y oppose.
 
 ## Permissions

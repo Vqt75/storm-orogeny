@@ -1,0 +1,19 @@
+{
+  "name": "storm-orogeny",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Storm Orogeny — nouvelle génération de la plateforme Storm (Parella).",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {}
+}

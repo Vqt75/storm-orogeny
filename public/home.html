@@ -841,6 +841,11 @@
     Development only: ?devUser=<uuid> forwards X-Storm-Dev-User.
   */
 
+  // Conservé pour la prochaine phase de construction (Project Setup,
+  // Meet Storm, Storm Control, Project Shell) — non utilisé pour
+  // l'instant : ces destinations affichent un feedback discret plutôt
+  // que de naviguer vers une route qui n'existe pas encore côté
+  // serveur (voir showComingSoon plus bas).
   const ROUTES = Object.freeze({
     project: id => `/projects/${encodeURIComponent(id)}`,
     createProject: '/projects/new',
@@ -860,6 +865,7 @@
   const avatarBtn = document.getElementById('avatarBtn');
   const discoverCard = document.getElementById('discoverCard');
   const accountPopover = document.getElementById('accountPopover');
+  const toast = document.getElementById('toast');
 
   let selectedCard = null;
   let currentContext = null;
@@ -996,6 +1002,20 @@
     if (focusAction) requestAnimationFrame(() => card.querySelector('.card-action')?.focus());
   }
 
+  // Destinations pas encore construites côté serveur (Project Setup,
+  // Meet Storm, Storm Control, Project Shell) : jamais de navigation
+  // vers une route qui n'existe pas encore. L'interaction validée
+  // (sélection -> révélation de l'action) reste intacte ; seul le
+  // clic sur l'action affiche un feedback discret dans Home, sans
+  // navigation, sans changement de layout, sans déplacer le focus.
+  let toastTimer = null;
+  function showComingSoon(){
+    clearTimeout(toastTimer);
+    toast.textContent = 'Cette partie de Storm arrive dans la prochaine étape.';
+    toast.classList.add('show');
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
   function wireCard(card){
     if (!card || card.dataset.wired === 'true') return;
     const select = card.querySelector('.card-select');
@@ -1009,11 +1029,7 @@
 
     action.addEventListener('click', event => {
       event.stopPropagation();
-      const kind = action.dataset.action;
-
-      if (kind === 'open') location.assign(ROUTES.project(action.dataset.projectId));
-      if (kind === 'create') location.assign(ROUTES.createProject);
-      if (kind === 'discover') location.assign(ROUTES.meetStorm);
+      showComingSoon();
     });
   }
 
@@ -1069,8 +1085,8 @@
     if (event.key === 'Escape' && selectedCard) clearSelected({restoreFocus:true});
   });
 
-  controlLink.addEventListener('click', () => location.assign(ROUTES.control));
-  controlMenuItem.addEventListener('click', () => location.assign(ROUTES.control));
+  controlLink.addEventListener('click', showComingSoon);
+  controlMenuItem.addEventListener('click', showComingSoon);
 
   const avatarBtnEl = document.getElementById('avatarBtn');
   avatarBtnEl.addEventListener('click', event => {

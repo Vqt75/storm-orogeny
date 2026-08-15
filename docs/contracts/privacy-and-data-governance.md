@@ -47,6 +47,8 @@ Le mécanisme d'identité (dev header aujourd'hui, SSO d'entreprise demain) ne f
 
 Une personne chargée de gouverner 80 projets peut voir : nom du projet, statut, propriétaires, membres, permissions, dates, configuration technique — sans nécessairement pouvoir ouvrir : les contenus éditoriaux, les données Pilotage détaillées, les communications internes, si sa mission n'en a pas besoin. Voir `docs/contracts/permissions.md` pour le modèle de capabilities organisationnelles qui rend cette distinction réelle, pas seulement déclarée.
 
+Le même principe s'appliquera au futur support technique : un opérateur diagnostiquant un incident ne doit jamais avoir besoin des credentials de l'utilisateur concerné, et son identité réelle (*actor*) ne doit jamais se substituer à celle de l'utilisateur observé (*subject*) dans les logs — voir `docs/backlog/storm-control-support-diagnostics.md` (backlog, non implémenté).
+
 ## Ce qui reste hors de portée d'une architecture, à faire avant tout déploiement client réel
 
 Une architecture privacy-by-design ne suffit pas, à elle seule, à certifier la conformité RGPD. Avant un vrai déploiement :

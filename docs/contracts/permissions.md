@@ -37,6 +37,8 @@ organization.settings.manage
 
 Une capability transverse très élevée (`projects.admin_all`, donnant un droit d'édition sur tous les projets) pourra exister un jour pour deux ou trois personnes si un vrai besoin se présente — mais elle doit être explicite et distincte, jamais une conséquence accidentelle de `control.access` ou `organization_admin`.
 
+Un futur mécanisme de support (`support.diagnostics`, `support.view_as_user`, `support.elevated_access`) suit exactement le même principe — voir `docs/backlog/storm-control-support-diagnostics.md` : jamais un pouvoir implicite d'`organization_admin`, toujours une capability dédiée et explicite.
+
 Cette liste est délibérément minimale pour Phase 0/1.
 
 ## Principe

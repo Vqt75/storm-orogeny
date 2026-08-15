@@ -125,6 +125,8 @@ SSO DSI (futur)   → user_id
 
 Un seul moteur d'autorisation, inchangé quel que soit le mécanisme d'identité en amont — voir `docs/contracts/privacy-and-data-governance.md`.
 
+Un futur mode support (Storm Control — diagnostics, *view as user*, accès élevé) suivra le même moteur, sans jamais fusionner *actor* (l'opérateur réel) et *subject* (l'utilisateur observé) — voir `docs/backlog/storm-control-support-diagnostics.md` (backlog, non implémenté).
+
 dispersé dans le produit.
 
 ## Données

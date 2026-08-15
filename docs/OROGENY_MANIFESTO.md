@@ -140,7 +140,7 @@ Orogeny n'hérite pas du champagne/Italiana de Tectonic. Direction :
 - `#000000` utilisé comme matière forte et rare ;
 - couleur portée principalement par l'identité des projets ;
 - Parella gold utilisé avec retenue ;
-- une excellente famille sans-serif ;
+- une excellente famille sans-serif — **Roboto**, pour l'interface système Orogeny (Storm Home, Project Setup, Project Shell, Studio, Pilotage, Storm Control, Command Layer). Ce choix concerne uniquement l'interface Storm elle-même, jamais l'expression d'un projet : un projet choisit ses propres typographies (`fontPrimary`/`fontSecondary`) pour son identité et son expérience publique (Ivory) — les deux ne se confondent jamais ;
 - profondeur par les couches, matériaux, hiérarchie et mouvement ;
 - pas de Liquid Glass généralisé ;
 - motion fonctionnelle, jamais décorative.

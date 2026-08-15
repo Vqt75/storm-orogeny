@@ -6,7 +6,7 @@ Aucun code pour l'instant — ce premier commit ne contient que la constitution 
 
 ## Documentation
 
-- [`docs/MANIFEST.md`](./docs/MANIFEST.md) — vision produit, principes non négociables, les cinq grandes briques.
+- [`docs/OROGENY_MANIFESTO.md`](./docs/OROGENY_MANIFESTO.md) — vision produit, principes non négociables, les cinq grandes briques.
 - [`docs/ROADMAP.md`](./docs/ROADMAP.md) — phases produit et piste de présentation (Meet Orogeny).
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — architecture technique de départ.
 - [`docs/contracts/`](./docs/contracts/) — contrats à stabiliser avant implémentation (permissions, schéma, Command Layer, collaboration).

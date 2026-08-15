@@ -31,7 +31,28 @@ Tenant
         └── Configuration
 ```
 
-Ne pas ajouter maintenant de hiérarchie Programme/Sous-projet récursive. Un projet n'est jamais supposé équivaloir à un seul bâtiment, une seule population ou une seule vague — voir `MANIFEST.md`.
+Ne pas ajouter maintenant de hiérarchie Programme/Sous-projet récursive. Un projet n'est jamais supposé équivaloir à un seul bâtiment, une seule population ou une seule vague — voir `OROGENY_MANIFESTO.md`.
+
+## Memberships — deux tables distinctes, jamais confondues
+
+```
+tenant_memberships
+  user_id, tenant_id, ...
+
+project_memberships
+  user_id, project_id, permission_bundle, status, ...
+  UNIQUE(project_id, user_id)
+```
+
+Une `tenant_membership` porte l'appartenance à l'organisation. Une `project_membership` porte l'accès réel à un projet précis — bundle de permissions au minimum, statut, métadonnées d'attribution. L'une ne donne jamais automatiquement l'autre : appartenir à l'organisation ne donne jamais accès à un projet sans membership de projet explicite.
+
+## Accès aux données : SQL-first
+
+Migrations explicites en SQL/PostgreSQL, avec une couche d'accès typée par-dessus — jamais du SQL brut éparpillé dans chaque route, jamais un ORM qui masque les contraintes PostgreSQL au point de les faire oublier. Le choix exact de la librairie d'accès (couche typée) peut se faire pendant Foundations après un mini-spike ; il ne doit pas retarder l'écriture du schéma métier lui-même.
+
+## Collaboration temps réel (Yjs)
+
+Rien maintenant. Les six contrats de `docs/contracts/collaboration/` restent Draft. Foundations construit les entités structurées et l'optimistic concurrency (P3) ; P4 (Yjs) viendra plus tard, seulement si l'audit technique reste favorable au moment de l'implémentation — voir `docs/contracts/collaboration/scope.md`.
 
 ## Concurrence
 
@@ -39,6 +60,6 @@ Optimistic concurrency par défaut sur le contenu édité (Phase 2/3). Le multi-
 
 ## Ce qui reste à trancher avant le premier schéma DB
 
-- ORM/query builder retenu, ou SQL direct avec migrations versionnées à la main ;
+- Librairie exacte de la couche d'accès typée (après mini-spike en Phase 0, sans retarder le schéma métier) ;
 - stratégie exacte de migration réversible (down migrations systématiques ou non) ;
 - granularité des tables de contenu (une table générique polymorphe vs une table par type de contenu).

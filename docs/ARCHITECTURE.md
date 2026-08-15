@@ -33,7 +33,9 @@ Generation: Orogeny
              (construit)    (observe)      (exprime)
 ```
 
-Storm Control administre le niveau **Tenant**. Project Setup/Studio administrent le niveau **Project**. Cette frontière est volontaire : on ne place jamais « gérer tous les utilisateurs de l'organisation » dans les réglages d'un projet particulier, faute d'avoir donné un domicile à cette fonction ailleurs.
+Storm Control administre le niveau **Tenant** (appelé **Organisation** dans l'interface — voir note de vocabulaire ci-dessous). Project Setup/Studio administrent le niveau **Project**. Cette frontière est volontaire : on ne place jamais « gérer tous les utilisateurs de l'organisation » dans les réglages d'un projet particulier, faute d'avoir donné un domicile à cette fonction ailleurs.
+
+> **Vocabulaire.** *Tenant* reste le terme technique de l'isolation en base de données — celui du schéma, des migrations, du code serveur. *Organization* est le concept produit, le seul terme visible dans Storm Control. On ne doit jamais voir « Tenant settings » dans l'interface.
 
 ## Backend
 
@@ -66,15 +68,16 @@ En développement, ces adapters peuvent avoir des implémentations simples. La b
 ## Premier modèle de données
 
 ```
-Tenant
+Tenant (Organisation, côté produit)
   ├── Users
+  ├── Tenant memberships   (appartenance à l'organisation)
   ├── Groups
   ├── Templates
   ├── Policies
   ├── Integrations
   ├── Organization resources
   └── Projects
-        ├── Memberships
+        ├── Project memberships   (accès réel à CE projet — jamais hérité du tenant)
         ├── Project identity
         ├── Content
         ├── Draft state
@@ -82,6 +85,8 @@ Tenant
         ├── Pilotage
         └── Configuration
 ```
+
+Une `tenant_membership` ne donne jamais automatiquement accès à un projet. L'accès réel à un projet passe toujours par une `project_membership` explicite, porteuse au minimum d'un bundle de permissions, d'un statut et de métadonnées d'attribution — voir `docs/contracts/schema-and-migrations.md` et `docs/contracts/permissions.md`.
 
 Le tenant est l'unité d'isolation fondamentale. Le projet est l'unité principale de travail, mais pas nécessairement l'unité organisationnelle maximale. Ne pas ajouter maintenant de hiérarchie Programme/Sous-projet récursive — Orogeny ne doit simplement jamais supposer qu'un projet équivaut à un seul bâtiment, une seule population ou une seule vague ; ces dimensions de contexte pourront être introduites plus tard (Strata) sans que le modèle actuel ne s'y oppose.
 

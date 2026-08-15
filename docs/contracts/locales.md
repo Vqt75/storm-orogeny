@@ -63,6 +63,27 @@ Cette résolution n'a **jamais** d'effet sur `project.contentLocale` — les deu
 
 `workspaceLocale` et `contentLocale` ne sont **pas** des attributs d'identité visuelle — ils vivent avec la configuration du projet (`project_settings` ou équivalent), jamais dans la même table que logo/couleurs/typographies/thème (`project_identity`). Le découpage sémantique est explicite, même si les noms exacts de table peuvent suivre les conventions déjà établies dans le repo.
 
+## Modèle d'invitation (Phase 1B — enregistrement seulement, rien de plus)
+
+`invitation.locale` vit sur une invitation en attente, jamais directement sur un utilisateur avant activation :
+
+```
+project_invitation
+  id, tenant_id, project_id
+  email, permission_bundle, locale
+  status = 'pending'
+  invited_by_user_id, created_at
+```
+
+Phase 1B crée l'invitation `pending` au moment de la validation finale du Setup — dans la même transaction que la création du projet. Elle ne construit ni l'envoi du mail, ni le token, ni l'activation de compte : ce sera le périmètre d'une phase ultérieure (Invitation / Account Activation), qui transformera l'invitation acceptée en `project_membership` réel.
+
+- Utilisateur Storm déjà existant qui accepte : reçoit le membership, `user.interfaceLocale` **jamais écrasé**.
+- Nouvel utilisateur qui active son compte : `invitation.locale` initialise `user.interfaceLocale`.
+
+## Registre des locales supportées — source unique
+
+Une seule source de vérité pour la liste des locales supportées (aujourd'hui `fr, en, it, es, nl, de`), consommée par la validation serveur, l'API et le front — jamais dupliquée à plusieurs endroits. Toute contrainte DB (`CHECK`) doit rester cohérente avec ce registre, pas une liste indépendante à maintenir en parallèle.
+
 ## Ce qui reste à trancher, le moment venu
 
 - Mécanisme technique exact de résolution en cascade (calculé à la lecture, ou matérialisé) ;

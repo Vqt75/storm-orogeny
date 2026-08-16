@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { listProjectsForUser } from '../../domain/projects/repository.js';
+import {
+  listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules
+} from '../../domain/projects/repository.js';
 import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
 import { requireOrganizationCapability } from '../middleware/requireOrganizationCapability.js';
-import { ProjectCapability, OrganizationCapability } from '../../domain/permissions/capabilities.js';
+import { ProjectCapability, OrganizationCapability, projectCapabilitiesForBundle } from '../../domain/permissions/capabilities.js';
 import { validateCreateProjectPayload } from '../../domain/project-setup/validation.js';
 import { listSupportedLocales } from '../../domain/project-setup/repository.js';
 import {
@@ -148,6 +150,64 @@ export function createProjectsRouter({ pool, storageAdapter }) {
       } catch (err) {
         next(err);
       }
+    }
+  );
+
+  // Contexte projet agrégé — Phase 2A (Project Shell). Une seule
+  // requête plutôt que trois appels à recoller côté front.
+  //
+  // Invariant 1 : identity.fontPrimary/fontSecondary/theme sont des
+  // données d'IDENTITÉ DE PROJET (destinées aux contenus / à
+  // l'expérience collaborateur, futur Ivory), jamais des instructions
+  // de skinning du Shell. Aucune surface système Orogeny (Project
+  // Shell, Studio, Pilotage, Command Layer, Storm Control, Storm Home)
+  // ne doit appliquer ces valeurs à sa propre interface — Storm reste
+  // Roboto, quelle que soit la valeur reçue ici.
+  //
+  // Invariant 2 : le serveur ne renvoie aucune liste de destinations
+  // UI. membership.capabilities expose les droits effectifs,
+  // calculés côté serveur (projectCapabilitiesForBundle) — c'est au
+  // front de décider comment les représenter, jamais l'inverse.
+  //
+  // Pas de identity.logoUrl dans ce contrat V1 : l'auth de
+  // développement actuelle (X-Storm-Dev-User) ne peut pas être portée
+  // par un <img src> direct. Le front récupère l'asset via fetch()
+  // authentifié s'il en a besoin. Une URL directement consommable
+  // pourra revenir avec une vraie stratégie de session/assets.
+  router.get(
+    '/:projectId/context',
+    requireProjectCapability(pool, ProjectCapability.VIEW),
+    async (req, res) => {
+      const [identity, settings, modules] = await Promise.all([
+        findProjectIdentity(pool, req.project.id),
+        findProjectSettings(pool, req.project.id),
+        listProjectModules(pool, req.project.id)
+      ]);
+
+      res.status(200).json({
+        project: {
+          id: req.project.id,
+          name: req.project.name,
+          status: req.project.status
+        },
+        identity: identity ? {
+          logoAssetId: identity.logo_asset_id,
+          primaryColor: identity.primary_color,
+          secondaryColor: identity.secondary_color,
+          fontPrimary: identity.font_primary,
+          fontSecondary: identity.font_secondary,
+          theme: identity.theme
+        } : null,
+        settings: settings ? {
+          workspaceLocale: settings.workspace_locale,
+          contentLocale: settings.content_locale
+        } : null,
+        modules: modules.map(m => ({ key: m.module_key, enabled: m.enabled })),
+        membership: {
+          permissionBundle: req.project.my_bundle,
+          capabilities: projectCapabilitiesForBundle(req.project.my_bundle)
+        }
+      });
     }
   );
 

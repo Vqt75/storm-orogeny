@@ -31,3 +31,36 @@ export async function findAccessibleProjectForUser(pool, { userId, projectId }) 
   );
   return rows[0] ?? null;
 }
+
+// Lectures pour le contexte projet (Phase 2A — Project Shell). Jamais
+// de re-vérification tenant ici : l'appelant a déjà validé l'accès via
+// requireProjectCapability avant d'appeler ces fonctions, project_id
+// est donc déjà de confiance à ce stade.
+
+export async function findProjectIdentity(pool, projectId) {
+  const { rows } = await pool.query(
+    `select logo_asset_id, primary_color, secondary_color, font_primary, font_secondary, theme
+     from project_identity where project_id = $1`,
+    [projectId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function findProjectSettings(pool, projectId) {
+  const { rows } = await pool.query(
+    `select workspace_locale, content_locale
+     from project_settings where project_id = $1`,
+    [projectId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function listProjectModules(pool, projectId) {
+  const { rows } = await pool.query(
+    `select module_key, enabled
+     from project_modules where project_id = $1
+     order by module_key asc`,
+    [projectId]
+  );
+  return rows;
+}

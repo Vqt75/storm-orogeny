@@ -1,0 +1,250 @@
+import { Router } from 'express';
+import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
+import { ProjectCapability } from '../../domain/permissions/capabilities.js';
+import { Errors } from '../../errors/AppError.js';
+import * as repo from '../../domain/studio/repository.js';
+import * as validate from '../../domain/studio/validation.js';
+
+// Studio — autosave = brouillon uniquement. Aucune de ces routes ne
+// touche à la publication (Phase 2D, pipeline Candidate/Compiler/
+// Manifest séparé). Toute écriture requiert content.edit ; la lecture
+// requiert seulement project.view — cohérent avec les capabilities
+// déjà posées en Phase 0.
+
+function toCamelRow(row, mapping) {
+  const out = {};
+  for (const [snake, camel] of Object.entries(mapping)) out[camel] = row[snake];
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Factory pour les 4 domaines structurellement identiques (une seule
+// table, pas d'enfants) : Questions, Jalons, Membres d'équipe,
+// Ambassadeurs. L'API reste un chemin dédié par domaine ; seule
+// l'implémentation interne est factorisée.
+// ─────────────────────────────────────────────────────────────────
+function mountSimpleDomain(router, pool, {
+  path, listFn, insertFn, updateFn, deleteFn, validateFn, toApi, fromApi
+}) {
+  router.get(`/:projectId/studio/${path}`, requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+    const rows = await listFn(pool, req.project.id);
+    res.status(200).json(rows.map(toApi));
+  });
+
+  router.post(`/:projectId/studio/${path}`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validateFn(req.body, { requireVersionField: false });
+    if (!valid) { next(Errors.invalid(`Payload ${path} invalide.`, errors)); return; }
+    const row = await insertFn(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, userId: req.user.id,
+      ...fromApi(req.body)
+    });
+    res.status(201).json(toApi(row));
+  });
+
+  router.patch(`/:projectId/studio/${path}/:itemId`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validateFn(req.body, { requireVersionField: true });
+    if (!valid) { next(Errors.invalid(`Payload ${path} invalide.`, errors)); return; }
+    const row = await updateFn(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId,
+      userId: req.user.id, ...fromApi(req.body)
+    });
+    if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(200).json(toApi(row));
+  });
+
+  router.delete(`/:projectId/studio/${path}/:itemId`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const version = Number(req.query.version);
+    if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
+    const ok = await deleteFn(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
+    if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(204).send();
+  });
+}
+
+export function createStudioRouter({ pool }) {
+  const router = Router();
+
+  // ── Questions ──
+  mountSimpleDomain(router, pool, {
+    path: 'questions',
+    listFn: repo.listQuestions, insertFn: repo.insertQuestion, updateFn: repo.updateQuestion, deleteFn: repo.deleteQuestion,
+    validateFn: validate.validateQuestion,
+    toApi: r => ({ id: r.id, question: r.question, answerRuns: r.answer_runs, position: r.position, version: r.version, updatedAt: r.updated_at }),
+    fromApi: b => ({ question: b.question, answerRuns: b.answerRuns, position: b.position, version: b.version })
+  });
+
+  // ── Jalons (Le projet) ──
+  mountSimpleDomain(router, pool, {
+    path: 'milestones',
+    listFn: repo.listMilestones, insertFn: repo.insertMilestone, updateFn: repo.updateMilestone, deleteFn: repo.deleteMilestone,
+    validateFn: validate.validateMilestone,
+    toApi: r => ({ id: r.id, status: r.status, dateLabel: r.date_label, label: r.label, description: r.description, position: r.position, version: r.version, updatedAt: r.updated_at }),
+    fromApi: b => ({ status: b.status, dateLabel: b.dateLabel, label: b.label, description: b.description, position: b.position, version: b.version })
+  });
+
+  // ── Membres d'équipe (Le projet) ──
+  mountSimpleDomain(router, pool, {
+    path: 'team-members',
+    listFn: repo.listTeamMembers, insertFn: repo.insertTeamMember, updateFn: repo.updateTeamMember, deleteFn: repo.deleteTeamMember,
+    validateFn: validate.validateTeamMember,
+    toApi: r => ({ id: r.id, name: r.name, title: r.title, badge: r.badge, photoAssetId: r.photo_asset_id, position: r.position, version: r.version, updatedAt: r.updated_at }),
+    fromApi: b => ({ name: b.name, title: b.title, badge: b.badge, photoAssetId: b.photoAssetId, position: b.position, version: b.version })
+  });
+
+  // ── Ambassadeurs ──
+  mountSimpleDomain(router, pool, {
+    path: 'ambassadors',
+    listFn: repo.listAmbassadors, insertFn: repo.insertAmbassador, updateFn: repo.updateAmbassador, deleteFn: repo.deleteAmbassador,
+    validateFn: validate.validateAmbassador,
+    toApi: r => ({ id: r.id, name: r.name, role: r.role, tag: r.tag, photoAssetId: r.photo_asset_id, contactable: r.contactable, contactChannel: r.contact_channel, contactValue: r.contact_value, position: r.position, version: r.version, updatedAt: r.updated_at }),
+    fromApi: b => ({ name: b.name, role: b.role, tag: b.tag, photoAssetId: b.photoAssetId, contactable: b.contactable, contactChannel: b.contactChannel, contactValue: b.contactValue, position: b.position, version: b.version })
+  });
+
+  // ── Actualités (Article + blocs, unité de version = l'article) ──
+  const blockToApi = b => ({ id: b.id, blockType: b.block_type, runs: b.runs, imageAssetId: b.image_asset_id, position: b.position });
+  const articleToApi = r => ({
+    id: r.id, tag: r.tag, publicationDate: r.publication_date, title: r.title, chapeauRuns: r.chapeau_runs,
+    position: r.position, version: r.version, updatedAt: r.updated_at,
+    blocks: (r.blocks ?? []).map(blockToApi)
+  });
+
+  router.get('/:projectId/studio/articles', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+    const rows = await repo.listArticles(pool, req.project.id);
+    res.status(200).json(rows.map(articleToApi));
+  });
+
+  router.post('/:projectId/studio/articles', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validate.validateArticle(req.body, { requireVersionField: false });
+    if (!valid) { next(Errors.invalid('Payload article invalide.', errors)); return; }
+    const row = await repo.insertArticle(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, userId: req.user.id,
+      tag: req.body.tag, publicationDate: req.body.publicationDate, title: req.body.title,
+      chapeauRuns: req.body.chapeauRuns, position: req.body.position, blocks: req.body.blocks
+    });
+    res.status(201).json(articleToApi(row));
+  });
+
+  router.patch('/:projectId/studio/articles/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validate.validateArticle(req.body, { requireVersionField: true });
+    if (!valid) { next(Errors.invalid('Payload article invalide.', errors)); return; }
+    const row = await repo.updateArticle(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, userId: req.user.id,
+      version: req.body.version, tag: req.body.tag, publicationDate: req.body.publicationDate, title: req.body.title,
+      chapeauRuns: req.body.chapeauRuns, blocks: req.body.blocks
+    });
+    if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(200).json(articleToApi(row));
+  });
+
+  router.delete('/:projectId/studio/articles/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const version = Number(req.query.version);
+    if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
+    const ok = await repo.deleteArticle(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
+    if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(204).send();
+  });
+
+  // ── Sections narratives (Le projet, unité de version = la section) ──
+  const sectionMediaToApi = m => ({ id: m.id, assetId: m.asset_id, alt: m.alt, position: m.position });
+  const sectionToApi = r => ({
+    id: r.id, sectionType: r.section_type, payload: r.payload, position: r.position, version: r.version, updatedAt: r.updated_at,
+    media: (r.media ?? []).map(sectionMediaToApi)
+  });
+
+  router.get('/:projectId/studio/narrative-sections', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+    const rows = await repo.listNarrativeSections(pool, req.project.id);
+    res.status(200).json(rows.map(sectionToApi));
+  });
+
+  router.post('/:projectId/studio/narrative-sections', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validate.validateNarrativeSection(req.body, { requireVersionField: false });
+    if (!valid) { next(Errors.invalid('Payload section narrative invalide.', errors)); return; }
+    const row = await repo.insertNarrativeSection(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, userId: req.user.id,
+      sectionType: req.body.sectionType, payload: req.body.payload, media: req.body.media, position: req.body.position
+    });
+    res.status(201).json(sectionToApi(row));
+  });
+
+  router.patch('/:projectId/studio/narrative-sections/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validate.validateNarrativeSection(req.body, { requireVersionField: true });
+    if (!valid) { next(Errors.invalid('Payload section narrative invalide.', errors)); return; }
+    const row = await repo.updateNarrativeSection(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, userId: req.user.id,
+      version: req.body.version, sectionType: req.body.sectionType, payload: req.body.payload, media: req.body.media
+    });
+    if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(200).json(sectionToApi(row));
+  });
+
+  router.delete('/:projectId/studio/narrative-sections/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const version = Number(req.query.version);
+    if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
+    const ok = await repo.deleteNarrativeSection(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
+    if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(204).send();
+  });
+
+  // ── Espaces (Espace + médias, unité de version = l'espace) ──
+  const spaceMediaToApi = m => ({ id: m.id, kind: m.kind, assetId: m.asset_id, label: m.label, alt: m.alt, position: m.position });
+  const spaceToApi = r => ({
+    id: r.id, name: r.name, location: r.location, description: r.description, status: r.status, usages: r.usages,
+    position: r.position, version: r.version, updatedAt: r.updated_at,
+    media: (r.media ?? []).map(spaceMediaToApi)
+  });
+
+  router.get('/:projectId/studio/spaces', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+    const rows = await repo.listSpaces(pool, req.project.id);
+    res.status(200).json(rows.map(spaceToApi));
+  });
+
+  router.post('/:projectId/studio/spaces', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validate.validateSpace(req.body, { requireVersionField: false });
+    if (!valid) { next(Errors.invalid('Payload espace invalide.', errors)); return; }
+    const row = await repo.insertSpace(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, userId: req.user.id,
+      name: req.body.name, location: req.body.location, description: req.body.description,
+      status: req.body.status, usages: req.body.usages, media: req.body.media, position: req.body.position
+    });
+    res.status(201).json(spaceToApi(row));
+  });
+
+  router.patch('/:projectId/studio/spaces/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validate.validateSpace(req.body, { requireVersionField: true });
+    if (!valid) { next(Errors.invalid('Payload espace invalide.', errors)); return; }
+    const row = await repo.updateSpace(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, userId: req.user.id,
+      version: req.body.version, name: req.body.name, location: req.body.location, description: req.body.description,
+      status: req.body.status, usages: req.body.usages, media: req.body.media
+    });
+    if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(200).json(spaceToApi(row));
+  });
+
+  router.delete('/:projectId/studio/spaces/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const version = Number(req.query.version);
+    if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
+    const ok = await repo.deleteSpace(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
+    if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    res.status(204).send();
+  });
+
+  // ── Homepage + textes de section ──
+  router.get('/:projectId/studio/section-content/:sectionKey', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+    const row = await repo.findSectionContent(pool, { projectId: req.project.id, sectionKey: req.params.sectionKey });
+    res.status(200).json(row ? { fields: row.fields, version: row.version, updatedAt: row.updated_at } : { fields: {}, version: null, updatedAt: null });
+  });
+
+  router.patch('/:projectId/studio/section-content/:sectionKey', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+    const { valid, errors } = validate.validateSectionContent(req.body, req.params.sectionKey, { requireVersionField: req.body.version !== undefined });
+    if (!valid) { next(Errors.invalid('Payload section-content invalide.', errors)); return; }
+    const row = await repo.upsertSectionContent(pool, {
+      tenantId: req.project.tenant_id, projectId: req.project.id, userId: req.user.id,
+      sectionKey: req.params.sectionKey, fields: req.body.fields, version: req.body.version
+    });
+    if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée, ou la section existe déjà (fournir sa version actuelle).' } }); return; }
+    res.status(200).json({ fields: row.fields, version: row.version, updatedAt: row.updated_at });
+  });
+
+  return router;
+}

@@ -6,6 +6,7 @@ import { createMeRouter } from './routes/me.js';
 import { createProjectsRouter } from './routes/projects.js';
 import { createAssetsRouter } from './routes/assets.js';
 import { createControlRouter } from './routes/control.js';
+import { createStudioRouter } from './routes/studio.js';
 import { devAuth } from './middleware/devAuth.js';
 import { errorHandler, notFoundHandler } from './errorHandler.js';
 
@@ -70,6 +71,7 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   const authenticated = devAuth({ pool, config });
   app.use('/api/me', authenticated, createMeRouter({ pool }));
   app.use('/api/projects', authenticated, createProjectsRouter({ pool, storageAdapter }));
+  app.use('/api/projects', authenticated, createStudioRouter({ pool }));
   app.use('/api/assets', authenticated, createAssetsRouter({ pool, storageAdapter }));
   app.use('/api/control', authenticated, createControlRouter({ pool }));
 

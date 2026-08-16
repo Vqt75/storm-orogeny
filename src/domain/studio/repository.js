@@ -28,7 +28,7 @@ export async function insertQuestion(pool, { tenantId, projectId, question, answ
   const { rows: [row] } = await pool.query(
     `insert into project_questions (tenant_id, project_id, question, answer_runs, position, updated_by_user_id)
      values ($1,$2,$3,$4,$5,$6) returning *`,
-    [tenantId, projectId, question, JSON.stringify(answerRuns ?? []), position, userId]
+    [tenantId, projectId, question ?? '', JSON.stringify(answerRuns ?? []), position, userId]
   );
   return row;
 }
@@ -39,7 +39,7 @@ export async function updateQuestion(pool, { tenantId, projectId, id, version, q
      set question = $1, answer_runs = $2, version = version + 1, updated_at = now(), updated_by_user_id = $3
      where tenant_id = $4 and project_id = $5 and id = $6 and version = $7
      returning *`,
-    [question, JSON.stringify(answerRuns ?? []), userId, tenantId, projectId, id, version]
+    [question ?? '', JSON.stringify(answerRuns ?? []), userId, tenantId, projectId, id, version]
   );
   return rows[0] ?? null;
 }
@@ -80,7 +80,7 @@ export async function insertArticle(pool, { tenantId, projectId, tag, publicatio
     const { rows: [article] } = await client.query(
       `insert into project_articles (tenant_id, project_id, tag, publication_date, title, chapeau_runs, position, updated_by_user_id)
        values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
-      [tenantId, projectId, tag ?? null, publicationDate ?? null, title, JSON.stringify(chapeauRuns ?? []), position, userId]
+      [tenantId, projectId, tag ?? null, publicationDate ?? null, title ?? '', JSON.stringify(chapeauRuns ?? []), position, userId]
     );
     const insertedBlocks = await replaceArticleBlocks(client, { tenantId, projectId, articleId: article.id, blocks: blocks ?? [] });
     await client.query('COMMIT');
@@ -119,7 +119,7 @@ export async function updateArticle(pool, { tenantId, projectId, id, version, ta
        set tag=$1, publication_date=$2, title=$3, chapeau_runs=$4, version=version+1, updated_at=now(), updated_by_user_id=$5
        where tenant_id=$6 and project_id=$7 and id=$8 and version=$9
        returning *`,
-      [tag ?? null, publicationDate ?? null, title, JSON.stringify(chapeauRuns ?? []), userId, tenantId, projectId, id, version]
+      [tag ?? null, publicationDate ?? null, title ?? '', JSON.stringify(chapeauRuns ?? []), userId, tenantId, projectId, id, version]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
@@ -192,7 +192,7 @@ export async function insertTeamMember(pool, { tenantId, projectId, name, title,
   const { rows: [row] } = await pool.query(
     `insert into project_team_members (tenant_id, project_id, name, title, badge, photo_asset_id, position, updated_by_user_id)
      values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
-    [tenantId, projectId, name, title ?? null, badge ?? null, photoAssetId ?? null, position, userId]
+    [tenantId, projectId, name ?? '', title ?? null, badge ?? null, photoAssetId ?? null, position, userId]
   );
   return row;
 }
@@ -203,7 +203,7 @@ export async function updateTeamMember(pool, { tenantId, projectId, id, version,
      set name=$1, title=$2, badge=$3, photo_asset_id=$4, version=version+1, updated_at=now(), updated_by_user_id=$5
      where tenant_id=$6 and project_id=$7 and id=$8 and version=$9
      returning *`,
-    [name, title ?? null, badge ?? null, photoAssetId ?? null, userId, tenantId, projectId, id, version]
+    [name ?? '', title ?? null, badge ?? null, photoAssetId ?? null, userId, tenantId, projectId, id, version]
   );
   return rows[0] ?? null;
 }
@@ -308,7 +308,7 @@ export async function insertAmbassador(pool, { tenantId, projectId, name, role, 
   const { rows: [row] } = await pool.query(
     `insert into project_ambassadors (tenant_id, project_id, name, role, tag, photo_asset_id, contactable, contact_channel, contact_value, position, updated_by_user_id)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
-    [tenantId, projectId, name, role ?? null, tag ?? null, photoAssetId ?? null, contactable ?? true, contactChannel ?? null, contactValue ?? null, position, userId]
+    [tenantId, projectId, name ?? '', role ?? null, tag ?? null, photoAssetId ?? null, contactable ?? true, contactChannel ?? null, contactValue ?? null, position, userId]
   );
   return row;
 }
@@ -320,7 +320,7 @@ export async function updateAmbassador(pool, { tenantId, projectId, id, version,
          version=version+1, updated_at=now(), updated_by_user_id=$8
      where tenant_id=$9 and project_id=$10 and id=$11 and version=$12
      returning *`,
-    [name, role ?? null, tag ?? null, photoAssetId ?? null, contactable ?? true, contactChannel ?? null, contactValue ?? null, userId, tenantId, projectId, id, version]
+    [name ?? '', role ?? null, tag ?? null, photoAssetId ?? null, contactable ?? true, contactChannel ?? null, contactValue ?? null, userId, tenantId, projectId, id, version]
   );
   return rows[0] ?? null;
 }
@@ -369,7 +369,7 @@ export async function insertSpace(pool, { tenantId, projectId, name, location, d
     const { rows: [space] } = await client.query(
       `insert into project_spaces (tenant_id, project_id, name, location, description, status, usages, position, updated_by_user_id)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
-      [tenantId, projectId, name, location ?? null, description ?? null, status ?? null, usages ?? [], position, userId]
+      [tenantId, projectId, name ?? '', location ?? null, description ?? null, status ?? null, usages ?? [], position, userId]
     );
     const insertedMedia = await replaceSpaceMedia(client, { tenantId, projectId, spaceId: space.id, media: media ?? [] });
     await client.query('COMMIT');
@@ -391,7 +391,7 @@ export async function updateSpace(pool, { tenantId, projectId, id, version, name
        set name=$1, location=$2, description=$3, status=$4, usages=$5, version=version+1, updated_at=now(), updated_by_user_id=$6
        where tenant_id=$7 and project_id=$8 and id=$9 and version=$10
        returning *`,
-      [name, location ?? null, description ?? null, status ?? null, usages ?? [], userId, tenantId, projectId, id, version]
+      [name ?? '', location ?? null, description ?? null, status ?? null, usages ?? [], userId, tenantId, projectId, id, version]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');

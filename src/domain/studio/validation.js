@@ -13,6 +13,16 @@ function isNonEmptyString(v) {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+// Un brouillon Studio tolère l'incomplétude — validité structurelle
+// (bon type) != validité de publication (contenu métier complet). La
+// complétude sera vérifiée par la future couche Publication (Phase
+// 2D), jamais par l'autosave. Invariant Studio global, pas spécifique
+// à Questions : title/name/etc. peuvent être temporairement vides
+// pendant qu'un brouillon se construit ou se réécrit.
+function isString(v) {
+  return typeof v === 'string';
+}
+
 // Modèle de runs Orogeny — bold/italic/underline/href uniquement.
 // highlight est du legacy Tectonic, jamais une primitive Orogeny (voir
 // la conception validée) : un payload qui en contient est refusé,
@@ -47,7 +57,9 @@ function requireVersion(payload, errors) {
 
 export function validateQuestion(payload, { requireVersionField = true } = {}) {
   const errors = [];
-  if (!isNonEmptyString(payload?.question)) errors.push('question est requise et ne peut pas être vide.');
+  if (payload?.question !== undefined && !isString(payload.question)) {
+    errors.push('question doit être une chaîne de caractères (peut être vide — un brouillon Studio tolère l\'incomplétude).');
+  }
   validateRuns(payload?.answerRuns, 'answerRuns', errors);
   if (requireVersionField) requireVersion(payload, errors);
   return { valid: errors.length === 0, errors };
@@ -73,7 +85,9 @@ function validateBlocks(blocks, errors) {
 
 export function validateArticle(payload, { requireVersionField = true } = {}) {
   const errors = [];
-  if (!isNonEmptyString(payload?.title)) errors.push('title est requis et ne peut pas être vide.');
+  if (payload?.title !== undefined && !isString(payload.title)) {
+    errors.push('title doit être une chaîne de caractères (peut être vide — un brouillon Studio tolère l\'incomplétude).');
+  }
   validateRuns(payload?.chapeauRuns, 'chapeauRuns', errors);
   validateBlocks(payload?.blocks, errors);
   if (requireVersionField) requireVersion(payload, errors);
@@ -91,7 +105,9 @@ export function validateMilestone(payload, { requireVersionField = true } = {}) 
 
 export function validateTeamMember(payload, { requireVersionField = true } = {}) {
   const errors = [];
-  if (!isNonEmptyString(payload?.name)) errors.push('name est requis et ne peut pas être vide.');
+  if (payload?.name !== undefined && !isString(payload.name)) {
+    errors.push('name doit être une chaîne de caractères (peut être vide — un brouillon Studio tolère l\'incomplétude).');
+  }
   if (requireVersionField) requireVersion(payload, errors);
   return { valid: errors.length === 0, errors };
 }
@@ -121,7 +137,9 @@ export function validateNarrativeSection(payload, { requireVersionField = true }
 
 export function validateAmbassador(payload, { requireVersionField = true } = {}) {
   const errors = [];
-  if (!isNonEmptyString(payload?.name)) errors.push('name est requis et ne peut pas être vide.');
+  if (payload?.name !== undefined && !isString(payload.name)) {
+    errors.push('name doit être une chaîne de caractères (peut être vide — un brouillon Studio tolère l\'incomplétude).');
+  }
   if (requireVersionField) requireVersion(payload, errors);
   return { valid: errors.length === 0, errors };
 }
@@ -138,7 +156,9 @@ function validateSpaceMedia(media, errors) {
 
 export function validateSpace(payload, { requireVersionField = true } = {}) {
   const errors = [];
-  if (!isNonEmptyString(payload?.name)) errors.push('name est requis et ne peut pas être vide.');
+  if (payload?.name !== undefined && !isString(payload.name)) {
+    errors.push('name doit être une chaîne de caractères (peut être vide — un brouillon Studio tolère l\'incomplétude).');
+  }
   if (payload?.status !== undefined && payload.status !== null && !SPACE_STATUSES.has(payload.status)) {
     errors.push(`status doit être l'un de : ${[...SPACE_STATUSES].join(', ')}.`);
   }

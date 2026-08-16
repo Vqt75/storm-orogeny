@@ -53,6 +53,18 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'project-shell.html'));
   });
 
+  // Studio — vertical slice Questions (Phase 2B). Même principe que
+  // le reste : page statique publique, les vraies données/écritures
+  // passent par /api/projects/:id/studio/*, protégées par devAuth +
+  // requireProjectCapability côté client.
+  app.get('/projects/:projectId/studio', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'studio-questions.html'));
+  });
+
   // Storm Control — même principe. GET /api/control/* protégé par
   // devAuth + capabilities organisationnelles côté serveur (jamais
   // seulement masqué côté front).

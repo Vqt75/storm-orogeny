@@ -37,6 +37,21 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'project-setup.html'));
   });
 
+  // Project Shell — même principe. Enregistrée après /projects/new
+  // (Express matche par ordre d'enregistrement) : /projects/new reste
+  // toujours capté par la route exacte ci-dessus, jamais par ce
+  // paramètre générique. UUID validé pour ne jamais confondre avec un
+  // futur segment littéral. GET /api/projects/:id/context protégé par
+  // devAuth + requireProjectCapability côté client.
+  const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  app.get('/projects/:projectId', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'project-shell.html'));
+  });
+
   // Storm Control — même principe. GET /api/control/* protégé par
   // devAuth + capabilities organisationnelles côté serveur (jamais
   // seulement masqué côté front).

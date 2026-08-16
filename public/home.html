@@ -841,9 +841,9 @@
     Development only: ?devUser=<uuid> forwards X-Storm-Dev-User.
   */
 
-  // createProject (Phase 1B) et control (Phase 1C) mènent désormais à
-  // de vraies routes. project/meetStorm restent en attente de leur
-  // construction — ces destinations affichent un feedback discret
+  // createProject (Phase 1B), control (Phase 1C) et project (Phase 2A)
+  // mènent désormais à de vraies routes. meetStorm reste en attente de
+  // sa construction — cette destination affiche un feedback discret
   // plutôt que de naviguer vers une route qui n'existe pas encore
   // côté serveur (voir showComingSoon plus bas).
   const ROUTES = Object.freeze({
@@ -1039,6 +1039,10 @@
       event.stopPropagation();
       if (action.dataset.action === 'create') {
         navigateWithDevUser(ROUTES.createProject);
+        return;
+      }
+      if (action.dataset.action === 'open') {
+        navigateWithDevUser(ROUTES.project(action.dataset.projectId));
         return;
       }
       showComingSoon();

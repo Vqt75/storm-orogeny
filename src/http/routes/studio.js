@@ -11,10 +11,13 @@ import * as validate from '../../domain/studio/validation.js';
 // requiert seulement project.view — cohérent avec les capabilities
 // déjà posées en Phase 0.
 
-function toCamelRow(row, mapping) {
-  const out = {};
-  for (const [snake, camel] of Object.entries(mapping)) out[camel] = row[snake];
-  return out;
+// Toute route async doit passer par ce wrapper : Express 4 ne
+// rattrape pas automatiquement une promesse rejetée dans un handler
+// async — sans lui, une erreur levée (ex. violation de contrainte
+// DB) ne remonte jamais à errorHandler et la requête reste bloquée
+// indéfiniment plutôt que de répondre proprement.
+function asyncHandler(fn) {
+  return (req, res, next) => { fn(req, res, next).catch(next); };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -26,12 +29,12 @@ function toCamelRow(row, mapping) {
 function mountSimpleDomain(router, pool, {
   path, listFn, insertFn, updateFn, deleteFn, validateFn, toApi, fromApi
 }) {
-  router.get(`/:projectId/studio/${path}`, requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+  router.get(`/:projectId/studio/${path}`, requireProjectCapability(pool, ProjectCapability.VIEW), asyncHandler(async (req, res) => {
     const rows = await listFn(pool, req.project.id);
     res.status(200).json(rows.map(toApi));
-  });
+  }));
 
-  router.post(`/:projectId/studio/${path}`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.post(`/:projectId/studio/${path}`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validateFn(req.body, { requireVersionField: false });
     if (!valid) { next(Errors.invalid(`Payload ${path} invalide.`, errors)); return; }
     const row = await insertFn(pool, {
@@ -39,9 +42,9 @@ function mountSimpleDomain(router, pool, {
       ...fromApi(req.body)
     });
     res.status(201).json(toApi(row));
-  });
+  }));
 
-  router.patch(`/:projectId/studio/${path}/:itemId`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.patch(`/:projectId/studio/${path}/:itemId`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validateFn(req.body, { requireVersionField: true });
     if (!valid) { next(Errors.invalid(`Payload ${path} invalide.`, errors)); return; }
     const row = await updateFn(pool, {
@@ -50,15 +53,15 @@ function mountSimpleDomain(router, pool, {
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(200).json(toApi(row));
-  });
+  }));
 
-  router.delete(`/:projectId/studio/${path}/:itemId`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.delete(`/:projectId/studio/${path}/:itemId`, requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const version = Number(req.query.version);
     if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
     const ok = await deleteFn(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
     if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(204).send();
-  });
+  }));
 }
 
 export function createStudioRouter({ pool }) {
@@ -108,12 +111,12 @@ export function createStudioRouter({ pool }) {
     blocks: (r.blocks ?? []).map(blockToApi)
   });
 
-  router.get('/:projectId/studio/articles', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+  router.get('/:projectId/studio/articles', requireProjectCapability(pool, ProjectCapability.VIEW), asyncHandler(async (req, res) => {
     const rows = await repo.listArticles(pool, req.project.id);
     res.status(200).json(rows.map(articleToApi));
-  });
+  }));
 
-  router.post('/:projectId/studio/articles', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.post('/:projectId/studio/articles', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateArticle(req.body, { requireVersionField: false });
     if (!valid) { next(Errors.invalid('Payload article invalide.', errors)); return; }
     const row = await repo.insertArticle(pool, {
@@ -122,9 +125,9 @@ export function createStudioRouter({ pool }) {
       chapeauRuns: req.body.chapeauRuns, position: req.body.position, blocks: req.body.blocks
     });
     res.status(201).json(articleToApi(row));
-  });
+  }));
 
-  router.patch('/:projectId/studio/articles/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.patch('/:projectId/studio/articles/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateArticle(req.body, { requireVersionField: true });
     if (!valid) { next(Errors.invalid('Payload article invalide.', errors)); return; }
     const row = await repo.updateArticle(pool, {
@@ -134,15 +137,15 @@ export function createStudioRouter({ pool }) {
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(200).json(articleToApi(row));
-  });
+  }));
 
-  router.delete('/:projectId/studio/articles/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.delete('/:projectId/studio/articles/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const version = Number(req.query.version);
     if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
     const ok = await repo.deleteArticle(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
     if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(204).send();
-  });
+  }));
 
   // ── Sections narratives (Le projet, unité de version = la section) ──
   const sectionMediaToApi = m => ({ id: m.id, assetId: m.asset_id, alt: m.alt, position: m.position });
@@ -151,12 +154,12 @@ export function createStudioRouter({ pool }) {
     media: (r.media ?? []).map(sectionMediaToApi)
   });
 
-  router.get('/:projectId/studio/narrative-sections', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+  router.get('/:projectId/studio/narrative-sections', requireProjectCapability(pool, ProjectCapability.VIEW), asyncHandler(async (req, res) => {
     const rows = await repo.listNarrativeSections(pool, req.project.id);
     res.status(200).json(rows.map(sectionToApi));
-  });
+  }));
 
-  router.post('/:projectId/studio/narrative-sections', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.post('/:projectId/studio/narrative-sections', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateNarrativeSection(req.body, { requireVersionField: false });
     if (!valid) { next(Errors.invalid('Payload section narrative invalide.', errors)); return; }
     const row = await repo.insertNarrativeSection(pool, {
@@ -164,9 +167,9 @@ export function createStudioRouter({ pool }) {
       sectionType: req.body.sectionType, payload: req.body.payload, media: req.body.media, position: req.body.position
     });
     res.status(201).json(sectionToApi(row));
-  });
+  }));
 
-  router.patch('/:projectId/studio/narrative-sections/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.patch('/:projectId/studio/narrative-sections/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateNarrativeSection(req.body, { requireVersionField: true });
     if (!valid) { next(Errors.invalid('Payload section narrative invalide.', errors)); return; }
     const row = await repo.updateNarrativeSection(pool, {
@@ -175,15 +178,15 @@ export function createStudioRouter({ pool }) {
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(200).json(sectionToApi(row));
-  });
+  }));
 
-  router.delete('/:projectId/studio/narrative-sections/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.delete('/:projectId/studio/narrative-sections/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const version = Number(req.query.version);
     if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
     const ok = await repo.deleteNarrativeSection(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
     if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(204).send();
-  });
+  }));
 
   // ── Espaces (Espace + médias, unité de version = l'espace) ──
   const spaceMediaToApi = m => ({ id: m.id, kind: m.kind, assetId: m.asset_id, label: m.label, alt: m.alt, position: m.position });
@@ -193,12 +196,12 @@ export function createStudioRouter({ pool }) {
     media: (r.media ?? []).map(spaceMediaToApi)
   });
 
-  router.get('/:projectId/studio/spaces', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+  router.get('/:projectId/studio/spaces', requireProjectCapability(pool, ProjectCapability.VIEW), asyncHandler(async (req, res) => {
     const rows = await repo.listSpaces(pool, req.project.id);
     res.status(200).json(rows.map(spaceToApi));
-  });
+  }));
 
-  router.post('/:projectId/studio/spaces', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.post('/:projectId/studio/spaces', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateSpace(req.body, { requireVersionField: false });
     if (!valid) { next(Errors.invalid('Payload espace invalide.', errors)); return; }
     const row = await repo.insertSpace(pool, {
@@ -207,9 +210,9 @@ export function createStudioRouter({ pool }) {
       status: req.body.status, usages: req.body.usages, media: req.body.media, position: req.body.position
     });
     res.status(201).json(spaceToApi(row));
-  });
+  }));
 
-  router.patch('/:projectId/studio/spaces/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.patch('/:projectId/studio/spaces/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateSpace(req.body, { requireVersionField: true });
     if (!valid) { next(Errors.invalid('Payload espace invalide.', errors)); return; }
     const row = await repo.updateSpace(pool, {
@@ -219,23 +222,23 @@ export function createStudioRouter({ pool }) {
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(200).json(spaceToApi(row));
-  });
+  }));
 
-  router.delete('/:projectId/studio/spaces/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.delete('/:projectId/studio/spaces/:itemId', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const version = Number(req.query.version);
     if (!Number.isInteger(version)) { next(Errors.invalid('version (query) est requise pour supprimer.')); return; }
     const ok = await repo.deleteSpace(pool, { tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, version });
     if (!ok) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
     res.status(204).send();
-  });
+  }));
 
   // ── Homepage + textes de section ──
-  router.get('/:projectId/studio/section-content/:sectionKey', requireProjectCapability(pool, ProjectCapability.VIEW), async (req, res) => {
+  router.get('/:projectId/studio/section-content/:sectionKey', requireProjectCapability(pool, ProjectCapability.VIEW), asyncHandler(async (req, res) => {
     const row = await repo.findSectionContent(pool, { projectId: req.project.id, sectionKey: req.params.sectionKey });
     res.status(200).json(row ? { fields: row.fields, version: row.version, updatedAt: row.updated_at } : { fields: {}, version: null, updatedAt: null });
-  });
+  }));
 
-  router.patch('/:projectId/studio/section-content/:sectionKey', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), async (req, res, next) => {
+  router.patch('/:projectId/studio/section-content/:sectionKey', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateSectionContent(req.body, req.params.sectionKey, { requireVersionField: req.body.version !== undefined });
     if (!valid) { next(Errors.invalid('Payload section-content invalide.', errors)); return; }
     const row = await repo.upsertSectionContent(pool, {
@@ -244,7 +247,7 @@ export function createStudioRouter({ pool }) {
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée, ou la section existe déjà (fournir sa version actuelle).' } }); return; }
     res.status(200).json({ fields: row.fields, version: row.version, updatedAt: row.updated_at });
-  });
+  }));
 
   return router;
 }

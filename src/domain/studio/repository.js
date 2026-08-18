@@ -80,7 +80,7 @@ export async function insertArticle(pool, { tenantId, projectId, tag, publicatio
     const { rows: [article] } = await client.query(
       `insert into project_articles (tenant_id, project_id, tag, publication_date, title, chapeau_runs, position, updated_by_user_id)
        values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
-      [tenantId, projectId, tag ?? null, publicationDate ?? null, title ?? '', JSON.stringify(chapeauRuns ?? []), position, userId]
+      [tenantId, projectId, tag ?? null, publicationDate || null, title ?? '', JSON.stringify(chapeauRuns ?? []), position, userId]
     );
     // Création : aucun bloc existant à préserver, insertion simple.
     // Un id éventuellement fourni par le client est ignoré (l'article
@@ -187,7 +187,7 @@ export async function updateArticle(pool, { tenantId, projectId, id, version, ta
        set tag=$1, publication_date=$2, title=$3, chapeau_runs=$4, version=version+1, updated_at=now(), updated_by_user_id=$5
        where tenant_id=$6 and project_id=$7 and id=$8 and version=$9
        returning *`,
-      [tag ?? null, publicationDate ?? null, title ?? '', JSON.stringify(chapeauRuns ?? []), userId, tenantId, projectId, id, version]
+      [tag ?? null, publicationDate || null, title ?? '', JSON.stringify(chapeauRuns ?? []), userId, tenantId, projectId, id, version]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');

@@ -65,6 +65,18 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'studio-questions.html'));
   });
 
+  // Studio — vertical slice Actualités (Phase 2B). Chemin distinct de
+  // Questions (/studio/news, pas /studio) : ces vertical slices sont
+  // encore des pages indépendantes en attendant leur fusion dans un
+  // vrai Studio unifié, elles ne peuvent pas partager la même URL.
+  app.get('/projects/:projectId/studio/news', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'studio-actualites.html'));
+  });
+
   // Storm Control — même principe. GET /api/control/* protégé par
   // devAuth + capabilities organisationnelles côté serveur (jamais
   // seulement masqué côté front).

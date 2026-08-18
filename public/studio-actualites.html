@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storm Studio — Actualités · Orogeny</title>
+<link rel="stylesheet" href="/fonts/roboto.css">
+<style>
+:root{--bg:#f6f6f3;--ink:#111;--muted:#77777c;--glass:rgba(244,244,242,.52);--accent:#8a8a8d;--accent-rgb:138,138,141;--ease:cubic-bezier(.22,1,.36,1)}
+*{box-sizing:border-box}[hidden]{display:none!important}html{background:var(--bg)}body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% -10%,#fff,transparent 34%),radial-gradient(circle at 86% 2%,rgba(var(--accent-rgb),.07),transparent 25%),var(--bg);color:var(--ink);font-family:Roboto,"Helvetica Neue",Arial,sans-serif}button,input{font:inherit;color:inherit}
+.shell{padding:22px 28px 150px}.topbar{position:sticky;top:16px;z-index:30;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 9px 0 20px;border:1px solid rgba(255,255,255,.72);border-radius:20px;background:rgba(255,255,255,.38);backdrop-filter:blur(24px) saturate(175%);box-shadow:0 10px 34px rgba(17,17,17,.07),inset 0 1px 0 rgba(255,255,255,.8)}
+.brand{display:flex;gap:10px;align-items:center;font-size:19px;font-weight:720;letter-spacing:-.035em}.brand span{color:var(--muted);font-weight:560}.home{border:0;background:transparent;border-radius:12px;padding:9px 12px;cursor:pointer;font-size:13px;font-weight:680}.home:hover{background:rgba(255,255,255,.55)}
+main{width:min(1280px,100%);margin:0 auto;padding-top:82px}.layout{display:grid;grid-template-columns:190px minmax(0,880px);gap:58px;align-items:start}
+nav{position:sticky;top:102px;padding:7px;border:1px solid rgba(255,255,255,.72);border-radius:22px;background:rgba(247,247,244,.44);backdrop-filter:blur(24px) saturate(170%);box-shadow:0 12px 38px rgba(17,17,17,.06)}
+.nav{width:100%;min-height:43px;padding:0 13px;border:0;border-radius:15px;background:transparent;text-align:left;color:var(--muted);cursor:pointer;font-size:13px;font-weight:650}.nav:hover{background:rgba(255,255,255,.38);color:var(--ink)}.nav.active{background:rgba(255,255,255,.84);color:var(--ink);box-shadow:0 7px 18px rgba(17,17,17,.05)}
+.head{position:relative;margin-bottom:44px}.head:after{content:"";position:absolute;z-index:-1;width:270px;height:270px;right:-40px;top:-110px;border-radius:50%;background:rgba(var(--accent-rgb),.08)}.eyebrow{margin:0 0 13px;color:var(--muted);font-size:11px;font-weight:780;letter-spacing:.13em;text-transform:uppercase}h1{margin:0;font-size:clamp(54px,6.2vw,88px);line-height:.9;letter-spacing:-.064em;font-weight:630}.lead{margin:19px 0 0;max-width:620px;color:var(--muted);font-size:15px;line-height:1.55}
+.list{display:grid;gap:14px}.card{min-height:142px;border:0;border-radius:28px;background:rgba(255,255,255,.73);padding:22px 24px;text-align:left;cursor:pointer;box-shadow:0 11px 30px rgba(17,17,17,.035);transition:.22s var(--ease)}.card:hover,.card:focus-visible{transform:translateY(-2px);background:#fff;box-shadow:0 24px 68px rgba(17,17,17,.1)}.meta{display:flex;gap:8px;color:var(--muted);font-size:11px;font-weight:700}.title{display:block;margin-top:28px;font-size:26px;line-height:1.08;letter-spacing:-.04em;font-weight:700}.excerpt{display:block;margin-top:8px;color:var(--muted);font-size:13px;line-height:1.5}.add{min-height:76px;border:0;border-radius:24px;background:rgba(255,255,255,.28);color:var(--muted);padding:0 24px;text-align:left;cursor:pointer;font-weight:680}.add:hover{background:rgba(255,255,255,.72);color:var(--ink)}
+.back{border:0;background:transparent;padding:8px 0;color:var(--muted);cursor:pointer;font-size:13px;font-weight:680}.article-title{display:block;width:100%;margin-top:22px;border:0;outline:0;background:transparent;font-size:clamp(44px,5.2vw,76px);line-height:.96;letter-spacing:-.058em;font-weight:650}.article-title::placeholder{color:#b2b2b6}.chapeau{margin-top:20px;min-height:60px;outline:0;color:var(--muted);font-size:18px;line-height:1.5}.editable:empty:before{content:attr(data-placeholder);color:#aaaab0;pointer-events:none}.article-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}.pill-input{border:0;outline:0;border-radius:999px;background:rgba(17,17,17,.045);padding:8px 11px;font-size:12px}
+.body{display:grid;gap:12px;margin-top:46px}.block{position:relative;border-radius:24px;background:rgba(255,255,255,.68);padding:22px 24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}.block:focus-within{background:#fff;box-shadow:0 16px 46px rgba(17,17,17,.06)}.tools{position:absolute;right:14px;top:14px;display:flex;gap:4px;opacity:0}.block:hover .tools,.block:focus-within .tools{opacity:1}.tool{width:34px;height:34px;border:0;border-radius:11px;background:rgba(17,17,17,.04);cursor:pointer}.text{min-height:96px;outline:0;font-size:16px;line-height:1.7;padding-right:70px}.heading{min-height:42px;outline:0;font-size:28px;line-height:1.15;font-weight:690;letter-spacing:-.04em;padding-right:70px}.image{min-height:220px;display:grid;place-items:center;text-align:center;background:linear-gradient(145deg,rgba(17,17,17,.025),rgba(var(--accent-rgb),.05))}.image span{display:block;margin-top:7px;color:var(--muted);font-size:12px}.insert{display:flex;justify-content:center;min-height:34px}.insert button{border:0;border-radius:999px;background:rgba(255,255,255,.42);color:var(--muted);padding:7px 12px;cursor:pointer;font-size:12px;font-weight:700;opacity:.18}.insert:hover button,.insert button:focus-visible{opacity:1;background:#fff;color:var(--ink)}
+.format{position:fixed;z-index:80;display:flex;gap:3px;padding:5px;border:1px solid rgba(255,255,255,.75);border-radius:15px;background:rgba(244,244,242,.74);backdrop-filter:blur(22px) saturate(185%);box-shadow:0 15px 42px rgba(17,17,17,.16)}.format button{width:35px;height:35px;border:0;border-radius:10px;background:transparent;cursor:pointer;font-weight:720}.format button:hover{background:#fff}.i{font-style:italic}.u{text-decoration:underline}
+.command{position:fixed;z-index:70;left:50%;bottom:22px;transform:translateX(-50%);width:min(640px,calc(100vw - 28px));min-height:58px;padding:6px;border:1px solid rgba(255,255,255,.74);border-radius:20px;background:var(--glass);backdrop-filter:blur(28px) saturate(190%);box-shadow:0 18px 54px rgba(17,17,17,.16),inset 0 1px 0 rgba(255,255,255,.9)}.command-inner{min-height:46px;display:flex;align-items:center;justify-content:center;gap:6px}.command-msg{padding:0 12px;color:#343438;text-align:center;font-size:13px}.command-btn{min-height:42px;padding:0 16px;border:0;border-radius:15px;background:transparent;cursor:pointer;font-size:13px;font-weight:690}.command-btn.primary{background:#111;color:#fff}
+.confirm-sheet{position:fixed;z-index:100;inset:0;display:grid;place-items:center;padding:20px;background:rgba(17,17,17,.12);backdrop-filter:blur(8px)}
+.confirm-card{width:min(420px,100%);padding:24px;border-radius:26px;background:rgba(250,250,248,.94);box-shadow:0 28px 80px rgba(17,17,17,.20)}
+.confirm-card h2{margin:0 0 8px;font-size:22px}
+.confirm-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:24px}
+.confirm-actions button{border:0;border-radius:13px;padding:10px 14px;cursor:pointer;font-weight:690}
+.confirm-cancel{background:rgba(17,17,17,.06)}
+.confirm-delete{background:#111;color:#fff}
+.image.uploading,.image.upload-error{cursor:default}
+.image .upload-progress{color:var(--muted);font-size:12px}
+.image .upload-retry{margin-top:8px;border:0;border-radius:999px;background:#111;color:#fff;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:700}
+@media(max-width:900px){.shell{padding:14px 14px 136px}.topbar{top:10px}.brand span,.home{display:none}main{padding-top:66px}.layout{grid-template-columns:1fr;gap:30px}nav{position:relative;top:auto;display:flex;gap:4px;overflow:auto;scrollbar-width:none}.nav{width:auto;flex:0 0 auto}.command{bottom:12px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar"><div class="brand"><strong>Storm</strong><span id="brandProject">Projet</span></div><button class="home" id="projectLink">Projet</button></header>
+<main><div class="layout">
+<nav aria-label="Studio">
+<button class="nav" data-domain="homepage">Homepage</button><button class="nav" data-domain="project">Le projet</button><button class="nav" data-domain="spaces">Espaces</button><button class="nav active" data-domain="news">Actualités</button><button class="nav" data-domain="ambassadors">Ambassadeurs</button><button class="nav" data-domain="questions">Questions</button>
+</nav>
+<section>
+<header class="head" id="pageHead"><p class="eyebrow">Studio</p><h1>Actualités</h1><p class="lead">Les informations que vous partagez avec les collaborateurs, au fil du projet.</p></header>
+<div id="root"></div>
+</section>
+</div></main>
+</div>
+<div class="format" id="format" hidden role="toolbar" aria-label="Mise en forme"><button data-format="bold">B</button><button class="i" data-format="italic">I</button><button class="u" data-format="underline">U</button></div>
+<div class="confirm-sheet" id="confirmSheet" hidden><div class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle"><h2 id="confirmTitle">Supprimer cette actualité ?</h2><p>Cette suppression retire l’actualité du brouillon Studio. Elle ne modifie pas la version publique tant que vous ne publiez pas.</p><div class="confirm-actions"><button class="confirm-cancel" id="confirmCancel">Annuler</button><button class="confirm-delete" id="confirmDelete">Supprimer</button></div></div></div>
+<input type="file" id="imageFileInput" accept="image/png,image/jpeg" hidden>
+<div class="command" id="command" role="region" aria-label="Command Layer"><div class="command-inner" id="commandInner" aria-live="polite"></div></div>
+<script>
+/*
+Storm Studio — Actualités vertical slice.
+Integration contract, backend post-0005 :
+GET /api/projects/:id/context
+GET /api/projects/:id/studio/articles
+POST /api/projects/:id/studio/articles
+PATCH /api/projects/:id/studio/articles/:articleId
+DELETE /api/projects/:id/studio/articles/:articleId?version=N
+POST /api/projects/:id/studio/assets (kind=article_image)
+
+Article parent is the optimistic-lock unit. Blocks are children,
+persisted transactionally with the parent. Draft may be incomplete —
+sauf un bloc image, qui n'existe jamais sans imageAssetId (contrat
+backend volontaire, pas une limite technique).
+
+Bloc canonique, partout : {id?, clientKey?, blockType, runs, imageAssetId, position}
+- blockType/imageAssetId sont les seuls noms envoyés à l'API — jamais
+  type/assetId (divergence trouvée et corrigée à l'intégration).
+- Un nouveau bloc n'a jamais d'id fictif : clientKey (front uniquement)
+  assure une identité de rendu stable jusqu'au premier autosave
+  réussi, qui réconcilie avec le vrai id retourné par le serveur, sans
+  jamais écraser le contenu en cours de frappe.
+*/
+const state={context:null,articles:[],mode:'list',activeId:null,load:'loading',save:'saved',error:null,unpublished:false,timer:null,locked:false,saving:false,resave:false,deleteArticleId:null,upload:{at:null,status:'idle'}};
+const projectId=(location.pathname.match(/^\/projects\/([^/]+)\/studio\/news\/?$/)||[])[1]||'';
+const root=document.getElementById('root'),pageHead=document.getElementById('pageHead'),command=document.getElementById('command'),commandInner=document.getElementById('commandInner'),format=document.getElementById('format'),confirmSheet=document.getElementById('confirmSheet'),imageFileInput=document.getElementById('imageFileInput');
+function devHeaders(){const u=new URLSearchParams(location.search).get('devUser');return u?{'X-Storm-Dev-User':u}:{}}
+function preserve(url){const u=new URLSearchParams(location.search).get('devUser');return u?url+(url.includes('?')?'&':'?')+'devUser='+encodeURIComponent(u):url}
+function has(c){return state.context?.membership?.capabilities?.includes(c)}
+async function api(url,opt={}){const r=await fetch(url,{...opt,credentials:'same-origin',headers:{Accept:'application/json',...devHeaders(),...(opt.body instanceof FormData?{}:opt.body?{'Content-Type':'application/json'}:{})}});let b=null;if(r.status!==204)b=await r.json().catch(()=>null);if(!r.ok){const e=new Error(b?.error?.message||b?.message||`HTTP ${r.status}`);e.status=r.status;throw e}return b}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function runsHtml(r=[]){return r.map(x=>{let t=esc(x.text||'');if(x.bold)t='<strong>'+t+'</strong>';if(x.italic)t='<em>'+t+'</em>';if(x.underline)t='<u>'+t+'</u>';return t}).join('')}
+function formatOf(node,root){let b=false,i=false,u=false,n=node.nodeType===3?node.parentElement:node;while(n&&n!==root){const t=n.tagName?.toLowerCase();if(t==='b'||t==='strong')b=true;if(t==='i'||t==='em')i=true;if(t==='u')u=true;n=n.parentElement}return{bold:b,italic:i,underline:u}}
+function toRuns(el){const out=[],w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!n.nodeValue)continue;const f=formatOf(n,el),p=out.at(-1);if(p&&!!p.bold===f.bold&&!!p.italic===f.italic&&!!p.underline===f.underline)p.text+=n.nodeValue;else out.push({text:n.nodeValue,...f})}return out}
+function article(id){return state.articles.find(x=>String(x.id)===String(id))}
+function list(){
+ state.mode='list';state.activeId=null;pageHead.hidden=false;
+ root.innerHTML='<div class="list">'+state.articles.map(a=>`<button class="card" data-open="${esc(a.id)}"><span class="meta">${esc(a.tag||'Actualité')}${a.publicationDate?' · '+esc(a.publicationDate):''}</span><span class="title">${esc(a.title||'Actualité sans titre')}</span><span class="excerpt">${esc((a.chapeauRuns||[]).map(r=>r.text||'').join('').slice(0,180))}</span></button>`).join('')+'<button class="add" id="add">+ Ajouter une actualité</button></div>';
+ root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>open(b.dataset.open));
+ document.getElementById('add').onclick=create;
+ renderCommand();
+}
+function block(b,i){
+ const tools=`<div class="tools"><button class="tool" data-up>↑</button><button class="tool" data-down>↓</button><button class="tool" data-remove>×</button></div>`;
+ if(b.blockType==='heading')return `<div class="block" data-index="${i}">${tools}<div class="heading editable" contenteditable="true" data-placeholder="Intertitre">${runsHtml(b.runs||[])}</div></div>`;
+ if(b.blockType==='image')return `<div class="block image" data-index="${i}">${tools}<div><strong>Image liée</strong><span>Asset ${esc(b.imageAssetId)}</span><div><button class="upload-retry" data-replace>Remplacer l’image</button></div></div></div>`;
+ return `<div class="block" data-index="${i}">${tools}<div class="text editable" contenteditable="true" data-placeholder="Écrivez ici…">${runsHtml(b.runs||[])}</div></div>`;
+}
+function editor(){
+ const a=article(state.activeId);if(!a)return list();pageHead.hidden=true;
+ root.innerHTML=`<button class="back" id="back">← Actualités</button><input class="article-title" id="title" value="${esc(a.title||'')}" placeholder="Titre de l’actualité"><div class="chapeau editable" id="chapeau" contenteditable="true" data-placeholder="Ajoutez un chapeau…">${runsHtml(a.chapeauRuns||[])}</div><div class="article-meta"><input class="pill-input" id="tag" value="${esc(a.tag||'')}" placeholder="Tag"><input class="pill-input" id="date" value="${esc(a.publicationDate||'')}" placeholder="Date"></div><div class="body" id="body">${insert(0)}${(a.blocks||[]).map((b,i)=>block(b,i)+insert(i+1)).join('')}</div><div style="margin-top:30px"><button class="add" id="delete">Supprimer cette actualité</button></div>`;
+ wireEditor();renderCommand();
+}
+function insert(i){
+ if(state.upload.at===i&&state.upload.status==='uploading')return `<div class="insert" data-at="${i}"><span class="upload-progress">Import de l’image…</span></div>`;
+ if(state.upload.at===i&&state.upload.status==='error')return `<div class="insert" data-at="${i}"><div><span class="upload-progress">Impossible d’importer l’image.</span><button class="upload-retry" data-retry-upload>Réessayer</button></div></div>`;
+ return `<div class="insert" data-at="${i}"><button>+ Ajouter</button></div>`;
+}
+function read(){
+ const a=article(state.activeId);if(!a)return null;
+ const blocks=[...root.querySelectorAll('.block')].map((el,pos)=>{const old=(a.blocks||[])[+el.dataset.index]||{};if(el.classList.contains('image'))return{...old,blockType:'image',position:pos};const editable=el.querySelector('.heading,.text');return{...old,blockType:el.querySelector('.heading')?'heading':'paragraph',runs:toRuns(editable),position:pos}});
+ return{...a,title:document.getElementById('title').value,tag:document.getElementById('tag').value,publicationDate:document.getElementById('date').value,chapeauRuns:toRuns(document.getElementById('chapeau')),blocks}
+}
+// Payload API : jamais clientKey, id omis si le bloc n'a pas encore
+// d'identité serveur — un nouveau bloc n'envoie jamais un id fictif.
+function toPayloadBlocks(blocks){return blocks.map(b=>({...(b.id?{id:b.id}:{}),blockType:b.blockType,runs:b.runs??null,imageAssetId:b.imageAssetId??null,position:b.position}))}
+// Réconciliation post-PATCH : adopte les vrais ids retournés par le
+// serveur pour les blocs nouvellement créés, en s'appuyant sur
+// clientKey (jamais sur la position, qui peut avoir bougé) — sans
+// jamais toucher au contenu (runs) déjà modifié pendant l'aller-retour
+// réseau. C'est ce qui évite de perdre des caractères tapés dans un
+// nouveau bloc avant que son premier autosave n'ait répondu.
+function reconcile(a,sentBlocks,serverArticle){
+ const serverBlocks=serverArticle?.blocks||[];
+ sentBlocks.forEach((sent,i)=>{
+  if(!sent.id&&sent.clientKey){
+   const matched=serverBlocks[i];
+   if(matched){const live=(a.blocks||[]).find(b=>b.clientKey===sent.clientKey);if(live)live.id=matched.id}
+  }
+ });
+}
+function dirty(){state.save='dirty';state.unpublished=true;renderCommand();clearTimeout(state.timer);state.timer=setTimeout(save,800)}
+async function save(){
+ const a=article(state.activeId),d=read();if(!a||!d)return;
+ if(state.saving){state.resave=true;return}
+ state.saving=true;state.save='saving';renderCommand();
+ const sentBlocks=d.blocks;
+ try{
+  const u=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/articles/${encodeURIComponent(a.id)}`,{method:'PATCH',body:JSON.stringify({version:a.version,title:d.title,tag:d.tag,publicationDate:d.publicationDate,chapeauRuns:d.chapeauRuns,blocks:toPayloadBlocks(sentBlocks)})});
+  reconcile(a,sentBlocks,u);
+  a.title=d.title;a.tag=d.tag;a.publicationDate=d.publicationDate;a.chapeauRuns=d.chapeauRuns;a.version=u.version;
+  state.saving=false;state.error=null;
+  if(state.resave){state.resave=false;state.save='saving';renderCommand();save();return}
+  state.save='saved';renderCommand();
+ }catch(e){
+  state.saving=false;state.resave=false;
+  state.save=e.status===409?'conflict':'error';state.error=e;renderCommand();
+ }
+}
+async function create(){
+ state.save='saving';renderCommand();
+ try{const a=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/articles`,{method:'POST',body:JSON.stringify({title:'',tag:'',publicationDate:'',chapeauRuns:[],blocks:[],position:state.articles.length})});state.articles.push(a);state.unpublished=true;state.save='saved';open(a.id);requestAnimationFrame(()=>document.getElementById('title')?.focus())}
+ catch(e){state.save='error';state.error=e;renderCommand()}
+}
+function open(id){state.mode='edit';state.activeId=id;editor()}
+function mutateBlocks(fn){const a=article(state.activeId),d=read();if(!a||!d)return;fn(d.blocks);a.blocks=d.blocks;editor();dirty()}
+function addBlock(at,blockType,extra={}){mutateBlocks(b=>b.splice(at,0,{clientKey:crypto.randomUUID(),blockType,runs:[],imageAssetId:null,...extra,position:at}))}
+// Upload réel avant toute création de bloc image — jamais de bloc
+// avec imageAssetId:null (le contrat backend l'exige, pas une limite
+// technique). Échec -> aucun bloc ajouté, état récupérable.
+async function uploadImageAt(at,file){
+ state.upload={at,status:'uploading'};editor();
+ try{
+  const fd=new FormData();fd.append('kind','article_image');fd.append('file',file);
+  const asset=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/assets`,{method:'POST',body:fd});
+  state.upload={at:null,status:'idle'};
+  addBlock(at,'image',{imageAssetId:asset.assetId});
+ }catch(e){state.upload={at,status:'error'};editor()}
+}
+function wireEditor(){
+ document.getElementById('back').onclick=list;['title','tag','date'].forEach(id=>document.getElementById(id).oninput=dirty);document.getElementById('chapeau').oninput=dirty;
+ root.querySelectorAll('.text,.heading').forEach(e=>e.oninput=dirty);
+ root.querySelectorAll('.block').forEach(el=>{const i=+el.dataset.index;el.querySelector('[data-up]').onclick=()=>mutateBlocks(b=>{if(i>0)[b[i-1],b[i]]=[b[i],b[i-1]]});el.querySelector('[data-down]').onclick=()=>mutateBlocks(b=>{if(i<b.length-1)[b[i],b[i+1]]=[b[i+1],b[i]]});el.querySelector('[data-remove]').onclick=()=>mutateBlocks(b=>b.splice(i,1));el.querySelector('[data-replace]')?.addEventListener('click',()=>{imageFileInput.dataset.replaceIndex=String(i);imageFileInput.click()})});
+ root.querySelectorAll('.insert').forEach(row=>{
+  const at=+row.dataset.at;
+  if(state.upload.at===at&&state.upload.status==='error'){row.querySelector('[data-retry-upload]').onclick=()=>{imageFileInput.dataset.insertAt=String(at);imageFileInput.dataset.replaceIndex='';imageFileInput.click()};return}
+  const btn=row.querySelector('button');if(!btn||state.upload.status==='uploading')return;
+  btn.onclick=()=>{row.innerHTML='<div><button class="command-btn" data-t="paragraph">Texte</button><button class="command-btn" data-t="heading">Intertitre</button><button class="command-btn" data-t="image">Image</button></div>';row.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{if(b.dataset.t==='image'){imageFileInput.dataset.insertAt=String(at);imageFileInput.dataset.replaceIndex='';imageFileInput.click();return}addBlock(at,b.dataset.t)})};
+ });
+ document.getElementById('delete').onclick=()=>openDelete(state.activeId);
+}
+imageFileInput.onchange=()=>{
+ const file=imageFileInput.files[0];imageFileInput.value='';if(!file)return;
+ const replaceIndex=imageFileInput.dataset.replaceIndex;
+ if(replaceIndex){
+  // Remplacer : upload puis mise à jour du bloc existant, sans le supprimer.
+  (async()=>{
+   try{
+    const fd=new FormData();fd.append('kind','article_image');fd.append('file',file);
+    const asset=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/assets`,{method:'POST',body:fd});
+    const a=article(state.activeId),d=read();if(!a||!d)return;
+    d.blocks[+replaceIndex].imageAssetId=asset.assetId;a.blocks=d.blocks;editor();dirty();
+   }catch(e){/* remplacement échoué : le bloc garde son image actuelle, pas d'état dégradé */}
+  })();
+  return;
+ }
+ uploadImageAt(+imageFileInput.dataset.insertAt,file);
+};
+function openDelete(id){state.deleteArticleId=id;confirmSheet.hidden=false;document.getElementById('confirmDelete').focus()}
+function closeDelete(){confirmSheet.hidden=true;state.deleteArticleId=null}
+function cancelDelete(){closeDelete();document.getElementById('delete')?.focus()}
+async function removeArticle(){
+ const a=article(state.deleteArticleId);if(!a)return;
+ try{await api(`/api/projects/${encodeURIComponent(projectId)}/studio/articles/${encodeURIComponent(a.id)}?version=${encodeURIComponent(a.version)}`,{method:'DELETE'});state.articles=state.articles.filter(x=>x.id!==a.id);state.unpublished=true;closeDelete();list()}
+ catch(e){closeDelete();state.save=e.status===409?'conflict':'error';state.error=e;renderCommand()}
+}
+function setCommand(html){commandInner.innerHTML=html;wireCommand()}
+function renderCommand(){
+ if(state.locked)return;
+ if(state.load==='loading')return setCommand('<span class="command-msg">Ouverture de <strong>Studio</strong>…</span>');
+ if(state.load==='error')return setCommand('<span class="command-msg">Impossible d’ouvrir Actualités.</span><button class="command-btn primary" data-c="reload">Réessayer</button>');
+ if(state.save==='dirty'||state.save==='saving')return setCommand('<span class="command-msg">Enregistrement…</span>');
+ if(state.save==='error')return setCommand('<span class="command-msg">Impossible d’enregistrer.</span><button class="command-btn primary" data-c="retry">Réessayer</button>');
+ if(state.save==='conflict')return setCommand('<span class="command-msg"><strong>Cette actualité a changé ailleurs.</strong></span><button class="command-btn primary" data-c="reload">Recharger</button>');
+ if(state.unpublished&&has('publication.publish'))return setCommand('<span class="command-msg">Tout est enregistré</span><button class="command-btn primary" data-c="publish">Publier</button>');
+ setCommand(`<span class="command-msg"><strong>${esc(state.context?.project?.name||'Studio')}</strong> · Tout est enregistré</span>`)
+}
+function wireCommand(){commandInner.querySelector('[data-c="reload"]')?.addEventListener('click',hydrate);commandInner.querySelector('[data-c="retry"]')?.addEventListener('click',()=>state.mode==='edit'?save():hydrate());commandInner.querySelector('[data-c="publish"]')?.addEventListener('click',()=>setCommand('<span class="command-msg"><strong>Publier</strong> sera branché au pipeline de publication.</span>'))}
+command.onfocusin=()=>state.locked=true;command.onfocusout=e=>{if(command.contains(e.relatedTarget))return;state.locked=false;renderCommand()}
+function selection(){const s=getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;const r=s.getRangeAt(0),n=r.commonAncestorContainer.nodeType===3?r.commonAncestorContainer.parentElement:r.commonAncestorContainer,e=n?.closest?.('.editable');return e?{s,r,e}:null}
+document.onselectionchange=()=>requestAnimationFrame(()=>{const a=selection();if(!a){format.hidden=true;return}const rect=a.r.getBoundingClientRect();format.hidden=false;format.style.left=Math.max(8,rect.left+rect.width/2-format.offsetWidth/2)+'px';format.style.top=Math.max(8,rect.top-format.offsetHeight-10)+'px'});
+format.querySelectorAll('[data-format]').forEach(b=>b.onmousedown=e=>{e.preventDefault();if(!selection())return;document.execCommand(b.dataset.format,false,null);dirty()});
+document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>{if(b.dataset.domain==='news')return;setCommand(`<span class="command-msg"><strong>${b.textContent}</strong> arrive dans la prochaine vertical slice.</span>`)});
+document.getElementById('confirmCancel').onclick=cancelDelete;
+document.getElementById('confirmDelete').onclick=removeArticle;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!confirmSheet.hidden){cancelDelete()}});
+async function hydrate(){
+ state.load='loading';renderCommand();
+ try{const [ctx,arts]=await Promise.all([api(`/api/projects/${encodeURIComponent(projectId)}/context`),api(`/api/projects/${encodeURIComponent(projectId)}/studio/articles`)]);state.context=ctx;if(!has('content.edit'))throw Object.assign(new Error('Forbidden'),{status:403});state.articles=Array.isArray(arts)?arts:[];state.load='ready';state.save='saved';document.getElementById('brandProject').textContent=ctx.project?.name||'Projet';list()}
+ catch(e){state.load='error';root.innerHTML='<div class="error"><div><strong>Storm n’arrive pas à ouvrir Actualités.</strong></div></div>';renderCommand()}
+}
+document.getElementById('projectLink').onclick=()=>location.assign(preserve(`/projects/${encodeURIComponent(projectId)}`));
+hydrate();
+</script>
+</body>
+</html>

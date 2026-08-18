@@ -416,3 +416,124 @@ test('cross-tenant : un utilisateur sans membership sur ce projet -> 404 sur les
   await pool.query('delete from tenant_memberships where user_id=$1', [outsider.id]);
   await pool.query('delete from users where id=$1', [outsider.id]);
 });
+
+// ── Régression cascade : politique de suppression différenciée par
+// sens métier (migration 0005), jamais un ON DELETE uniforme.
+//   CASCADE : la ligne n'a structurellement aucun sens sans son asset
+//     (bloc image, média de section narrative, média d'espace).
+//   SET NULL : l'objet reste valide sans sa photo (membre d'équipe,
+//     ambassadeur).
+// Deux angles testés séparément : suppression du projet entier (tous
+// les chemins de cascade croisés en même temps), et suppression
+// directe d'un asset précis (vérifie le comportement exact par type,
+// pas seulement l'absence d'erreur).
+
+async function seedAllFiveAssetReferences(tenantId, projectId) {
+  const mk = async (kind) => {
+    const { rows: [a] } = await pool.query(
+      "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,$3,$4,'image/png',10) returning id",
+      [tenantId, projectId, kind, `key-${kind}-${Math.random()}`]
+    );
+    return a.id;
+  };
+  const articleImageAsset = await mk('article_image');
+  const teamPhotoAsset = await mk('team_photo');
+  const narrativeMediaAsset = await mk('narrative_media');
+  const ambassadorPhotoAsset = await mk('ambassador_photo');
+  const spaceMediaAsset = await mk('space_media');
+
+  const { rows: [article] } = await pool.query(
+    'insert into project_articles (tenant_id, project_id, title, position) values ($1,$2,$3,0) returning id',
+    [tenantId, projectId, 'Article Cascade Test']
+  );
+  const { rows: [block] } = await pool.query(
+    'insert into project_article_blocks (tenant_id, project_id, article_id, block_type, image_asset_id, position) values ($1,$2,$3,$4,$5,$6) returning id',
+    [tenantId, projectId, article.id, 'image', articleImageAsset, 0]
+  );
+  const { rows: [teamMember] } = await pool.query(
+    'insert into project_team_members (tenant_id, project_id, name, photo_asset_id, position) values ($1,$2,$3,$4,0) returning id',
+    [tenantId, projectId, 'Membre Cascade Test', teamPhotoAsset]
+  );
+  const { rows: [section] } = await pool.query(
+    "insert into project_narrative_sections (tenant_id, project_id, section_type, position) values ($1,$2,'gallery',0) returning id",
+    [tenantId, projectId]
+  );
+  const { rows: [narrativeMedia] } = await pool.query(
+    'insert into project_narrative_section_media (tenant_id, project_id, section_id, asset_id, position) values ($1,$2,$3,$4,0) returning id',
+    [tenantId, projectId, section.id, narrativeMediaAsset]
+  );
+  const { rows: [ambassador] } = await pool.query(
+    'insert into project_ambassadors (tenant_id, project_id, name, photo_asset_id, position) values ($1,$2,$3,$4,0) returning id',
+    [tenantId, projectId, 'Ambassadeur Cascade Test', ambassadorPhotoAsset]
+  );
+  const { rows: [space] } = await pool.query(
+    "insert into project_spaces (tenant_id, project_id, name, position) values ($1,$2,'Espace Cascade Test',0) returning id",
+    [tenantId, projectId]
+  );
+  const { rows: [spaceMedia] } = await pool.query(
+    "insert into project_space_media (tenant_id, project_id, space_id, kind, asset_id, position) values ($1,$2,$3,'view',$4,0) returning id",
+    [tenantId, projectId, space.id, spaceMediaAsset]
+  );
+
+  return {
+    articleImageAsset, teamPhotoAsset, narrativeMediaAsset, ambassadorPhotoAsset, spaceMediaAsset,
+    article: article.id, block: block.id, teamMember: teamMember.id,
+    section: section.id, narrativeMedia: narrativeMedia.id,
+    ambassador: ambassador.id, space: space.id, spaceMedia: spaceMedia.id
+  };
+}
+
+test('cascade : supprimer un projet contenant les 5 formes de référence asset réussit sans erreur FK', async () => {
+  const { rows: [tenant] } = await pool.query("insert into tenants (name) values ('Tenant Cascade Test') returning id");
+  const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenant.id, 'Projet Cascade Jetable']);
+  const ids2 = await seedAllFiveAssetReferences(tenant.id, project.id);
+
+  await assert.doesNotReject(pool.query('delete from projects where id=$1', [project.id]));
+
+  const counts = await Promise.all([
+    pool.query('select count(*)::int c from project_article_blocks where id=$1', [ids2.block]),
+    pool.query('select count(*)::int c from project_team_members where id=$1', [ids2.teamMember]),
+    pool.query('select count(*)::int c from project_narrative_section_media where id=$1', [ids2.narrativeMedia]),
+    pool.query('select count(*)::int c from project_ambassadors where id=$1', [ids2.ambassador]),
+    pool.query('select count(*)::int c from project_space_media where id=$1', [ids2.spaceMedia]),
+    pool.query('select count(*)::int c from assets where id = ANY($1)', [[ids2.articleImageAsset, ids2.teamPhotoAsset, ids2.narrativeMediaAsset, ids2.ambassadorPhotoAsset, ids2.spaceMediaAsset]])
+  ]);
+  assert.ok(counts.every(r => r.rows[0].c === 0), 'tout doit être parti en cascade avec le projet, quel que soit le type de relation');
+
+  await pool.query('delete from tenants where id=$1', [tenant.id]);
+});
+
+test('cascade : suppression directe d\'un asset — CASCADE pour bloc/médias, SET NULL pour photos de personnes', async () => {
+  const { rows: [tenant] } = await pool.query("insert into tenants (name) values ('Tenant Cascade Direct Test') returning id");
+  const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenant.id, 'Projet Cascade Direct']);
+  const ids2 = await seedAllFiveAssetReferences(tenant.id, project.id);
+
+  // Supprimer les 5 assets un par un, directement (pas via le projet).
+  await pool.query('delete from assets where id = ANY($1)', [[
+    ids2.articleImageAsset, ids2.teamPhotoAsset, ids2.narrativeMediaAsset, ids2.ambassadorPhotoAsset, ids2.spaceMediaAsset
+  ]]);
+
+  const blockGone = await pool.query('select count(*)::int c from project_article_blocks where id=$1', [ids2.block]);
+  assert.equal(blockGone.rows[0].c, 0, 'le bloc image doit être supprimé (CASCADE) — un bloc image sans image n\'a aucun sens');
+
+  const narrativeMediaGone = await pool.query('select count(*)::int c from project_narrative_section_media where id=$1', [ids2.narrativeMedia]);
+  assert.equal(narrativeMediaGone.rows[0].c, 0, 'le média narratif doit être supprimé (CASCADE)');
+
+  const spaceMediaGone = await pool.query('select count(*)::int c from project_space_media where id=$1', [ids2.spaceMedia]);
+  assert.equal(spaceMediaGone.rows[0].c, 0, 'le média d\'espace doit être supprimé (CASCADE)');
+
+  const teamMemberRow = await pool.query('select tenant_id, project_id, photo_asset_id from project_team_members where id=$1', [ids2.teamMember]);
+  assert.equal(teamMemberRow.rows.length, 1, 'le membre d\'équipe doit être CONSERVÉ (SET NULL, pas CASCADE)');
+  assert.equal(teamMemberRow.rows[0].tenant_id, tenant.id, 'tenant_id doit rester intact — SET NULL ciblé, pas toute la FK composite');
+  assert.equal(teamMemberRow.rows[0].project_id, project.id, 'project_id doit rester intact — SET NULL ciblé, pas toute la FK composite');
+  assert.equal(teamMemberRow.rows[0].photo_asset_id, null, 'seule sa référence photo doit être détachée (null)');
+
+  const ambassadorRow = await pool.query('select tenant_id, project_id, photo_asset_id from project_ambassadors where id=$1', [ids2.ambassador]);
+  assert.equal(ambassadorRow.rows.length, 1, 'l\'ambassadeur doit être CONSERVÉ (SET NULL, pas CASCADE)');
+  assert.equal(ambassadorRow.rows[0].tenant_id, tenant.id, 'tenant_id doit rester intact — SET NULL ciblé, pas toute la FK composite');
+  assert.equal(ambassadorRow.rows[0].project_id, project.id, 'project_id doit rester intact — SET NULL ciblé, pas toute la FK composite');
+  assert.equal(ambassadorRow.rows[0].photo_asset_id, null, 'seule sa référence photo doit être détachée (null)');
+
+  await pool.query('delete from projects where id=$1', [project.id]);
+  await pool.query('delete from tenants where id=$1', [tenant.id]);
+});

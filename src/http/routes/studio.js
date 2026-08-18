@@ -151,7 +151,9 @@ export function createStudioRouter({ pool, storageAdapter }) {
   // ── Actualités (Article + blocs, unité de version = l'article) ──
   const blockToApi = b => ({ id: b.id, blockType: b.block_type, runs: b.runs, imageAssetId: b.image_asset_id, position: b.position });
   const articleToApi = r => ({
-    id: r.id, tag: r.tag, publicationDate: r.publication_date, title: r.title, chapeauRuns: r.chapeau_runs,
+    id: r.id, tag: r.tag,
+    publicationDate: r.publication_date ? new Date(r.publication_date).toISOString().slice(0, 10) : null,
+    title: r.title, chapeauRuns: r.chapeau_runs,
     position: r.position, version: r.version, updatedAt: r.updated_at,
     blocks: (r.blocks ?? []).map(blockToApi)
   });

@@ -420,8 +420,7 @@ export async function listSpaces(pool, projectId) {
   return spaces.map(space => ({ ...space, media: media.filter(m => m.space_id === space.id) }));
 }
 
-async function replaceSpaceMedia(client, { tenantId, projectId, spaceId, media }) {
-  await client.query('delete from project_space_media where tenant_id=$1 and project_id=$2 and space_id=$3', [tenantId, projectId, spaceId]);
+async function insertSpaceMediaRows(client, { tenantId, projectId, spaceId, media }) {
   const inserted = [];
   for (const m of media) {
     const { rows: [row] } = await client.query(
@@ -434,6 +433,74 @@ async function replaceSpaceMedia(client, { tenantId, projectId, spaceId, media }
   return inserted;
 }
 
+// Mise à jour : diff réel, jamais un delete-then-insert général — même
+// pattern que applyArticleBlocksDiff. L'identité d'un média est stable
+// à travers les sauvegardes.
+//
+//   média avec id connu de CET espace -> UPDATE
+//   média sans id                     -> INSERT (nouvel id)
+//   média existant absent du payload  -> DELETE
+//
+// Retourne { errors } si un id fourni est inconnu, appartient à un
+// autre espace/projet/tenant, ou apparaît en double dans le payload —
+// jamais une correction silencieuse de ces cas.
+async function applySpaceMediaDiff(client, { tenantId, projectId, spaceId, media }) {
+  const { rows: existing } = await client.query(
+    'select id from project_space_media where tenant_id=$1 and project_id=$2 and space_id=$3',
+    [tenantId, projectId, spaceId]
+  );
+  const existingIds = new Set(existing.map(r => r.id));
+
+  const seenIds = new Set();
+  const errors = [];
+  for (const m of media) {
+    if (m.id) {
+      if (seenIds.has(m.id)) {
+        errors.push(`id de média en double dans le payload : ${m.id}.`);
+        continue;
+      }
+      seenIds.add(m.id);
+      if (!existingIds.has(m.id)) {
+        errors.push(`id de média inconnu, ou n'appartenant pas à cet espace : ${m.id}.`);
+      }
+    }
+  }
+  if (errors.length > 0) return { errors };
+
+  const keptIds = new Set();
+  const result = [];
+  for (const m of media) {
+    if (m.id) {
+      keptIds.add(m.id);
+      const { rows: [row] } = await client.query(
+        `update project_space_media
+         set kind=$1, asset_id=$2, label=$3, alt=$4, position=$5
+         where tenant_id=$6 and project_id=$7 and space_id=$8 and id=$9
+         returning *`,
+        [m.kind, m.assetId, m.label ?? null, m.alt ?? null, m.position, tenantId, projectId, spaceId, m.id]
+      );
+      result.push(row);
+    } else {
+      const { rows: [row] } = await client.query(
+        `insert into project_space_media (tenant_id, project_id, space_id, kind, asset_id, label, alt, position)
+         values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
+        [tenantId, projectId, spaceId, m.kind, m.assetId, m.label ?? null, m.alt ?? null, m.position]
+      );
+      result.push(row);
+    }
+  }
+
+  const idsToDelete = [...existingIds].filter(existingId => !keptIds.has(existingId));
+  if (idsToDelete.length > 0) {
+    await client.query(
+      'delete from project_space_media where tenant_id=$1 and project_id=$2 and space_id=$3 and id = ANY($4::uuid[])',
+      [tenantId, projectId, spaceId, idsToDelete]
+    );
+  }
+
+  return { media: result };
+}
+
 export async function insertSpace(pool, { tenantId, projectId, name, location, description, status, usages, media, position, userId }) {
   const client = await pool.connect();
   try {
@@ -443,7 +510,7 @@ export async function insertSpace(pool, { tenantId, projectId, name, location, d
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
       [tenantId, projectId, name ?? '', location ?? null, description ?? null, status ?? null, usages ?? [], position, userId]
     );
-    const insertedMedia = await replaceSpaceMedia(client, { tenantId, projectId, spaceId: space.id, media: media ?? [] });
+    const insertedMedia = await insertSpaceMediaRows(client, { tenantId, projectId, spaceId: space.id, media: media ?? [] });
     await client.query('COMMIT');
     return { ...space, media: insertedMedia };
   } catch (err) {
@@ -469,9 +536,13 @@ export async function updateSpace(pool, { tenantId, projectId, id, version, name
       await client.query('ROLLBACK');
       return null;
     }
-    const insertedMedia = await replaceSpaceMedia(client, { tenantId, projectId, spaceId: id, media: media ?? [] });
+    const mediaResult = await applySpaceMediaDiff(client, { tenantId, projectId, spaceId: id, media: media ?? [] });
+    if (mediaResult.errors) {
+      await client.query('ROLLBACK');
+      return { mediaErrors: mediaResult.errors };
+    }
     await client.query('COMMIT');
-    return { ...rows[0], media: insertedMedia };
+    return { ...rows[0], media: mediaResult.media };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

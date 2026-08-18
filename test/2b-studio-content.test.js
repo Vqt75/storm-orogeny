@@ -372,6 +372,176 @@ test('Espaces : statut invalide -> 400', async () => {
   assert.equal(res.status, 400);
 });
 
+test('upload Studio : kind=space_media accepté (pas seulement article_image)', async () => {
+  const fd = new FormData();
+  fd.append('kind', 'space_media');
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da63600000020001557f6e5c0000000049454e44ae426082', 'hex');
+  fd.append('file', new Blob([png], { type: 'image/png' }), 'x.png');
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+  });
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  assert.ok(body.assetId);
+  await pool.query('delete from assets where id=$1', [body.assetId]);
+});
+
+test('Espaces : préservation des ids de médias à travers un PATCH (inchangé, modifié, réordonné)', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Diff', position: 0, media: [
+      { kind: 'view', assetId: ids.assetInProject, position: 0 },
+      { kind: 'plan', assetId: ids.assetInProject, position: 1 }
+    ] })
+  })).json();
+  const [media1, media2] = created.media;
+
+  // Réordonné (media2 en premier) + media1 modifié (label ajouté), mêmes ids envoyés
+  const patched = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Diff', version: created.version, media: [
+      { id: media2.id, kind: 'plan', assetId: ids.assetInProject, position: 0 },
+      { id: media1.id, kind: 'view', assetId: ids.assetInProject, label: 'Modifié', position: 1 }
+    ] })
+  })).json();
+
+  assert.equal(patched.media.length, 2);
+  const patchedMedia1 = patched.media.find(m => m.id === media1.id);
+  const patchedMedia2 = patched.media.find(m => m.id === media2.id);
+  assert.ok(patchedMedia1, 'media1 doit garder exactement son id d\'origine');
+  assert.ok(patchedMedia2, 'media2 doit garder exactement son id d\'origine');
+  assert.equal(patchedMedia1.label, 'Modifié');
+  assert.equal(patchedMedia1.position, 1);
+  assert.equal(patchedMedia2.position, 0);
+
+  await pool.query('delete from project_spaces where id=$1', [created.id]);
+});
+
+test('Espaces : ajout d\'un nouveau média -> seul le nouveau reçoit un nouvel id, les existants sont inchangés', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Ajout', position: 0, media: [{ kind: 'view', assetId: ids.assetInProject, position: 0 }] })
+  })).json();
+  const existingId = created.media[0].id;
+
+  const patched = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Ajout', version: created.version, media: [
+      { id: existingId, kind: 'view', assetId: ids.assetInProject, position: 0 },
+      { kind: 'plan', assetId: ids.assetInProject, position: 1 }
+    ] })
+  })).json();
+
+  assert.equal(patched.media.length, 2);
+  assert.ok(patched.media.some(m => m.id === existingId), 'le média existant garde son id');
+  assert.ok(patched.media.some(m => m.id !== existingId), 'le nouveau média a un id différent');
+
+  await pool.query('delete from project_spaces where id=$1', [created.id]);
+});
+
+test('Espaces : suppression d\'un média -> uniquement celui-ci disparaît', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Suppr Media', position: 0, media: [
+      { kind: 'view', assetId: ids.assetInProject, position: 0 },
+      { kind: 'plan', assetId: ids.assetInProject, position: 1 }
+    ] })
+  })).json();
+  const [keep, remove] = created.media;
+
+  const patched = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Suppr Media', version: created.version, media: [
+      { id: keep.id, kind: 'view', assetId: ids.assetInProject, position: 0 }
+    ] })
+  })).json();
+
+  assert.equal(patched.media.length, 1);
+  assert.equal(patched.media[0].id, keep.id);
+  const removedCheck = await pool.query('select count(*)::int c from project_space_media where id=$1', [remove.id]);
+  assert.equal(removedCheck.rows[0].c, 0);
+
+  await pool.query('delete from project_spaces where id=$1', [created.id]);
+});
+
+test('Espaces : id de média inconnu -> 400, rollback (version parent inchangée)', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Rejet', position: 0, media: [] })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ name: 'X', version: created.version, media: [{ id: '00000000-0000-0000-0000-000000000000', kind: 'view', assetId: ids.assetInProject, position: 0 }] })
+  });
+  assert.equal(res.status, 400);
+
+  const stillV1 = await pool.query('select version from project_spaces where id=$1', [created.id]);
+  assert.equal(stillV1.rows[0].version, created.version, 'rollback réel : la version parent ne doit pas avoir bougé');
+
+  await pool.query('delete from project_spaces where id=$1', [created.id]);
+});
+
+test('Espaces : id de média d\'un AUTRE espace -> 400, rollback', async () => {
+  const spaceA = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace A', position: 0, media: [{ kind: 'view', assetId: ids.assetInProject, position: 0 }] })
+  })).json();
+  const spaceB = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace B', position: 1, media: [] })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces/${spaceB.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace B', version: spaceB.version, media: [{ id: spaceA.media[0].id, kind: 'view', assetId: ids.assetInProject, position: 0 }] })
+  });
+  assert.equal(res.status, 400);
+
+  const spaceAMediaStillThere = await pool.query('select count(*)::int c from project_space_media where id=$1', [spaceA.media[0].id]);
+  assert.equal(spaceAMediaStillThere.rows[0].c, 1, 'le média de l\'espace A ne doit surtout pas avoir été déplacé/affecté');
+
+  await pool.query('delete from project_spaces where id=$1', [spaceA.id]);
+  await pool.query('delete from project_spaces where id=$1', [spaceB.id]);
+});
+
+test('Espaces : id de média en double dans le payload -> 400, rollback', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Doublon', position: 0, media: [{ kind: 'view', assetId: ids.assetInProject, position: 0 }] })
+  })).json();
+  const mediaId = created.media[0].id;
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ name: 'X', version: created.version, media: [
+      { id: mediaId, kind: 'view', assetId: ids.assetInProject, position: 0 },
+      { id: mediaId, kind: 'view', assetId: ids.assetInProject, position: 1 }
+    ] })
+  });
+  assert.equal(res.status, 400);
+
+  const stillV1 = await pool.query('select version from project_spaces where id=$1', [created.id]);
+  assert.equal(stillV1.rows[0].version, created.version);
+
+  await pool.query('delete from project_spaces where id=$1', [created.id]);
+});
+
+test('Espaces : 409 sur version périmée du parent, toujours fonctionnel après le correctif média', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace 409', position: 0, media: [] })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ name: 'X', version: created.version - 1 || 999, media: [] })
+  });
+  assert.equal(res.status, 409);
+
+  await pool.query('delete from project_spaces where id=$1', [created.id]);
+});
+
 // ── Section content (Homepage) ──
 
 test('Section content Homepage : GET initial vide, POST/PATCH crée puis met à jour', async () => {

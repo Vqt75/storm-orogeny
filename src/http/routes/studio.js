@@ -12,7 +12,7 @@ import { ALLOWED_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } 
 // pour ce slice, uniquement article_image. Étendre cette liste au fur
 // et à mesure des besoins réels des autres domaines Studio (Espaces,
 // Le projet...), jamais un kind arbitraire fourni par le client.
-const ALLOWED_STUDIO_ASSET_KINDS = new Set(['article_image']);
+const ALLOWED_STUDIO_ASSET_KINDS = new Set(['article_image', 'space_media']);
 const uploadStudioAsset = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
 
 // Studio — autosave = brouillon uniquement. Aucune de ces routes ne
@@ -269,6 +269,7 @@ export function createStudioRouter({ pool, storageAdapter }) {
       status: req.body.status, usages: req.body.usages, media: req.body.media
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    if (row.mediaErrors) { next(Errors.invalid('Payload media invalide.', row.mediaErrors)); return; }
     res.status(200).json(spaceToApi(row));
   }));
 

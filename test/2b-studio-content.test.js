@@ -386,6 +386,44 @@ test('upload Studio : kind=space_media accepté (pas seulement article_image)', 
   await pool.query('delete from assets where id=$1', [body.assetId]);
 });
 
+test('upload Studio : PDF accepté pour kind=space_media (signature réelle vérifiée)', async () => {
+  const fd = new FormData();
+  fd.append('kind', 'space_media');
+  const pdf = Buffer.from('%PDF-1.4\n%fake pdf for signature test\n', 'ascii');
+  fd.append('file', new Blob([pdf], { type: 'application/pdf' }), 'plan.pdf');
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+  });
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  assert.ok(body.assetId);
+  await pool.query('delete from assets where id=$1', [body.assetId]);
+});
+
+test('upload Studio : PDF refusé pour kind=article_image (le PDF reste réservé à space_media)', async () => {
+  const fd = new FormData();
+  fd.append('kind', 'article_image');
+  const pdf = Buffer.from('%PDF-1.4\n%fake pdf\n', 'ascii');
+  fd.append('file', new Blob([pdf], { type: 'application/pdf' }), 'x.pdf');
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+  });
+  assert.equal(res.status, 400);
+});
+
+test('upload Studio : faux PDF (signature ne correspond pas) refusé même pour space_media', async () => {
+  const fd = new FormData();
+  fd.append('kind', 'space_media');
+  const notAPdf = Buffer.from('ceci n\'est absolument pas un PDF', 'ascii');
+  fd.append('file', new Blob([notAPdf], { type: 'application/pdf' }), 'x.pdf');
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+  });
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.match(body.error.message, /correspond pas/);
+});
+
 test('Espaces : préservation des ids de médias à travers un PATCH (inchangé, modifié, réordonné)', async () => {
   const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
     method: 'POST', ...withUser(ids.editor),

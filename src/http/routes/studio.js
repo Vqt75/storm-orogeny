@@ -6,7 +6,7 @@ import { Errors } from '../../errors/AppError.js';
 import * as repo from '../../domain/studio/repository.js';
 import * as validate from '../../domain/studio/validation.js';
 import { insertAsset } from '../../domain/project-setup/repository.js';
-import { ALLOWED_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
+import { ALLOWED_MIME_TO_EXTENSION, ALLOWED_DOCUMENT_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
 
 // Allowlist serveur des kinds acceptés par cet endpoint générique —
 // pour ce slice, uniquement article_image. Étendre cette liste au fur
@@ -92,9 +92,17 @@ export function createStudioRouter({ pool, storageAdapter }) {
         next(Errors.invalid(`kind non autorisé pour cet endpoint : "${kind}". Autorisés : ${[...ALLOWED_STUDIO_ASSET_KINDS].join(', ')}.`));
         return;
       }
-      const extension = ALLOWED_MIME_TO_EXTENSION[req.file.mimetype];
+      // PDF autorisé uniquement pour space_media (besoin métier réel :
+      // Espaces media.kind='document') — jamais pour article_image, qui
+      // reste strictement image. asset.kind reste 'space_media' dans
+      // les deux cas ; seule la nature du fichier accepté varie.
+      const allowedMimes = kind === 'space_media'
+        ? { ...ALLOWED_MIME_TO_EXTENSION, ...ALLOWED_DOCUMENT_MIME_TO_EXTENSION }
+        : ALLOWED_MIME_TO_EXTENSION;
+      const extension = allowedMimes[req.file.mimetype];
       if (!extension) {
-        next(Errors.invalid(`Type de fichier non autorisé : ${req.file.mimetype}. Formats acceptés : PNG, JPG.`));
+        const formats = kind === 'space_media' ? 'PNG, JPG, PDF' : 'PNG, JPG';
+        next(Errors.invalid(`Type de fichier non autorisé : ${req.file.mimetype}. Formats acceptés : ${formats}.`));
         return;
       }
       if (!matchesRealFileSignature(req.file.buffer, req.file.mimetype)) {

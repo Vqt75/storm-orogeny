@@ -69,6 +69,9 @@ function validateBlocks(blocks, errors) {
   if (blocks === undefined) return;
   if (!Array.isArray(blocks)) { errors.push('blocks doit être un tableau.'); return; }
   blocks.forEach((block, i) => {
+    if (block?.id !== undefined && !isString(block.id)) {
+      errors.push(`blocks[${i}].id doit être une chaîne de caractères si fourni.`);
+    }
     if (!BLOCK_TYPES.has(block?.blockType)) {
       errors.push(`blocks[${i}].blockType inconnu : "${block?.blockType}".`);
       return;

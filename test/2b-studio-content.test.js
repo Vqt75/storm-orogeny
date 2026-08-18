@@ -190,6 +190,166 @@ test('Articles : un bloc image référençant un asset du BON projet réussit', 
   await pool.query('delete from project_articles where id=$1', [created.id]);
 });
 
+test('Articles : les ids de blocs sont préservés à travers les mises à jour (jamais recréés)', async () => {
+  const createRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({
+      title: 'Article Préservation', chapeauRuns: [], position: 5,
+      blocks: [{ blockType: 'heading', runs: [{ text: 'Titre' }], position: 0 }, { blockType: 'paragraph', runs: [{ text: 'Para' }], position: 1 }]
+    })
+  });
+  const created = await createRes.json();
+  const [block1, block2] = created.blocks;
+
+  const patchRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({
+      title: 'Article Préservation', chapeauRuns: [], version: created.version,
+      blocks: [
+        { id: block1.id, blockType: 'heading', runs: [{ text: 'Titre modifié' }], position: 0 },
+        { id: block2.id, blockType: 'paragraph', runs: [{ text: 'Para' }], position: 1 },
+        { blockType: 'paragraph', runs: [{ text: 'Nouveau' }], position: 2 }
+      ]
+    })
+  });
+  assert.equal(patchRes.status, 200);
+  const updated = await patchRes.json();
+  const updatedIds = updated.blocks.map(b => b.id);
+  assert.ok(updatedIds.includes(block1.id), 'block1 doit garder son id');
+  assert.ok(updatedIds.includes(block2.id), 'block2 doit garder son id');
+  assert.equal(updated.blocks.length, 3);
+
+  await pool.query('delete from project_articles where id=$1', [created.id]);
+});
+
+test('Articles : un bloc existant absent du payload est réellement supprimé', async () => {
+  const createRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'À réduire', chapeauRuns: [], position: 6, blocks: [{ blockType: 'paragraph', runs: [], position: 0 }, { blockType: 'paragraph', runs: [], position: 1 }] })
+  });
+  const created = await createRes.json();
+  const survivorId = created.blocks[0].id;
+
+  const patchRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ title: 'À réduire', chapeauRuns: [], version: created.version, blocks: [{ id: survivorId, blockType: 'paragraph', runs: [], position: 0 }] })
+  });
+  const updated = await patchRes.json();
+  assert.equal(updated.blocks.length, 1);
+  assert.equal(updated.blocks[0].id, survivorId);
+
+  await pool.query('delete from project_articles where id=$1', [created.id]);
+});
+
+test('Articles : un id de bloc inconnu est refusé (400), version non incrémentée (rollback réel)', async () => {
+  const createRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Id inconnu', chapeauRuns: [], position: 7, blocks: [] })
+  });
+  const created = await createRes.json();
+
+  const patchRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Test', chapeauRuns: [], version: created.version, blocks: [{ id: '00000000-0000-0000-0000-000000000000', blockType: 'paragraph', runs: [], position: 0 }] })
+  });
+  assert.equal(patchRes.status, 400);
+
+  const { rows: [row] } = await pool.query('select version from project_articles where id=$1', [created.id]);
+  assert.equal(row.version, created.version, 'la version ne doit pas bouger après un rejet');
+
+  await pool.query('delete from project_articles where id=$1', [created.id]);
+});
+
+test('Articles : un id de bloc appartenant à un AUTRE article est refusé (400)', async () => {
+  const article1Res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Article A', chapeauRuns: [], position: 8, blocks: [{ blockType: 'paragraph', runs: [], position: 0 }] })
+  });
+  const article1 = await article1Res.json();
+  const foreignBlockId = article1.blocks[0].id;
+
+  const article2Res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Article B', chapeauRuns: [], position: 9, blocks: [] })
+  });
+  const article2 = await article2Res.json();
+
+  const patchRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${article2.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Article B', chapeauRuns: [], version: article2.version, blocks: [{ id: foreignBlockId, blockType: 'paragraph', runs: [], position: 0 }] })
+  });
+  assert.equal(patchRes.status, 400);
+
+  await pool.query('delete from project_articles where id in ($1,$2)', [article1.id, article2.id]);
+});
+
+test('Articles : deux fois le même id dans le payload est refusé (400)', async () => {
+  const createRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Doublon', chapeauRuns: [], position: 10, blocks: [{ blockType: 'paragraph', runs: [], position: 0 }] })
+  });
+  const created = await createRes.json();
+  const dupId = created.blocks[0].id;
+
+  const patchRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({
+      title: 'Doublon', chapeauRuns: [], version: created.version,
+      blocks: [{ id: dupId, blockType: 'paragraph', runs: [], position: 0 }, { id: dupId, blockType: 'paragraph', runs: [], position: 1 }]
+    })
+  });
+  assert.equal(patchRes.status, 400);
+
+  await pool.query('delete from project_articles where id=$1', [created.id]);
+});
+
+test('Articles : publicationDate normalisée en YYYY-MM-DD, jamais un datetime ISO complet', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Date Test', publicationDate: '2026-08-01', chapeauRuns: [], position: 11, blocks: [] })
+  });
+  const created = await res.json();
+  assert.equal(created.publicationDate, '2026-08-01');
+
+  await pool.query('delete from project_articles where id=$1', [created.id]);
+});
+
+// ── Upload générique Studio (images de contenu) ──
+
+test('Upload Studio : kind=article_image accepté, aucun effet de bord sur project_identity', async () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da6360000002000155' + '7f6e5c0000000049454e44ae426082', 'hex');
+  const form = new FormData();
+  form.append('file', new Blob([png], { type: 'image/png' }), 'img.png');
+  form.append('kind', 'article_image');
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: form
+  });
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  assert.ok(body.assetId);
+
+  const { rows: [asset] } = await pool.query('select kind from assets where id=$1', [body.assetId]);
+  assert.equal(asset.kind, 'article_image');
+
+  const { rows: [identity] } = await pool.query('select logo_asset_id from project_identity where project_id=$1', [ids.project]);
+  assert.notEqual(identity?.logo_asset_id, body.assetId, 'aucun effet de bord sur project_identity');
+
+  await pool.query('delete from assets where id=$1', [body.assetId]);
+});
+
+test('Upload Studio : kind non autorisé (ex. "logo") refusé sur cet endpoint générique', async () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da6360000002000155' + '7f6e5c0000000049454e44ae426082', 'hex');
+  const form = new FormData();
+  form.append('file', new Blob([png], { type: 'image/png' }), 'img.png');
+  form.append('kind', 'logo');
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: form
+  });
+  assert.equal(res.status, 400);
+});
+
 // ── Espaces : médias ──
 
 test('Espaces : création avec médias, statut respecté', async () => {

@@ -14,28 +14,9 @@ import {
   insertAsset, updateProjectIdentityLogo
 } from '../../domain/project-setup/repository.js';
 import { Errors } from '../../errors/AppError.js';
+import { ALLOWED_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
 
-// SVG volontairement exclu de Phase 1B : c'est du XML actif, pas une
-// image inerte — servir un SVG uploadé sans sanitisation depuis le
-// même origin est un vrai risque. Réintroduction possible plus tard,
-// derrière une politique de sanitisation explicite et testée.
-const ALLOWED_MIME_TO_EXTENSION = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg'
-};
-const MAX_LOGO_BYTES = 5 * 1024 * 1024; // 5 Mo
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_LOGO_BYTES } });
-
-// Ne jamais faire confiance uniquement au Content-Type annoncé par le
-// client — vérifier la signature binaire réelle avant persistance.
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
-
-function matchesRealFileSignature(buffer, mimetype) {
-  if (mimetype === 'image/png') return buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE);
-  if (mimetype === 'image/jpeg') return buffer.subarray(0, JPEG_SIGNATURE.length).equals(JPEG_SIGNATURE);
-  return false;
-}
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
 
 export function createProjectsRouter({ pool, storageAdapter }) {
   const router = Router();

@@ -83,7 +83,7 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   const authenticated = devAuth({ pool, config });
   app.use('/api/me', authenticated, createMeRouter({ pool }));
   app.use('/api/projects', authenticated, createProjectsRouter({ pool, storageAdapter }));
-  app.use('/api/projects', authenticated, createStudioRouter({ pool }));
+  app.use('/api/projects', authenticated, createStudioRouter({ pool, storageAdapter }));
   app.use('/api/assets', authenticated, createAssetsRouter({ pool, storageAdapter }));
   app.use('/api/control', authenticated, createControlRouter({ pool }));
 

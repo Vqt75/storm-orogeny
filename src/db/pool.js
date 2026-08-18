@@ -1,6 +1,14 @@
 import pg from 'pg';
 
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+// DATE (oid 1082) : renvoyer la chaîne brute YYYY-MM-DD telle que
+// PostgreSQL la stocke, jamais un objet Date JS. Une donnée métier de
+// type date (ex. publicationDate d'un article) n'est pas un instant
+// UTC — la convertir en Date JS puis en ISO string risquerait un
+// décalage d'un jour selon le fuseau d'exécution. Configuré une seule
+// fois, globalement, pour tout le driver.
+types.setTypeParser(1082, val => val);
 
 let pool;
 

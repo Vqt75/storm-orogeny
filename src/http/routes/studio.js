@@ -1,9 +1,19 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
 import { ProjectCapability } from '../../domain/permissions/capabilities.js';
 import { Errors } from '../../errors/AppError.js';
 import * as repo from '../../domain/studio/repository.js';
 import * as validate from '../../domain/studio/validation.js';
+import { insertAsset } from '../../domain/project-setup/repository.js';
+import { ALLOWED_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
+
+// Allowlist serveur des kinds acceptés par cet endpoint générique —
+// pour ce slice, uniquement article_image. Étendre cette liste au fur
+// et à mesure des besoins réels des autres domaines Studio (Espaces,
+// Le projet...), jamais un kind arbitraire fourni par le client.
+const ALLOWED_STUDIO_ASSET_KINDS = new Set(['article_image']);
+const uploadStudioAsset = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
 
 // Studio — autosave = brouillon uniquement. Aucune de ces routes ne
 // touche à la publication (Phase 2D, pipeline Candidate/Compiler/
@@ -64,8 +74,43 @@ function mountSimpleDomain(router, pool, {
   }));
 }
 
-export function createStudioRouter({ pool }) {
+export function createStudioRouter({ pool, storageAdapter }) {
   const router = Router();
+
+  // Upload générique Studio, project-scoped, aucun effet de bord sur
+  // project_identity (contrairement à POST /projects/:id/logo). Le
+  // kind est fourni par le client mais vérifié contre une allowlist
+  // serveur stricte — jamais un kind arbitraire inséré tel quel.
+  router.post(
+    '/:projectId/studio/assets',
+    requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT),
+    uploadStudioAsset.single('file'),
+    asyncHandler(async (req, res, next) => {
+      if (!req.file) { next(Errors.invalid('Aucun fichier reçu (champ "file" attendu).')); return; }
+      const kind = req.body.kind;
+      if (!ALLOWED_STUDIO_ASSET_KINDS.has(kind)) {
+        next(Errors.invalid(`kind non autorisé pour cet endpoint : "${kind}". Autorisés : ${[...ALLOWED_STUDIO_ASSET_KINDS].join(', ')}.`));
+        return;
+      }
+      const extension = ALLOWED_MIME_TO_EXTENSION[req.file.mimetype];
+      if (!extension) {
+        next(Errors.invalid(`Type de fichier non autorisé : ${req.file.mimetype}. Formats acceptés : PNG, JPG.`));
+        return;
+      }
+      if (!matchesRealFileSignature(req.file.buffer, req.file.mimetype)) {
+        next(Errors.invalid('Le contenu du fichier ne correspond pas au type annoncé.'));
+        return;
+      }
+
+      const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
+      const assetId = await insertAsset(pool, {
+        tenantId: req.project.tenant_id, projectId: req.project.id,
+        kind, storageKey, contentType: req.file.mimetype, byteSize: req.file.size
+      });
+
+      res.status(201).json({ assetId });
+    })
+  );
 
   // ── Questions ──
   mountSimpleDomain(router, pool, {
@@ -136,6 +181,7 @@ export function createStudioRouter({ pool }) {
       chapeauRuns: req.body.chapeauRuns, blocks: req.body.blocks
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    if (row.blockErrors) { next(Errors.invalid('Payload blocks invalide.', row.blockErrors)); return; }
     res.status(200).json(articleToApi(row));
   }));
 

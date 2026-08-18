@@ -82,7 +82,10 @@ export async function insertArticle(pool, { tenantId, projectId, tag, publicatio
        values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
       [tenantId, projectId, tag ?? null, publicationDate ?? null, title ?? '', JSON.stringify(chapeauRuns ?? []), position, userId]
     );
-    const insertedBlocks = await replaceArticleBlocks(client, { tenantId, projectId, articleId: article.id, blocks: blocks ?? [] });
+    // Création : aucun bloc existant à préserver, insertion simple.
+    // Un id éventuellement fourni par le client est ignoré (l'article
+    // vient de naître, aucun id de bloc ne peut légitimement exister).
+    const insertedBlocks = await insertArticleBlocks(client, { tenantId, projectId, articleId: article.id, blocks: blocks ?? [] });
     await client.query('COMMIT');
     return { ...article, blocks: insertedBlocks };
   } catch (err) {
@@ -93,11 +96,7 @@ export async function insertArticle(pool, { tenantId, projectId, tag, publicatio
   }
 }
 
-async function replaceArticleBlocks(client, { tenantId, projectId, articleId, blocks }) {
-  // Diff simple : on retire tout ce qui appartenait à l'article, on
-  // réinsère l'état fourni. Les blocs n'ont pas de version propre —
-  // ils appartiennent entièrement à l'unité de version de l'article.
-  await client.query('delete from project_article_blocks where tenant_id=$1 and project_id=$2 and article_id=$3', [tenantId, projectId, articleId]);
+async function insertArticleBlocks(client, { tenantId, projectId, articleId, blocks }) {
   const inserted = [];
   for (const block of blocks) {
     const { rows: [row] } = await client.query(
@@ -108,6 +107,75 @@ async function replaceArticleBlocks(client, { tenantId, projectId, articleId, bl
     inserted.push(row);
   }
   return inserted;
+}
+
+// Mise à jour : diff réel, jamais un delete-then-insert général.
+// L'identité d'un bloc est stable à travers les sauvegardes — un
+// article édité pendant une session d'écriture continue ne doit pas
+// voir ses blocs renaître avec de nouveaux ids à chaque autosave.
+//
+//   bloc avec id connu de CET article -> UPDATE
+//   bloc sans id                      -> INSERT (nouvel id)
+//   bloc existant absent du payload   -> DELETE
+//
+// Retourne { errors } si un id fourni est inconnu, appartient à un
+// autre article/projet/tenant, ou apparaît en double dans le payload
+// — jamais une correction silencieuse de ces cas.
+async function applyArticleBlocksDiff(client, { tenantId, projectId, articleId, blocks }) {
+  const { rows: existing } = await client.query(
+    'select id from project_article_blocks where tenant_id=$1 and project_id=$2 and article_id=$3',
+    [tenantId, projectId, articleId]
+  );
+  const existingIds = new Set(existing.map(r => r.id));
+
+  const seenIds = new Set();
+  const errors = [];
+  for (const block of blocks) {
+    if (block.id) {
+      if (seenIds.has(block.id)) {
+        errors.push(`id de bloc en double dans le payload : ${block.id}.`);
+        continue;
+      }
+      seenIds.add(block.id);
+      if (!existingIds.has(block.id)) {
+        errors.push(`id de bloc inconnu, ou n'appartenant pas à cet article : ${block.id}.`);
+      }
+    }
+  }
+  if (errors.length > 0) return { errors };
+
+  const keptIds = new Set();
+  const result = [];
+  for (const block of blocks) {
+    if (block.id) {
+      keptIds.add(block.id);
+      const { rows: [row] } = await client.query(
+        `update project_article_blocks
+         set block_type=$1, runs=$2, image_asset_id=$3, position=$4
+         where tenant_id=$5 and project_id=$6 and article_id=$7 and id=$8
+         returning *`,
+        [block.blockType, block.runs ? JSON.stringify(block.runs) : null, block.imageAssetId ?? null, block.position, tenantId, projectId, articleId, block.id]
+      );
+      result.push(row);
+    } else {
+      const { rows: [row] } = await client.query(
+        `insert into project_article_blocks (tenant_id, project_id, article_id, block_type, runs, image_asset_id, position)
+         values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+        [tenantId, projectId, articleId, block.blockType, block.runs ? JSON.stringify(block.runs) : null, block.imageAssetId ?? null, block.position]
+      );
+      result.push(row);
+    }
+  }
+
+  const idsToDelete = [...existingIds].filter(existingId => !keptIds.has(existingId));
+  if (idsToDelete.length > 0) {
+    await client.query(
+      'delete from project_article_blocks where tenant_id=$1 and project_id=$2 and article_id=$3 and id = ANY($4::uuid[])',
+      [tenantId, projectId, articleId, idsToDelete]
+    );
+  }
+
+  return { blocks: result };
 }
 
 export async function updateArticle(pool, { tenantId, projectId, id, version, tag, publicationDate, title, chapeauRuns, blocks, userId }) {
@@ -125,9 +193,13 @@ export async function updateArticle(pool, { tenantId, projectId, id, version, ta
       await client.query('ROLLBACK');
       return null;
     }
-    const insertedBlocks = await replaceArticleBlocks(client, { tenantId, projectId, articleId: id, blocks: blocks ?? [] });
+    const blockResult = await applyArticleBlocksDiff(client, { tenantId, projectId, articleId: id, blocks: blocks ?? [] });
+    if (blockResult.errors) {
+      await client.query('ROLLBACK');
+      return { blockErrors: blockResult.errors };
+    }
     await client.query('COMMIT');
-    return { ...rows[0], blocks: insertedBlocks };
+    return { ...rows[0], blocks: blockResult.blocks };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

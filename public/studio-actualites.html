@@ -157,19 +157,28 @@ async function create(){
  catch(e){state.save='error';state.error=e;renderCommand()}
 }
 function open(id){state.mode='edit';state.activeId=id;editor()}
-function mutateBlocks(fn){const a=article(state.activeId),d=read();if(!a||!d)return;fn(d.blocks);a.blocks=d.blocks;editor();dirty()}
+// Synchronise l'état en mémoire depuis le DOM avant tout re-rendu —
+// jamais seulement les blocs. Sans ça, toute mutation de bloc (ou le
+// début d'un upload d'image) reconstruit le formulaire depuis les
+// anciennes valeurs de a.title/a.tag/a.publicationDate/a.chapeauRuns,
+// écrasant silencieusement une frappe en cours dans un autre champ au
+// moment précis de la mutation — trouvé en testant la concurrence
+// upload+saisie, pas visible sur un test de frappe isolée.
+function syncFromDom(a){const d=read();if(!d)return;a.title=d.title;a.tag=d.tag;a.publicationDate=d.publicationDate;a.chapeauRuns=d.chapeauRuns;a.blocks=d.blocks}
+function mutateBlocks(fn){const a=article(state.activeId);if(!a)return;syncFromDom(a);fn(a.blocks);editor();dirty()}
 function addBlock(at,blockType,extra={}){mutateBlocks(b=>b.splice(at,0,{clientKey:crypto.randomUUID(),blockType,runs:[],imageAssetId:null,...extra,position:at}))}
 // Upload réel avant toute création de bloc image — jamais de bloc
 // avec imageAssetId:null (le contrat backend l'exige, pas une limite
 // technique). Échec -> aucun bloc ajouté, état récupérable.
 async function uploadImageAt(at,file){
+ const a=article(state.activeId);if(a)syncFromDom(a);
  state.upload={at,status:'uploading'};editor();
  try{
   const fd=new FormData();fd.append('kind','article_image');fd.append('file',file);
   const asset=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/assets`,{method:'POST',body:fd});
   state.upload={at:null,status:'idle'};
   addBlock(at,'image',{imageAssetId:asset.assetId});
- }catch(e){state.upload={at,status:'error'};editor()}
+ }catch(e){const a2=article(state.activeId);if(a2)syncFromDom(a2);state.upload={at,status:'error'};editor()}
 }
 function wireEditor(){
  document.getElementById('back').onclick=list;['title','tag','date'].forEach(id=>document.getElementById(id).oninput=dirty);document.getElementById('chapeau').oninput=dirty;
@@ -192,8 +201,9 @@ imageFileInput.onchange=()=>{
    try{
     const fd=new FormData();fd.append('kind','article_image');fd.append('file',file);
     const asset=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/assets`,{method:'POST',body:fd});
-    const a=article(state.activeId),d=read();if(!a||!d)return;
-    d.blocks[+replaceIndex].imageAssetId=asset.assetId;a.blocks=d.blocks;editor();dirty();
+    const a=article(state.activeId);if(!a)return;
+    syncFromDom(a);
+    a.blocks[+replaceIndex].imageAssetId=asset.assetId;editor();dirty();
    }catch(e){/* remplacement échoué : le bloc garde son image actuelle, pas d'état dégradé */}
   })();
   return;

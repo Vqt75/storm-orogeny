@@ -424,6 +424,75 @@ test('upload Studio : faux PDF (signature ne correspond pas) refusé même pour 
   assert.match(body.error.message, /correspond pas/);
 });
 
+test('upload Studio : kind=ambassador_photo accepté (signature réelle vérifiée)', async () => {
+  const fd = new FormData();
+  fd.append('kind', 'ambassador_photo');
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da63600000020001557f6e5c0000000049454e44ae426082', 'hex');
+  fd.append('file', new Blob([png], { type: 'image/png' }), 'photo.png');
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+  });
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  assert.ok(body.assetId);
+  await pool.query('delete from assets where id=$1', [body.assetId]);
+});
+
+test('upload Studio : faux fichier / signature incorrecte refusé pour ambassador_photo', async () => {
+  const fd = new FormData();
+  fd.append('kind', 'ambassador_photo');
+  const notAPng = Buffer.from('ceci n\'est absolument pas un PNG', 'ascii');
+  fd.append('file', new Blob([notAPng], { type: 'image/png' }), 'x.png');
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+  });
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.match(body.error.message, /correspond pas/);
+});
+
+test('Ambassadeurs : création avec photoAssetId issu d\'un upload réel', async () => {
+  const fd = new FormData();
+  fd.append('kind', 'ambassador_photo');
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da63600000020001557f6e5c0000000049454e44ae426082', 'hex');
+  fd.append('file', new Blob([png], { type: 'image/png' }), 'photo.png');
+  const uploadRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+  });
+  const { assetId } = await uploadRes.json();
+
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Ambassadeur Upload Test', photoAssetId: assetId, position: 0 })
+  })).json();
+  assert.equal(created.photoAssetId, assetId);
+
+  await pool.query('delete from project_ambassadors where id=$1', [created.id]);
+  await pool.query('delete from assets where id=$1', [assetId]);
+});
+
+test('Ambassadeurs : suppression directe de l\'asset -> ambassadeur conservé, tenant/project intacts, photoAssetId=null', async () => {
+  const { rows: [asset] } = await pool.query(
+    "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'ambassador_photo','k','image/png',10) returning id",
+    [ids.tenantA, ids.project]
+  );
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Ambassadeur SET NULL Test', photoAssetId: asset.id, position: 0 })
+  })).json();
+
+  await pool.query('delete from assets where id=$1', [asset.id]);
+
+  const row = await pool.query('select tenant_id, project_id, name, photo_asset_id from project_ambassadors where id=$1', [created.id]);
+  assert.equal(row.rows.length, 1, 'l\'ambassadeur doit être CONSERVÉ (SET NULL, pas CASCADE)');
+  assert.equal(row.rows[0].tenant_id, ids.tenantA, 'tenant_id doit rester intact');
+  assert.equal(row.rows[0].project_id, ids.project, 'project_id doit rester intact');
+  assert.equal(row.rows[0].name, 'Ambassadeur SET NULL Test', 'le nom doit rester intact');
+  assert.equal(row.rows[0].photo_asset_id, null, 'seule la référence photo doit être détachée');
+
+  await pool.query('delete from project_ambassadors where id=$1', [created.id]);
+});
+
 test('Espaces : préservation des ids de médias à travers un PATCH (inchangé, modifié, réordonné)', async () => {
   const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
     method: 'POST', ...withUser(ids.editor),

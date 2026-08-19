@@ -12,7 +12,7 @@ import { ALLOWED_MIME_TO_EXTENSION, ALLOWED_DOCUMENT_MIME_TO_EXTENSION, MAX_IMAG
 // pour ce slice, uniquement article_image. Étendre cette liste au fur
 // et à mesure des besoins réels des autres domaines Studio (Espaces,
 // Le projet...), jamais un kind arbitraire fourni par le client.
-const ALLOWED_STUDIO_ASSET_KINDS = new Set(['article_image', 'space_media']);
+const ALLOWED_STUDIO_ASSET_KINDS = new Set(['article_image', 'space_media', 'ambassador_photo']);
 const uploadStudioAsset = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
 
 // Studio — autosave = brouillon uniquement. Aucune de ces routes ne

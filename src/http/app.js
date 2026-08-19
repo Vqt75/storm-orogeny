@@ -77,6 +77,15 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'studio-actualites.html'));
   });
 
+  // Studio — vertical slice Espaces (Phase 2B). Même principe.
+  app.get('/projects/:projectId/studio/spaces', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'studio-espaces.html'));
+  });
+
   // Storm Control — même principe. GET /api/control/* protégé par
   // devAuth + capabilities organisationnelles côté serveur (jamais
   // seulement masqué côté front).

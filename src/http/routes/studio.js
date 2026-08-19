@@ -298,6 +298,25 @@ export function createStudioRouter({ pool, storageAdapter }) {
   router.patch('/:projectId/studio/section-content/:sectionKey', requireProjectCapability(pool, ProjectCapability.CONTENT_EDIT), asyncHandler(async (req, res, next) => {
     const { valid, errors } = validate.validateSectionContent(req.body, req.params.sectionKey, { requireVersionField: req.body.version !== undefined });
     if (!valid) { next(Errors.invalid('Payload section-content invalide.', errors)); return; }
+
+    // Homepage stocke une intention éditoriale (featuredArticleId),
+    // jamais une copie du contenu — mais une référence choisie dans
+    // Studio doit exister et appartenir à ce projet au moment où on
+    // l'écrit. Pas de FK possible sur un champ jsonb : vérifié ici,
+    // une seule fois, à l'écriture. Si l'article référencé est
+    // supprimé PLUS TARD, la référence reste telle quelle — dégradation
+    // gérée par le futur Compiler (Phase 2D), jamais par Studio.
+    if (req.params.sectionKey === 'homepage' && req.body.fields?.featuredArticleMode === 'manual' && req.body.fields?.featuredArticleId) {
+      const { rows } = await pool.query(
+        'select 1 from project_articles where tenant_id=$1 and project_id=$2 and id=$3',
+        [req.project.tenant_id, req.project.id, req.body.fields.featuredArticleId]
+      );
+      if (rows.length === 0) {
+        next(Errors.invalid('Payload section-content invalide.', ['homepage.featuredArticleId ne correspond à aucune actualité de ce projet.']));
+        return;
+      }
+    }
+
     const row = await repo.upsertSectionContent(pool, {
       tenantId: req.project.tenant_id, projectId: req.project.id, userId: req.user.id,
       sectionKey: req.params.sectionKey, fields: req.body.fields, version: req.body.version

@@ -177,9 +177,22 @@ export function validateSectionContent(payload, sectionKey, { requireVersionFiel
   const errors = [];
   if (!SECTION_KEYS.has(sectionKey)) errors.push(`section inconnue : "${sectionKey}".`);
   if (sectionKey === 'homepage' && payload?.fields) {
-    const allowed = new Set(['message', 'askPrompt']);
-    for (const key of Object.keys(payload.fields)) {
-      if (!allowed.has(key)) errors.push(`homepage.fields ne peut porter que message/askPrompt, pas "${key}".`);
+    const f = payload.fields;
+    const allowed = new Set(['message', 'featuredArticleMode', 'featuredArticleId', 'showMilestones', 'showAskPrompt', 'askPrompt']);
+    for (const key of Object.keys(f)) {
+      if (!allowed.has(key)) errors.push(`homepage.fields ne peut porter que ${[...allowed].join('/')}, pas "${key}".`);
+    }
+    if (f.featuredArticleMode !== undefined && !['latest', 'manual'].includes(f.featuredArticleMode)) {
+      errors.push('homepage.featuredArticleMode doit être "latest" ou "manual".');
+    }
+    if (f.featuredArticleId !== undefined && f.featuredArticleId !== null && !isString(f.featuredArticleId)) {
+      errors.push('homepage.featuredArticleId doit être une chaîne ou null.');
+    }
+    if (f.showMilestones !== undefined && typeof f.showMilestones !== 'boolean') {
+      errors.push('homepage.showMilestones doit être un booléen.');
+    }
+    if (f.showAskPrompt !== undefined && typeof f.showAskPrompt !== 'boolean') {
+      errors.push('homepage.showAskPrompt doit être un booléen.');
     }
   }
   if (requireVersionField) requireVersion(payload, errors);

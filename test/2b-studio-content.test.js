@@ -724,6 +724,104 @@ test('Section content Homepage : champ hors {message, askPrompt} refusé', async
   assert.equal(res.status, 400);
 });
 
+// ── Delta Homepage V3 : composition éditoriale (message, featuredArticleMode/Id, showMilestones, showAskPrompt, askPrompt) ──
+
+test('Homepage V3 : PATCH full-resource avec les 6 champs cibles accepté', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ fields: { message: 'Bienvenue', featuredArticleMode: 'latest', featuredArticleId: null, showMilestones: true, showAskPrompt: true, askPrompt: 'Une question ?' } })
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(body.fields, { message: 'Bienvenue', featuredArticleMode: 'latest', featuredArticleId: null, showMilestones: true, showAskPrompt: true, askPrompt: 'Une question ?' });
+  await pool.query('delete from project_section_content where project_id=$1', [ids.project]);
+});
+
+test('Homepage V3 : featuredArticleMode invalide refusé', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { featuredArticleMode: 'pinned' } })
+  });
+  assert.equal(res.status, 400);
+});
+
+test('Homepage V3 : showMilestones/showAskPrompt non booléens refusés', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { showMilestones: 'oui' } })
+  });
+  assert.equal(res.status, 400);
+});
+
+test('Homepage V3 : manual + featuredArticleId inexistant -> refusé, aucune écriture', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: '00000000-0000-0000-0000-000000000000' } })
+  });
+  assert.equal(res.status, 400);
+  const row = await pool.query('select 1 from project_section_content where project_id=$1', [ids.project]);
+  assert.equal(row.rows.length, 0, 'aucune ligne ne doit avoir été créée sur un rejet');
+});
+
+test('Homepage V3 : manual + featuredArticleId d\'un AUTRE projet -> refusé', async () => {
+  const { rows: [otherProject] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [ids.tenantA, 'Autre Projet Homepage Test']);
+  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [ids.tenantA, otherProject.id, ids.editor, 'editor']);
+  const otherArticle = await (await fetch(`${baseUrl}/api/projects/${otherProject.id}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Autre Projet', chapeauRuns: [], blocks: [], position: 0 })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: otherArticle.id } })
+  });
+  assert.equal(res.status, 400);
+
+  await pool.query('delete from project_articles where id=$1', [otherArticle.id]);
+  await pool.query('delete from projects where id=$1', [otherProject.id]);
+});
+
+test('Homepage V3 : manual + featuredArticleId d\'un article réel du même projet -> accepté', async () => {
+  const article = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Homepage Test', chapeauRuns: [], blocks: [], position: 0 })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: article.id } })
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.fields.featuredArticleId, article.id);
+
+  await pool.query('delete from project_section_content where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [article.id]);
+});
+
+test('Homepage V3 : manual + featuredArticleId null (brouillon incomplet) accepté', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: null } })
+  });
+  assert.equal(res.status, 200);
+  await pool.query('delete from project_section_content where project_id=$1', [ids.project]);
+});
+
+test('Homepage V3 : suppression de l\'article référencé ne modifie jamais la référence en base (dégradation déférée au futur Compiler)', async () => {
+  const article = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article À Supprimer', chapeauRuns: [], blocks: [], position: 0 })
+  })).json();
+
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: article.id } })
+  });
+
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${article.id}?version=${article.version}`, { method: 'DELETE', ...withUser(ids.editor) });
+
+  const row = await pool.query('select fields from project_section_content where project_id=$1', [ids.project]);
+  assert.equal(row.rows[0].fields.featuredArticleId, article.id, 'la référence doit rester inchangée après suppression de l\'article, jamais nettoyée par Studio');
+
+  await pool.query('delete from project_section_content where project_id=$1', [ids.project]);
+});
+
 // ── Non-régression : cross-tenant toujours impossible sur ces nouvelles routes ──
 
 test('cross-tenant : un utilisateur sans membership sur ce projet -> 404 sur les routes Studio aussi', async () => {

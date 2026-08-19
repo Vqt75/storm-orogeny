@@ -124,15 +124,69 @@ function validateSectionMedia(media, errors) {
   });
 }
 
+// Validation de type par sectionType — seulement SI la propriété est
+// présente, jamais une exigence de structure complète (doctrine
+// brouillon incomplet toléré, étendue à la forme du payload). Un
+// "quote" peut être enregistré sans attribution ; s'il en a une, ce
+// doit être une chaîne, pas un objet égaré par erreur.
+const NARRATIVE_PAYLOAD_STRING_FIELDS = {
+  focus: ['title', 'body'],
+  text: ['title', 'body'],
+  quote: ['quote', 'attribution'],
+  keyFigures: ['title'],
+  choices: ['title']
+};
+const NARRATIVE_PAYLOAD_ITEM_FIELDS = {
+  keyFigures: ['value', 'label'],
+  choices: ['title', 'body']
+};
+
+function validateNarrativeSectionPayload(sectionType, payload, errors) {
+  if (payload === undefined || payload === null) return;
+  if (typeof payload !== 'object' || Array.isArray(payload)) {
+    errors.push('payload doit être un objet.');
+    return;
+  }
+  const stringFields = NARRATIVE_PAYLOAD_STRING_FIELDS[sectionType] ?? [];
+  for (const field of stringFields) {
+    if (payload[field] !== undefined && !isString(payload[field])) {
+      errors.push(`payload.${field} doit être une chaîne de caractères.`);
+    }
+  }
+  const itemFields = NARRATIVE_PAYLOAD_ITEM_FIELDS[sectionType];
+  if (itemFields && payload.items !== undefined) {
+    if (!Array.isArray(payload.items)) {
+      errors.push('payload.items doit être un tableau.');
+    } else {
+      payload.items.forEach((item, i) => {
+        if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+          errors.push(`payload.items[${i}] doit être un objet.`);
+          return;
+        }
+        for (const field of itemFields) {
+          if (item[field] !== undefined && !isString(item[field])) {
+            errors.push(`payload.items[${i}].${field} doit être une chaîne de caractères.`);
+          }
+        }
+      });
+    }
+  }
+}
+
 export function validateNarrativeSection(payload, { requireVersionField = true } = {}) {
   const errors = [];
   if (!SECTION_TYPES.has(payload?.sectionType)) {
     errors.push(`sectionType doit être l'un de : ${[...SECTION_TYPES].join(', ')}.`);
+  } else {
+    validateNarrativeSectionPayload(payload.sectionType, payload.payload, errors);
   }
   if (['image', 'gallery'].includes(payload?.sectionType)) {
     validateSectionMedia(payload?.media, errors);
   } else if (payload?.media !== undefined && Array.isArray(payload.media) && payload.media.length > 0) {
     errors.push('media ne doit être fourni que pour les sections image/gallery.');
+  }
+  if (payload?.enabled !== undefined && typeof payload.enabled !== 'boolean') {
+    errors.push('enabled doit être un booléen.');
   }
   if (requireVersionField) requireVersion(payload, errors);
   return { valid: errors.length === 0, errors };
@@ -193,6 +247,21 @@ export function validateSectionContent(payload, sectionKey, { requireVersionFiel
     }
     if (f.showAskPrompt !== undefined && typeof f.showAskPrompt !== 'boolean') {
       errors.push('homepage.showAskPrompt doit être un booléen.');
+    }
+  }
+  if (sectionKey === 'le_projet' && payload?.fields) {
+    // Introduction générale du domaine "Le projet" — title/body,
+    // exactement la forme confirmée contre la référence Tectonic
+    // (project.intro.title/body). Jamais un JSON libre arbitraire.
+    const allowed = new Set(['title', 'body']);
+    for (const key of Object.keys(payload.fields)) {
+      if (!allowed.has(key)) errors.push(`le_projet.fields ne peut porter que title/body, pas "${key}".`);
+    }
+    if (payload.fields.title !== undefined && !isString(payload.fields.title)) {
+      errors.push('le_projet.fields.title doit être une chaîne de caractères.');
+    }
+    if (payload.fields.body !== undefined && !isString(payload.fields.body)) {
+      errors.push('le_projet.fields.body doit être une chaîne de caractères.');
     }
   }
   if (requireVersionField) requireVersion(payload, errors);

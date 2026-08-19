@@ -12,7 +12,7 @@ import { ALLOWED_MIME_TO_EXTENSION, ALLOWED_DOCUMENT_MIME_TO_EXTENSION, MAX_IMAG
 // pour ce slice, uniquement article_image. Étendre cette liste au fur
 // et à mesure des besoins réels des autres domaines Studio (Espaces,
 // Le projet...), jamais un kind arbitraire fourni par le client.
-const ALLOWED_STUDIO_ASSET_KINDS = new Set(['article_image', 'space_media', 'ambassador_photo']);
+const ALLOWED_STUDIO_ASSET_KINDS = new Set(['article_image', 'space_media', 'ambassador_photo', 'narrative_media', 'team_photo']);
 const uploadStudioAsset = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
 
 // Studio — autosave = brouillon uniquement. Aucune de ces routes ne
@@ -206,7 +206,8 @@ export function createStudioRouter({ pool, storageAdapter }) {
   // ── Sections narratives (Le projet, unité de version = la section) ──
   const sectionMediaToApi = m => ({ id: m.id, assetId: m.asset_id, alt: m.alt, position: m.position });
   const sectionToApi = r => ({
-    id: r.id, sectionType: r.section_type, payload: r.payload, position: r.position, version: r.version, updatedAt: r.updated_at,
+    id: r.id, sectionType: r.section_type, payload: r.payload, position: r.position, enabled: r.enabled,
+    version: r.version, updatedAt: r.updated_at,
     media: (r.media ?? []).map(sectionMediaToApi)
   });
 
@@ -220,7 +221,8 @@ export function createStudioRouter({ pool, storageAdapter }) {
     if (!valid) { next(Errors.invalid('Payload section narrative invalide.', errors)); return; }
     const row = await repo.insertNarrativeSection(pool, {
       tenantId: req.project.tenant_id, projectId: req.project.id, userId: req.user.id,
-      sectionType: req.body.sectionType, payload: req.body.payload, media: req.body.media, position: req.body.position
+      sectionType: req.body.sectionType, payload: req.body.payload, media: req.body.media,
+      position: req.body.position, enabled: req.body.enabled
     });
     res.status(201).json(sectionToApi(row));
   }));
@@ -230,9 +232,11 @@ export function createStudioRouter({ pool, storageAdapter }) {
     if (!valid) { next(Errors.invalid('Payload section narrative invalide.', errors)); return; }
     const row = await repo.updateNarrativeSection(pool, {
       tenantId: req.project.tenant_id, projectId: req.project.id, id: req.params.itemId, userId: req.user.id,
-      version: req.body.version, sectionType: req.body.sectionType, payload: req.body.payload, media: req.body.media
+      version: req.body.version, sectionType: req.body.sectionType, payload: req.body.payload, media: req.body.media,
+      position: req.body.position, enabled: req.body.enabled
     });
     if (!row) { res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Version périmée ou ressource introuvable.' } }); return; }
+    if (row.mediaErrors) { next(Errors.invalid('Payload media invalide.', row.mediaErrors)); return; }
     res.status(200).json(sectionToApi(row));
   }));
 

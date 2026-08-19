@@ -822,7 +822,261 @@ test('Homepage V3 : suppression de l\'article référencé ne modifie jamais la 
   await pool.query('delete from project_section_content where project_id=$1', [ids.project]);
 });
 
-// ── Non-régression : cross-tenant toujours impossible sur ces nouvelles routes ──
+// ── Le projet : upload team_photo/narrative_media, enabled, position, diff médias ──
+
+test('upload Studio : kind=narrative_media et kind=team_photo acceptés', async () => {
+  for (const kind of ['narrative_media', 'team_photo']) {
+    const fd = new FormData();
+    fd.append('kind', kind);
+    const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da63600000020001557f6e5c0000000049454e44ae426082', 'hex');
+    fd.append('file', new Blob([png], { type: 'image/png' }), 'x.png');
+    const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, {
+      method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd
+    });
+    assert.equal(res.status, 201, `upload ${kind} doit réussir`);
+    const body = await res.json();
+    await pool.query('delete from assets where id=$1', [body.assetId]);
+  }
+});
+
+test('Le projet : enabled=true par défaut à la création', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'quote', payload: {}, position: 0 })
+  })).json();
+  assert.equal(created.enabled, true);
+  await pool.query('delete from project_narrative_sections where id=$1', [created.id]);
+});
+
+test('Le projet : enabled=false persisté, puis re-true explicite fonctionne, omission ne réactive jamais', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'quote', payload: {}, position: 0 })
+  })).json();
+
+  const hidden = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ sectionType: 'quote', payload: {}, version: created.version, enabled: false, media: [] })
+  })).json();
+  assert.equal(hidden.enabled, false);
+
+  const omitted = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ sectionType: 'quote', payload: { quote: 'x' }, version: hidden.version, media: [] })
+  })).json();
+  assert.equal(omitted.enabled, false, 'omettre enabled ne doit jamais le repasser à true');
+
+  const reactivated = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ sectionType: 'quote', payload: { quote: 'x' }, version: omitted.version, enabled: true, media: [] })
+  })).json();
+  assert.equal(reactivated.enabled, true);
+
+  await pool.query('delete from project_narrative_sections where id=$1', [created.id]);
+});
+
+test('Le projet : masquer une section (enabled=false) ne supprime ni son payload ni ses médias', async () => {
+  const { rows: [asset] } = await pool.query(
+    "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'narrative_media','k','image/png',10) returning id",
+    [ids.tenantA, ids.project]
+  );
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: { title: 'Ma galerie' }, position: 0, media: [{ assetId: asset.id, position: 0 }] })
+  })).json();
+  const mediaId = created.media[0].id;
+
+  const hidden = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: { title: 'Ma galerie' }, version: created.version, enabled: false, media: [{ id: mediaId, assetId: asset.id, position: 0 }] })
+  })).json();
+
+  assert.equal(hidden.enabled, false);
+  assert.deepEqual(hidden.payload, { title: 'Ma galerie' }, 'le payload doit survivre au masquage');
+  assert.equal(hidden.media.length, 1, 'le média doit survivre au masquage');
+  assert.equal(hidden.media[0].id, mediaId, 'le média doit garder son id');
+
+  const dbRow = await pool.query('select payload, enabled from project_narrative_sections where id=$1', [created.id]);
+  assert.equal(dbRow.rows[0].enabled, false);
+  assert.deepEqual(dbRow.rows[0].payload, { title: 'Ma galerie' });
+  const dbMediaCount = await pool.query('select count(*)::int c from project_narrative_section_media where section_id=$1', [created.id]);
+  assert.equal(dbMediaCount.rows[0].c, 1);
+
+  await pool.query('delete from project_narrative_sections where id=$1', [created.id]);
+});
+
+test('Le projet : position réellement persistée sur une section narrative', async () => {
+  const a = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'text', payload: {}, position: 0 })
+  })).json();
+  const b = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'text', payload: {}, position: 1 })
+  })).json();
+
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${a.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ sectionType: 'text', payload: {}, version: a.version, position: 1, media: [] })
+  });
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${b.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ sectionType: 'text', payload: {}, version: b.version, position: 0, media: [] })
+  });
+
+  const order = await pool.query('select id from project_narrative_sections where id = ANY($1) order by position', [[a.id, b.id]]);
+  assert.deepEqual(order.rows.map(r => r.id), [b.id, a.id], 'position doit être réellement persistée');
+
+  await pool.query('delete from project_narrative_sections where id = ANY($1)', [[a.id, b.id]]);
+});
+
+test('Le projet : ids de médias stables après PATCH/modification/réordonnancement', async () => {
+  const { rows: [asset1] } = await pool.query(
+    "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'narrative_media','k1','image/png',10) returning id",
+    [ids.tenantA, ids.project]
+  );
+  const { rows: [asset2] } = await pool.query(
+    "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'narrative_media','k2','image/png',10) returning id",
+    [ids.tenantA, ids.project]
+  );
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: {}, position: 0, media: [
+      { assetId: asset1.id, position: 0 }, { assetId: asset2.id, position: 1 }
+    ] })
+  })).json();
+  const [m1, m2] = created.media;
+
+  const patched = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: {}, version: created.version, media: [
+      { id: m2.id, assetId: asset2.id, alt: 'Modifié', position: 0 },
+      { id: m1.id, assetId: asset1.id, position: 1 }
+    ] })
+  })).json();
+
+  assert.equal(patched.media.find(m => m.id === m1.id)?.position, 1);
+  assert.equal(patched.media.find(m => m.id === m2.id)?.alt, 'Modifié');
+  assert.equal(patched.media.length, 2, 'aucun média perdu ni dupliqué');
+
+  await pool.query('delete from project_narrative_sections where id=$1', [created.id]);
+});
+
+test('Le projet : id de média inconnu -> 400 + rollback (version inchangée)', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'gallery', payload: {}, position: 0, media: [] })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: {}, version: created.version, media: [{ id: '00000000-0000-0000-0000-000000000000', assetId: ids.assetInProject, position: 0 }] })
+  });
+  assert.equal(res.status, 400);
+
+  const row = await pool.query('select version from project_narrative_sections where id=$1', [created.id]);
+  assert.equal(row.rows[0].version, created.version);
+
+  await pool.query('delete from project_narrative_sections where id=$1', [created.id]);
+});
+
+test('Le projet : id de média d\'une AUTRE section -> 400 + rollback', async () => {
+  const { rows: [asset] } = await pool.query(
+    "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'narrative_media','k','image/png',10) returning id",
+    [ids.tenantA, ids.project]
+  );
+  const sectionA = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'gallery', payload: {}, position: 0, media: [{ assetId: asset.id, position: 0 }] })
+  })).json();
+  const sectionB = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'gallery', payload: {}, position: 1, media: [] })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${sectionB.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: {}, version: sectionB.version, media: [{ id: sectionA.media[0].id, assetId: asset.id, position: 0 }] })
+  });
+  assert.equal(res.status, 400);
+
+  const stillThere = await pool.query('select count(*)::int c from project_narrative_section_media where id=$1', [sectionA.media[0].id]);
+  assert.equal(stillThere.rows[0].c, 1, 'le média de la section A ne doit surtout pas avoir été déplacé');
+
+  await pool.query('delete from project_narrative_sections where id = ANY($1)', [[sectionA.id, sectionB.id]]);
+});
+
+test('Le projet : id de média en double dans le payload -> 400 + rollback', async () => {
+  const { rows: [asset] } = await pool.query(
+    "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'narrative_media','k','image/png',10) returning id",
+    [ids.tenantA, ids.project]
+  );
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'gallery', payload: {}, position: 0, media: [{ assetId: asset.id, position: 0 }] })
+  })).json();
+  const mediaId = created.media[0].id;
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: {}, version: created.version, media: [
+      { id: mediaId, assetId: asset.id, position: 0 }, { id: mediaId, assetId: asset.id, position: 1 }
+    ] })
+  });
+  assert.equal(res.status, 400);
+
+  const row = await pool.query('select version from project_narrative_sections where id=$1', [created.id]);
+  assert.equal(row.rows[0].version, created.version);
+
+  await pool.query('delete from project_narrative_sections where id=$1', [created.id]);
+});
+
+test('Le projet : 409 sur version périmée, toujours fonctionnel après les correctifs', async () => {
+  const created = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ sectionType: 'text', payload: {}, position: 0 })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections/${created.id}`, {
+    method: 'PATCH', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'text', payload: {}, version: created.version - 1 || 999, media: [] })
+  });
+  assert.equal(res.status, 409);
+
+  await pool.query('delete from project_narrative_sections where id=$1', [created.id]);
+});
+
+test('Le projet : isolation tenant/projet sur les médias de sections narratives', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'gallery', payload: {}, position: 0, media: [{ assetId: ids.assetOtherTenant, position: 0 }] })
+  });
+  // La validation applicative ne vérifie pas l'appartenance à la création (contrairement à Homepage/featuredArticleId) ;
+  // c'est la contrainte FK composite qui doit intercepter une tentative d'insertion cross-tenant.
+  assert.ok(res.status === 400 || res.status === 500, 'un asset d\'un autre tenant ne doit jamais être accepté silencieusement');
+});
+
+test('Le projet : validation de type sur le payload d\'une section (quote.attribution doit être une chaîne)', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'quote', payload: { quote: 'x', attribution: { nested: 'oops' } }, position: 0 })
+  });
+  assert.equal(res.status, 400);
+});
+
+test('Le projet : payload incomplet toujours toléré (doctrine brouillon)', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/narrative-sections`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ sectionType: 'quote', payload: {}, position: 0 })
+  });
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  await pool.query('delete from project_narrative_sections where id=$1', [body.id]);
+});
+
+test('section-content/le_projet : title/body acceptés, champ hors allowlist refusé', async () => {
+  const ok = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/le_projet`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { title: 'Titre', body: 'Corps' } })
+  });
+  assert.equal(ok.status, 200);
+  const okBody = await ok.json();
+  assert.deepEqual(okBody.fields, { title: 'Titre', body: 'Corps' });
+
+  const rejected = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/le_projet`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { title: 'x', sections: [] }, version: okBody.version })
+  });
+  assert.equal(rejected.status, 400);
+
+  await pool.query('delete from project_section_content where project_id=$1', [ids.project]);
+});
+
+
 
 test('cross-tenant : un utilisateur sans membership sur ce projet -> 404 sur les routes Studio aussi', async () => {
   const { rows: [outsider] } = await pool.query("insert into users (email, display_name) values ('outsider-studio@test.local','Outsider') returning id");

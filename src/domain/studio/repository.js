@@ -299,8 +299,7 @@ export async function listNarrativeSections(pool, projectId) {
   return sections.map(section => ({ ...section, media: media.filter(m => m.section_id === section.id) }));
 }
 
-async function replaceNarrativeSectionMedia(client, { tenantId, projectId, sectionId, media }) {
-  await client.query('delete from project_narrative_section_media where tenant_id=$1 and project_id=$2 and section_id=$3', [tenantId, projectId, sectionId]);
+async function insertNarrativeSectionMediaRows(client, { tenantId, projectId, sectionId, media }) {
   const inserted = [];
   for (const m of media) {
     const { rows: [row] } = await client.query(
@@ -313,16 +312,76 @@ async function replaceNarrativeSectionMedia(client, { tenantId, projectId, secti
   return inserted;
 }
 
-export async function insertNarrativeSection(pool, { tenantId, projectId, sectionType, payload, media, position, userId }) {
+// Mise à jour : diff réel, jamais un delete-then-insert général — même
+// pattern qu'applySpaceMediaDiff (Espaces). L'identité d'un média est
+// stable à travers les sauvegardes.
+async function applyNarrativeSectionMediaDiff(client, { tenantId, projectId, sectionId, media }) {
+  const { rows: existing } = await client.query(
+    'select id from project_narrative_section_media where tenant_id=$1 and project_id=$2 and section_id=$3',
+    [tenantId, projectId, sectionId]
+  );
+  const existingIds = new Set(existing.map(r => r.id));
+
+  const seenIds = new Set();
+  const errors = [];
+  for (const m of media) {
+    if (m.id) {
+      if (seenIds.has(m.id)) {
+        errors.push(`id de média en double dans le payload : ${m.id}.`);
+        continue;
+      }
+      seenIds.add(m.id);
+      if (!existingIds.has(m.id)) {
+        errors.push(`id de média inconnu, ou n'appartenant pas à cette section : ${m.id}.`);
+      }
+    }
+  }
+  if (errors.length > 0) return { errors };
+
+  const keptIds = new Set();
+  const result = [];
+  for (const m of media) {
+    if (m.id) {
+      keptIds.add(m.id);
+      const { rows: [row] } = await client.query(
+        `update project_narrative_section_media
+         set asset_id=$1, alt=$2, position=$3
+         where tenant_id=$4 and project_id=$5 and section_id=$6 and id=$7
+         returning *`,
+        [m.assetId, m.alt ?? null, m.position, tenantId, projectId, sectionId, m.id]
+      );
+      result.push(row);
+    } else {
+      const { rows: [row] } = await client.query(
+        `insert into project_narrative_section_media (tenant_id, project_id, section_id, asset_id, alt, position)
+         values ($1,$2,$3,$4,$5,$6) returning *`,
+        [tenantId, projectId, sectionId, m.assetId, m.alt ?? null, m.position]
+      );
+      result.push(row);
+    }
+  }
+
+  const idsToDelete = [...existingIds].filter(existingId => !keptIds.has(existingId));
+  if (idsToDelete.length > 0) {
+    await client.query(
+      'delete from project_narrative_section_media where tenant_id=$1 and project_id=$2 and section_id=$3 and id = ANY($4::uuid[])',
+      [tenantId, projectId, sectionId, idsToDelete]
+    );
+  }
+
+  return { media: result };
+}
+
+export async function insertNarrativeSection(pool, { tenantId, projectId, sectionType, payload, media, position, enabled, userId }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows: [section] } = await client.query(
-      `insert into project_narrative_sections (tenant_id, project_id, section_type, payload, position, updated_by_user_id)
-       values ($1,$2,$3,$4,$5,$6) returning *`,
-      [tenantId, projectId, sectionType, JSON.stringify(payload ?? {}), position, userId]
+      `insert into project_narrative_sections (tenant_id, project_id, section_type, payload, position, enabled, updated_by_user_id)
+       values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+      [tenantId, projectId, sectionType, JSON.stringify(payload ?? {}), position, enabled ?? true, userId]
     );
-    const insertedMedia = await replaceNarrativeSectionMedia(client, { tenantId, projectId, sectionId: section.id, media: media ?? [] });
+    const insertedMedia = await insertNarrativeSectionMediaRows(client, { tenantId, projectId, sectionId: section.id, media: media ?? [] });
     await client.query('COMMIT');
     return { ...section, media: insertedMedia };
   } catch (err) {
@@ -333,24 +392,33 @@ export async function insertNarrativeSection(pool, { tenantId, projectId, sectio
   }
 }
 
-export async function updateNarrativeSection(pool, { tenantId, projectId, id, version, sectionType, payload, media, userId }) {
+// enabled : COALESCE($n, enabled) — une omission ne doit jamais être
+// interprétée comme un masquage. Même discipline que position,
+// jamais transformer un champ absent en une valeur qui a un sens
+// métier fort (ici, ne jamais démasquer/masquer par accident).
+export async function updateNarrativeSection(pool, { tenantId, projectId, id, version, sectionType, payload, media, position, enabled, userId }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `update project_narrative_sections
-       set section_type=$1, payload=$2, version=version+1, updated_at=now(), updated_by_user_id=$3
-       where tenant_id=$4 and project_id=$5 and id=$6 and version=$7
+       set section_type=$1, payload=$2, position=coalesce($3, position), enabled=coalesce($4, enabled),
+           version=version+1, updated_at=now(), updated_by_user_id=$5
+       where tenant_id=$6 and project_id=$7 and id=$8 and version=$9
        returning *`,
-      [sectionType, JSON.stringify(payload ?? {}), userId, tenantId, projectId, id, version]
+      [sectionType, JSON.stringify(payload ?? {}), position ?? null, enabled ?? null, userId, tenantId, projectId, id, version]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
       return null;
     }
-    const insertedMedia = await replaceNarrativeSectionMedia(client, { tenantId, projectId, sectionId: id, media: media ?? [] });
+    const mediaResult = await applyNarrativeSectionMediaDiff(client, { tenantId, projectId, sectionId: id, media: media ?? [] });
+    if (mediaResult.errors) {
+      await client.query('ROLLBACK');
+      return { mediaErrors: mediaResult.errors };
+    }
     await client.query('COMMIT');
-    return { ...rows[0], media: insertedMedia };
+    return { ...rows[0], media: mediaResult.media };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -366,6 +434,7 @@ export async function deleteNarrativeSection(pool, { tenantId, projectId, id, ve
   );
   return rowCount > 0;
 }
+
 
 // ─────────────────────────────────────────────────────────────────
 // Ambassadeurs

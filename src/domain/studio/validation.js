@@ -134,7 +134,9 @@ const NARRATIVE_PAYLOAD_STRING_FIELDS = {
   text: ['title', 'body'],
   quote: ['quote', 'attribution'],
   keyFigures: ['title'],
-  choices: ['title']
+  choices: ['title'],
+  image: ['caption'],
+  gallery: ['title']
 };
 const NARRATIVE_PAYLOAD_ITEM_FIELDS = {
   keyFigures: ['value', 'label'],

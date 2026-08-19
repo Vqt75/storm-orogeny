@@ -33,13 +33,13 @@ export async function insertQuestion(pool, { tenantId, projectId, question, answ
   return row;
 }
 
-export async function updateQuestion(pool, { tenantId, projectId, id, version, question, answerRuns, userId }) {
+export async function updateQuestion(pool, { tenantId, projectId, id, version, question, answerRuns, position, userId }) {
   const { rows } = await pool.query(
     `update project_questions
-     set question = $1, answer_runs = $2, version = version + 1, updated_at = now(), updated_by_user_id = $3
-     where tenant_id = $4 and project_id = $5 and id = $6 and version = $7
+     set question = $1, answer_runs = $2, position = coalesce($3, position), version = version + 1, updated_at = now(), updated_by_user_id = $4
+     where tenant_id = $5 and project_id = $6 and id = $7 and version = $8
      returning *`,
-    [question ?? '', JSON.stringify(answerRuns ?? []), userId, tenantId, projectId, id, version]
+    [question ?? '', JSON.stringify(answerRuns ?? []), position ?? null, userId, tenantId, projectId, id, version]
   );
   return rows[0] ?? null;
 }
@@ -236,13 +236,13 @@ export async function insertMilestone(pool, { tenantId, projectId, status, dateL
   return row;
 }
 
-export async function updateMilestone(pool, { tenantId, projectId, id, version, status, dateLabel, label, description, userId }) {
+export async function updateMilestone(pool, { tenantId, projectId, id, version, status, dateLabel, label, description, position, userId }) {
   const { rows } = await pool.query(
     `update project_milestones
-     set status=$1, date_label=$2, label=$3, description=$4, version=version+1, updated_at=now(), updated_by_user_id=$5
-     where tenant_id=$6 and project_id=$7 and id=$8 and version=$9
+     set status=$1, date_label=$2, label=$3, description=$4, position=coalesce($5, position), version=version+1, updated_at=now(), updated_by_user_id=$6
+     where tenant_id=$7 and project_id=$8 and id=$9 and version=$10
      returning *`,
-    [status ?? null, dateLabel ?? null, label ?? null, description ?? null, userId, tenantId, projectId, id, version]
+    [status ?? null, dateLabel ?? null, label ?? null, description ?? null, position ?? null, userId, tenantId, projectId, id, version]
   );
   return rows[0] ?? null;
 }
@@ -269,13 +269,13 @@ export async function insertTeamMember(pool, { tenantId, projectId, name, title,
   return row;
 }
 
-export async function updateTeamMember(pool, { tenantId, projectId, id, version, name, title, badge, photoAssetId, userId }) {
+export async function updateTeamMember(pool, { tenantId, projectId, id, version, name, title, badge, photoAssetId, position, userId }) {
   const { rows } = await pool.query(
     `update project_team_members
-     set name=$1, title=$2, badge=$3, photo_asset_id=$4, version=version+1, updated_at=now(), updated_by_user_id=$5
-     where tenant_id=$6 and project_id=$7 and id=$8 and version=$9
+     set name=$1, title=$2, badge=$3, photo_asset_id=$4, position=coalesce($5, position), version=version+1, updated_at=now(), updated_by_user_id=$6
+     where tenant_id=$7 and project_id=$8 and id=$9 and version=$10
      returning *`,
-    [name ?? '', title ?? null, badge ?? null, photoAssetId ?? null, userId, tenantId, projectId, id, version]
+    [name ?? '', title ?? null, badge ?? null, photoAssetId ?? null, position ?? null, userId, tenantId, projectId, id, version]
   );
   return rows[0] ?? null;
 }
@@ -385,14 +385,14 @@ export async function insertAmbassador(pool, { tenantId, projectId, name, role, 
   return row;
 }
 
-export async function updateAmbassador(pool, { tenantId, projectId, id, version, name, role, tag, photoAssetId, contactable, contactChannel, contactValue, userId }) {
+export async function updateAmbassador(pool, { tenantId, projectId, id, version, name, role, tag, photoAssetId, contactable, contactChannel, contactValue, position, userId }) {
   const { rows } = await pool.query(
     `update project_ambassadors
      set name=$1, role=$2, tag=$3, photo_asset_id=$4, contactable=$5, contact_channel=$6, contact_value=$7,
-         version=version+1, updated_at=now(), updated_by_user_id=$8
-     where tenant_id=$9 and project_id=$10 and id=$11 and version=$12
+         position=coalesce($8, position), version=version+1, updated_at=now(), updated_by_user_id=$9
+     where tenant_id=$10 and project_id=$11 and id=$12 and version=$13
      returning *`,
-    [name ?? '', role ?? null, tag ?? null, photoAssetId ?? null, contactable ?? true, contactChannel ?? null, contactValue ?? null, userId, tenantId, projectId, id, version]
+    [name ?? '', role ?? null, tag ?? null, photoAssetId ?? null, contactable ?? true, contactChannel ?? null, contactValue ?? null, position ?? null, userId, tenantId, projectId, id, version]
   );
   return rows[0] ?? null;
 }

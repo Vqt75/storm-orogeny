@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Storm Studio — Ambassadeurs · Orogeny</title>
+<link rel="stylesheet" href="/fonts/roboto.css" />
+<style>
+:root{
+  --canvas:#f6f6f3;--surface:#fff;--ink:#111;--graphite:#353539;--muted:#77777c;--quiet:#a2a2a7;
+  --line:rgba(17,17,17,.08);--danger:#b42318;--glass:rgba(247,247,244,.50);
+  --ease:cubic-bezier(.22,1,.36,1)
+}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html{background:var(--canvas)}
+body{
+  margin:0;min-height:100vh;color:var(--ink);
+  font-family:Roboto,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:
+    radial-gradient(circle at 10% -8%,rgba(255,255,255,.98),transparent 34%),
+    radial-gradient(circle at 88% 3%,rgba(17,17,17,.035),transparent 25%),
+    var(--canvas);
+  -webkit-font-smoothing:antialiased
+}
+button,input{font:inherit;color:inherit}button{cursor:pointer}
+.shell{min-height:100vh;padding:22px 28px 154px}
+.topbar{
+  position:sticky;top:16px;z-index:50;height:62px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 8px 0 20px;border:1px solid rgba(255,255,255,.75);border-radius:20px;
+  background:rgba(255,255,255,.37);backdrop-filter:blur(24px) saturate(175%);
+  box-shadow:0 10px 34px rgba(17,17,17,.07),inset 0 1px 0 rgba(255,255,255,.82)
+}
+.brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:720;letter-spacing:-.035em}
+.brand-project{color:var(--muted);font-weight:560}
+.top-actions{display:flex;align-items:center;gap:6px}
+.project-link{border:0;background:transparent;padding:9px 12px;border-radius:12px;font-size:13px;font-weight:670}
+.project-link:hover{background:rgba(255,255,255,.55)}
+.avatar{width:38px;height:38px;border:0;border-radius:12px;background:#111;color:#fff;font-size:12px;font-weight:760}
+main{width:min(1280px,100%);margin:0 auto;padding-top:84px}
+.studio-grid{display:grid;grid-template-columns:190px minmax(0,900px);gap:58px;align-items:start}
+.studio-nav{
+  position:sticky;top:102px;padding:7px;border:1px solid rgba(255,255,255,.72);border-radius:22px;
+  background:rgba(247,247,244,.44);backdrop-filter:blur(24px) saturate(170%);
+  box-shadow:0 12px 38px rgba(17,17,17,.065),inset 0 1px 0 rgba(255,255,255,.82)
+}
+.nav-item{
+  width:100%;min-height:43px;padding:0 13px;border:0;border-radius:15px;background:transparent;text-align:left;
+  color:var(--muted);font-size:13px;font-weight:650
+}
+.nav-item:hover{color:var(--ink);background:rgba(255,255,255,.42)}
+.nav-item.active{color:var(--ink);background:rgba(255,255,255,.86);box-shadow:0 7px 18px rgba(17,17,17,.055)}
+.page-head{position:relative;margin-bottom:42px}
+.page-head:after{content:"";position:absolute;z-index:-1;width:280px;height:280px;right:-50px;top:-110px;border-radius:50%;background:rgba(17,17,17,.028)}
+.eyebrow{margin:0 0 13px;color:var(--muted);font-size:11px;font-weight:780;letter-spacing:.13em;text-transform:uppercase}
+h1{margin:0;font-size:clamp(54px,6.2vw,88px);line-height:.9;letter-spacing:-.064em;font-weight:630}
+.lead{max-width:620px;margin:19px 0 0;color:var(--muted);font-size:15px;line-height:1.55}
+.amb-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:20px}
+.amb-list{display:grid;gap:10px;align-content:start}
+.amb-chip,.add-amb{border:0;border-radius:20px;text-align:left;transition:.2s var(--ease)}
+.amb-chip{padding:16px 17px;background:rgba(255,255,255,.58);box-shadow:0 1px 0 rgba(255,255,255,.86) inset}
+.amb-chip:hover{background:#fff;transform:translateY(-1px)}
+.amb-chip.active{background:#111;color:#fff;box-shadow:0 16px 38px rgba(17,17,17,.16)}
+.amb-chip small{display:block;margin-bottom:6px;opacity:.62;font-size:10px;font-weight:760;letter-spacing:.1em;text-transform:uppercase}
+.amb-chip strong{display:block;font-size:14px;line-height:1.28;letter-spacing:-.02em}
+.amb-chip span{display:block;margin-top:6px;font-size:11px;opacity:.62}
+.add-amb{min-height:58px;padding:0 16px;background:rgba(255,255,255,.23);color:var(--muted);font-weight:680}
+.add-amb:hover{background:rgba(255,255,255,.7);color:var(--ink)}
+.editor{
+  border-radius:30px;background:rgba(255,255,255,.77);padding:32px;min-height:620px;
+  box-shadow:0 1px 0 rgba(255,255,255,.88) inset,0 14px 38px rgba(17,17,17,.045)
+}
+.editor-head{position:relative;display:flex;justify-content:flex-end;margin-bottom:14px}
+.more{width:40px;height:40px;border:0;border-radius:13px;background:transparent;font-size:20px;line-height:1}
+.more:hover,.more[aria-expanded="true"]{background:rgba(17,17,17,.05)}
+.popover{
+  position:absolute;z-index:20;right:0;top:46px;width:180px;padding:5px;border:1px solid rgba(255,255,255,.8);
+  border-radius:15px;background:rgba(248,248,246,.94);backdrop-filter:blur(22px) saturate(170%);
+  box-shadow:0 16px 42px rgba(17,17,17,.13)
+}
+.popover button{width:100%;min-height:40px;border:0;border-radius:11px;background:transparent;text-align:left;padding:0 11px;font-size:12px;font-weight:680}
+.popover button:hover{background:#fff}.popover .danger{color:var(--danger)}
+.profile-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:22px;align-items:start}
+.photo-wrap{display:grid;gap:8px}
+.photo{
+  width:120px;aspect-ratio:1;border-radius:28px;background:linear-gradient(145deg,#ecece8,#dddcd7);
+  display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:11px;font-weight:760
+}
+.photo img{width:100%;height:100%;object-fit:cover}
+.photo-actions{display:grid;gap:6px}
+.photo-btn{min-height:38px;border:0;border-radius:12px;background:rgba(17,17,17,.045);font-size:11px;font-weight:680}
+.photo-btn:hover{background:#fff}
+.photo-btn.remove{color:var(--danger);background:transparent}
+.amb-name{
+  min-height:44px;outline:0;font-size:42px;line-height:1.03;letter-spacing:-.055em;font-weight:700;white-space:pre-wrap;overflow-wrap:anywhere
+}
+.amb-name:empty:before,.plain-edit:empty:before{content:attr(data-placeholder);color:#b2b2b6;pointer-events:none}
+.fields{display:grid;gap:10px;margin-top:18px}
+.field-label{display:block;margin-bottom:6px;color:var(--quiet);font-size:10px;font-weight:760;letter-spacing:.1em;text-transform:uppercase}
+.plain-edit{
+  min-height:42px;padding:10px 12px;border-radius:14px;background:rgba(17,17,17,.035);outline:0;color:var(--graphite);font-size:14px;line-height:1.5
+}
+.contact-card{margin-top:30px;padding:20px;border-radius:22px;background:rgba(246,246,243,.72)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.toggle-copy strong{display:block;font-size:14px}.toggle-copy span{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.45}
+.switch{
+  position:relative;width:50px;height:30px;border:0;border-radius:999px;background:rgba(17,17,17,.12);flex:0 0 auto;transition:.2s var(--ease)
+}
+.switch:before{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(17,17,17,.18);transition:.2s var(--ease)}
+.switch.on{background:#111}.switch.on:before{transform:translateX(20px)}
+.contact-fields{display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px;margin-top:18px}
+.select{
+  width:100%;min-height:42px;border:0;border-radius:14px;background:rgba(17,17,17,.045);padding:0 12px;outline:0
+}
+.reorder{margin-top:28px;padding-top:22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:6px}
+.icon-btn{min-width:38px;height:38px;border:0;border-radius:12px;background:rgba(17,17,17,.045);color:var(--muted)}
+.icon-btn:hover{background:#fff;color:var(--ink)}.icon-btn:disabled{opacity:.28;cursor:default}
+.uploading{margin-top:8px;padding:11px 12px;border-radius:14px;background:rgba(17,17,17,.035);color:var(--muted);font-size:11px}
+.loading{padding:24px;border-radius:22px;background:rgba(255,255,255,.45);color:var(--muted);font-size:13px}
+.command-layer{
+  position:fixed;z-index:80;left:50%;bottom:22px;transform:translateX(-50%);
+  width:min(640px,calc(100vw - 28px));min-height:58px;padding:6px;border:1px solid rgba(255,255,255,.74);
+  border-radius:20px;background:var(--glass);backdrop-filter:blur(28px) saturate(190%);
+  box-shadow:0 18px 54px rgba(17,17,17,.16),inset 0 1px 0 rgba(255,255,255,.9)
+}
+.command-state{min-height:46px;display:flex;align-items:center;justify-content:center;gap:6px}
+.command-message{padding:0 12px;text-align:center;color:var(--graphite);font-size:13px}
+.command-message strong{color:var(--ink);font-weight:720}
+.command-button{min-height:42px;padding:0 16px;border:0;border-radius:15px;background:transparent;font-size:13px;font-weight:690}
+.command-button:hover{background:rgba(255,255,255,.44)}.command-button.primary{background:#111;color:#fff}
+.sheet{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(10,10,12,.20);backdrop-filter:blur(7px)}
+.sheet-card{width:min(430px,100%);padding:24px;border:1px solid rgba(255,255,255,.8);border-radius:24px;background:rgba(249,249,247,.96);box-shadow:0 28px 80px rgba(17,17,17,.18)}
+.sheet-card h2{margin:0;font-size:24px;letter-spacing:-.04em}.sheet-card p{margin:10px 0 22px;color:var(--muted);font-size:13px;line-height:1.55}
+.sheet-actions{display:flex;justify-content:flex-end;gap:7px}.sheet-actions button{min-height:42px;padding:0 14px;border:0;border-radius:13px;font-weight:690}
+.cancel{background:rgba(17,17,17,.05)}.delete{background:#111;color:#fff}
+@media(max-width:980px){.amb-layout{grid-template-columns:1fr}.amb-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){
+  .shell{padding:14px 14px 146px}.topbar{top:10px}.brand-project,.project-link{display:none}
+  main{padding-top:66px}.studio-grid{grid-template-columns:1fr;gap:30px}
+  .studio-nav{position:relative;top:auto;display:flex;gap:4px;overflow:auto;scrollbar-width:none}
+  .studio-nav::-webkit-scrollbar{display:none}.nav-item{width:auto;flex:0 0 auto}.amb-list{grid-template-columns:1fr}
+  .editor{padding:24px}.amb-name{font-size:34px}.profile-row{grid-template-columns:88px minmax(0,1fr);gap:16px}
+  .photo{width:88px;border-radius:22px}.contact-fields{grid-template-columns:1fr}.command-layer{bottom:12px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand"><strong>Storm</strong><span class="brand-project" id="brandProject">Projet</span></div>
+    <div class="top-actions"><button class="project-link" id="projectLink" type="button">Projet</button><button class="avatar" id="avatarBtn" type="button" aria-label="Compte">VC</button></div>
+  </header>
+
+  <main>
+    <div class="studio-grid">
+      <nav class="studio-nav" aria-label="Studio">
+        <button class="nav-item" data-domain="homepage" type="button">Homepage</button>
+        <button class="nav-item" data-domain="project" type="button">Le projet</button>
+        <button class="nav-item" data-domain="spaces" type="button">Espaces</button>
+        <button class="nav-item" data-domain="news" type="button">Actualités</button>
+        <button class="nav-item active" data-domain="ambassadors" type="button" aria-current="page">Ambassadeurs</button>
+        <button class="nav-item" data-domain="questions" type="button">Questions</button>
+      </nav>
+
+      <section>
+        <header class="page-head">
+          <p class="eyebrow">Studio</p>
+          <h1>Ambassadeurs</h1>
+          <p class="lead">Présentez les personnes qui accompagnent le projet et indiquez comment les collaborateurs peuvent les contacter.</p>
+        </header>
+
+        <div class="amb-layout">
+          <aside class="amb-list" id="ambList"></aside>
+          <article class="editor" id="editor"></article>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="command-layer" id="commandLayer" role="region" aria-label="Command Layer">
+  <div class="command-state" id="commandState" aria-live="polite"></div>
+</div>
+
+<div class="sheet" id="deleteSheet" hidden role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+  <div class="sheet-card">
+    <h2 id="deleteTitle">Supprimer cet ambassadeur ?</h2>
+    <p>Cette action supprime l’ambassadeur de Studio.</p>
+    <div class="sheet-actions">
+      <button class="cancel" id="cancelDelete" type="button">Annuler</button>
+      <button class="delete" id="confirmDelete" type="button">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<input id="photoInput" type="file" accept="image/png,image/jpeg" hidden />
+
+<script>
+/*
+STORM STUDIO — AMBASSADEURS · FRONT INTEGRATION HANDOFF
+========================================================
+
+Expected verified backend contract:
+GET    /api/projects/:id/context
+GET    /api/me
+GET    /api/projects/:id/studio/ambassadors
+POST   /api/projects/:id/studio/ambassadors
+PATCH  /api/projects/:id/studio/ambassadors/:ambassadorId
+DELETE /api/projects/:id/studio/ambassadors/:ambassadorId?version=N
+POST   /api/projects/:id/studio/assets   multipart FormData, kind=ambassador_photo
+
+Canonical Ambassador:
+{
+  id,
+  name,
+  role,
+  tag,
+  photoAssetId,
+  contactable,
+  contactChannel,
+  contactValue,
+  position,
+  version,
+  updatedAt
+}
+
+Critical contract rule:
+PATCH IS FULL-RESOURCE. Every save must send:
+name, role, tag, photoAssetId, contactable, contactChannel,
+contactValue, position, version.
+Omitting photo/contact fields can erase them.
+
+Product/HX rules:
+- no placeholder object name such as "Nouvel ambassadeur": create empty draft + focus name
+- name = plain-text contenteditable, auto-grow, never truncated
+- same Command Layer / autosave / optimistic locking / delete sheet as prior Studio slices
+- ambassador photo is OPTIONAL and uploaded first with kind=ambassador_photo
+- deleting/replacing a photo updates photoAssetId; ambassador remains a valid resource without photo
+- direct asset deletion may SET NULL photoAssetId server-side
+- contact fields only shown when contactable=true
+- reorder uses up/down, not drag and drop
+- no new Studio grammar
+*/
+
+const state={
+  context:null,me:null,ambassadors:[],activeId:null,
+  load:"loading",save:"saved",error:null,unpublished:false,
+  timers:new Map(),inflight:new Map(),queued:new Set(),
+  commandLocked:false,uploading:false,uploadError:null,
+  deleteTarget:null,lastMenu:null
+};
+
+const ambList=document.getElementById("ambList");
+const editor=document.getElementById("editor");
+const commandLayer=document.getElementById("commandLayer");
+const commandState=document.getElementById("commandState");
+const deleteSheet=document.getElementById("deleteSheet");
+const photoInput=document.getElementById("photoInput");
+
+const projectId=(()=>{
+  const m=location.pathname.match(/^\/projects\/([^/]+)\/studio(?:\/ambassadors)?\/?$/);
+  return m?decodeURIComponent(m[1]):"";
+})();
+
+function devHeaders(){
+  const d=new URLSearchParams(location.search).get("devUser");
+  return d?{"X-Storm-Dev-User":d}:{};
+}
+function preserveDev(url){
+  const d=new URLSearchParams(location.search).get("devUser");
+  return d?url+(url.includes("?")?"&":"?")+"devUser="+encodeURIComponent(d):url;
+}
+function hasCap(cap){return state.context?.membership?.capabilities?.includes(cap)}
+function esc(v=""){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
+function active(){return state.ambassadors.find(a=>String(a.id)===String(state.activeId))}
+function normalize(a){
+  return {
+    ...a,
+    name:a?.name??"",
+    role:a?.role??"",
+    tag:a?.tag??"",
+    photoAssetId:a?.photoAssetId??null,
+    contactable:!!a?.contactable,
+    contactChannel:a?.contactChannel??null,
+    contactValue:a?.contactValue??null
+  };
+}
+
+async function api(url,options={}){
+  const headers={Accept:"application/json",...devHeaders(),...(options.headers||{})};
+  if(options.body && !(options.body instanceof FormData) && !headers["Content-Type"])headers["Content-Type"]="application/json";
+  const res=await fetch(url,{...options,credentials:"same-origin",headers});
+  const type=res.headers.get("content-type")||"";
+  const body=res.status===204?null:(type.includes("application/json")?await res.json():await res.text());
+  if(!res.ok){
+    const e=new Error(body?.error?.message||body?.message||`HTTP ${res.status}`);
+    e.status=res.status;e.body=body;throw e;
+  }
+  return body;
+}
+
+function renderList(){
+  if(state.load==="loading"){ambList.innerHTML='<div class="loading">Chargement des ambassadeurs…</div>';return}
+  ambList.innerHTML=
+    state.ambassadors.map(a=>`
+      <button class="amb-chip ${String(a.id)===String(state.activeId)?"active":""}" data-amb="${esc(a.id)}" type="button">
+        <small>${esc(a.tag||"Ambassadeur")}</small>
+        <strong>${esc(a.name||"Sans nom")}</strong>
+        ${a.role?`<span>${esc(a.role)}</span>`:""}
+      </button>`).join("")+
+    `<button class="add-amb" id="addAmb" type="button">+ Ajouter un ambassadeur</button>`;
+
+  ambList.querySelectorAll("[data-amb]").forEach(b=>b.onclick=()=>{
+    flushDomToState();state.activeId=b.dataset.amb;renderAll();
+  });
+  document.getElementById("addAmb").onclick=createAmbassador;
+}
+
+function photoMarkup(a){
+  return a.photoAssetId
+    ? `<div class="photo"><span>Photo</span></div>`
+    : `<div class="photo"><span>Aucune photo</span></div>`;
+}
+
+function renderEditor(){
+  if(state.load==="loading"){editor.innerHTML='<div class="loading">Storm ouvre les ambassadeurs…</div>';return}
+  if(state.load==="error"){editor.innerHTML='<div class="loading">Storm n’arrive pas à ouvrir Ambassadeurs.</div>';return}
+  const a=active();
+  if(!a){editor.innerHTML='<p style="margin:0;color:var(--muted)">Sélectionnez un ambassadeur ou créez-en un nouveau.</p>';return}
+
+  const index=state.ambassadors.findIndex(x=>String(x.id)===String(a.id));
+
+  editor.innerHTML=`
+    <div class="editor-head">
+      <button class="more" id="ambMenu" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Actions">•••</button>
+      <div class="popover" id="ambPopover" hidden role="menu">
+        <button class="danger" id="deleteAmb" role="menuitem" type="button">Supprimer</button>
+      </div>
+    </div>
+
+    <div class="profile-row">
+      <div class="photo-wrap">
+        ${photoMarkup(a)}
+        <div class="photo-actions">
+          <button class="photo-btn" id="replacePhoto" type="button">${a.photoAssetId?"Remplacer la photo":"Ajouter une photo"}</button>
+          ${a.photoAssetId?`<button class="photo-btn remove" id="removePhoto" type="button">Retirer</button>`:""}
+        </div>
+        ${state.uploading?`<div class="uploading">Import de la photo…</div>`:""}
+        ${state.uploadError?`<div class="uploading">${esc(state.uploadError)}</div>`:""}
+      </div>
+
+      <div>
+        <div class="amb-name" contenteditable="true" data-field="name" data-placeholder="Nom de l’ambassadeur">${esc(a.name||"")}</div>
+        <div class="fields">
+          <label>
+            <span class="field-label">Rôle</span>
+            <div class="plain-edit" contenteditable="true" data-field="role" data-placeholder="Ex. Responsable RH">${esc(a.role||"")}</div>
+          </label>
+          <label>
+            <span class="field-label">Tag</span>
+            <div class="plain-edit" contenteditable="true" data-field="tag" data-placeholder="Ex. Ambassadrice">${esc(a.tag||"")}</div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <section class="contact-card">
+      <div class="toggle-row">
+        <div class="toggle-copy">
+          <strong>Peut être contacté</strong>
+          <span>Affichez un moyen de contact lorsque cette personne peut être sollicitée par les collaborateurs.</span>
+        </div>
+        <button class="switch ${a.contactable?"on":""}" id="contactableSwitch" type="button" role="switch" aria-checked="${a.contactable}" aria-label="Peut être contacté"></button>
+      </div>
+
+      <div class="contact-fields" ${a.contactable?"":"hidden"}>
+        <label>
+          <span class="field-label">Canal</span>
+          <select class="select" id="contactChannel">
+            <option value="" ${!a.contactChannel?"selected":""}>Choisir</option>
+            <option value="email" ${a.contactChannel==="email"?"selected":""}>E-mail</option>
+            <option value="phone" ${a.contactChannel==="phone"?"selected":""}>Téléphone</option>
+            <option value="teams" ${a.contactChannel==="teams"?"selected":""}>Teams</option>
+          </select>
+        </label>
+        <label>
+          <span class="field-label">Coordonnée</span>
+          <div class="plain-edit" contenteditable="true" data-field="contactValue" data-placeholder="Adresse, numéro ou identifiant…">${esc(a.contactValue||"")}</div>
+        </label>
+      </div>
+    </section>
+
+    <div class="reorder">
+      <button class="icon-btn" id="moveUp" type="button" aria-label="Monter" ${index<=0?"disabled":""}>↑</button>
+      <button class="icon-btn" id="moveDown" type="button" aria-label="Descendre" ${index<0||index>=state.ambassadors.length-1?"disabled":""}>↓</button>
+    </div>
+  `;
+
+  wireEditor();
+}
+
+function wirePlainText(el,{singleLine=false}={}){
+  if(!el)return;
+  el.addEventListener("input",()=>{flushDomToState();markDirty(active()?.id)});
+  el.addEventListener("keydown",e=>{if(singleLine&&e.key==="Enter")e.preventDefault()});
+  el.addEventListener("paste",e=>{
+    e.preventDefault();
+    let t=(e.clipboardData||window.clipboardData).getData("text/plain");
+    if(singleLine)t=t.replace(/\n+/g," ");
+    document.execCommand("insertText",false,t);
+  });
+}
+
+function flushDomToState(){
+  const a=active();if(!a||!editor.isConnected)return a;
+  const get=f=>editor.querySelector(`[data-field="${f}"]`);
+  const n=get("name"),r=get("role"),t=get("tag"),cv=get("contactValue");
+  if(n)a.name=(n.textContent||"").replace(/\n+/g," ");
+  if(r)a.role=r.textContent||"";
+  if(t)a.tag=t.textContent||"";
+  if(cv)a.contactValue=cv.textContent||"";
+  const channel=document.getElementById("contactChannel");
+  if(channel)a.contactChannel=channel.value||null;
+  return a;
+}
+
+function wireEditor(){
+  const a=active();if(!a)return;
+
+  const menu=document.getElementById("ambMenu");
+  const pop=document.getElementById("ambPopover");
+  menu.onclick=()=>{const open=pop.hidden;pop.hidden=!open;menu.setAttribute("aria-expanded",String(open));state.lastMenu=menu};
+  document.getElementById("deleteAmb").onclick=()=>{
+    pop.hidden=true;menu.setAttribute("aria-expanded","false");
+    state.deleteTarget=a.id;deleteSheet.hidden=false;
+    requestAnimationFrame(()=>document.getElementById("cancelDelete").focus());
+  };
+
+  wirePlainText(editor.querySelector('[data-field="name"]'),{singleLine:true});
+  wirePlainText(editor.querySelector('[data-field="role"]'));
+  wirePlainText(editor.querySelector('[data-field="tag"]'));
+  wirePlainText(editor.querySelector('[data-field="contactValue"]'));
+
+  document.getElementById("contactableSwitch").onclick=()=>{
+    flushDomToState();
+    a.contactable=!a.contactable;
+    if(!a.contactable){
+      // Preserve local values unless product contract explicitly decides to clear them.
+      // Full-resource PATCH still sends them.
+    }
+    markDirty(a.id);renderEditor();
+  };
+
+  document.getElementById("contactChannel")?.addEventListener("change",e=>{
+    flushDomToState();a.contactChannel=e.target.value||null;markDirty(a.id);
+  });
+
+  document.getElementById("replacePhoto").onclick=()=>{
+    flushDomToState();state.uploadError=null;photoInput.value="";photoInput.click();
+  };
+  document.getElementById("removePhoto")?.addEventListener("click",()=>{
+    flushDomToState();a.photoAssetId=null;markDirty(a.id);renderEditor();
+  });
+
+  document.getElementById("moveUp").onclick=()=>moveAmbassador(-1);
+  document.getElementById("moveDown").onclick=()=>moveAmbassador(1);
+}
+
+function payload(a){
+  flushDomToState();
+  return {
+    name:a.name||"",
+    role:a.role||"",
+    tag:a.tag||"",
+    photoAssetId:a.photoAssetId??null,
+    contactable:!!a.contactable,
+    contactChannel:a.contactChannel??null,
+    contactValue:a.contactValue??null,
+    position:Number.isInteger(a.position)?a.position:Math.max(0,state.ambassadors.indexOf(a))
+  };
+}
+
+function markDirty(id){
+  if(!id)return;
+  state.save="dirty";state.unpublished=true;renderCommand();
+  clearTimeout(state.timers.get(id));
+  state.timers.set(id,setTimeout(()=>queueSave(id),800));
+}
+
+async function queueSave(id){
+  if(!id)return;
+  if(state.inflight.get(id)){state.queued.add(id);return}
+  const a=state.ambassadors.find(x=>String(x.id)===String(id));
+  if(!a||!a.version)return;
+
+  state.inflight.set(id,true);state.save="saving";renderCommand();
+  const sent=payload(a);
+
+  try{
+    const updated=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/ambassadors/${encodeURIComponent(id)}`,{
+      method:"PATCH",
+      body:JSON.stringify({version:a.version,...sent})
+    });
+
+    // Adopt only canonical metadata that cannot overwrite newer local text.
+    a.version=updated.version;
+    a.updatedAt=updated.updatedAt;
+    a.photoAssetId=updated.photoAssetId??a.photoAssetId;
+    state.save="saved";renderList();renderCommand();
+  }catch(e){
+    state.save=e.status===409?"conflict":"error";state.error=e;renderCommand();
+  }finally{
+    state.inflight.delete(id);
+    if(state.queued.has(id)){state.queued.delete(id);queueMicrotask(()=>queueSave(id))}
+  }
+}
+
+async function createAmbassador(){
+  state.save="saving";renderCommand();
+  try{
+    const created=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/ambassadors`,{
+      method:"POST",
+      body:JSON.stringify({
+        name:"",role:"",tag:"",photoAssetId:null,
+        contactable:false,contactChannel:null,contactValue:null,
+        position:state.ambassadors.length
+      })
+    });
+    const a=normalize(created);state.ambassadors.push(a);state.activeId=a.id;
+    state.unpublished=true;state.save="saved";renderAll();
+    requestAnimationFrame(()=>editor.querySelector(".amb-name")?.focus());
+  }catch(e){state.save="error";state.error=e;renderCommand()}
+}
+
+async function uploadPhoto(file){
+  const a=active();if(!a)return;
+  flushDomToState();
+  state.uploading=true;state.uploadError=null;renderEditor();renderCommand();
+
+  try{
+    const fd=new FormData();
+    fd.append("kind","ambassador_photo");
+    fd.append("file",file);
+    const asset=await api(`/api/projects/${encodeURIComponent(projectId)}/studio/assets`,{method:"POST",body:fd});
+
+    flushDomToState();
+    // Contract verified during Espaces integration showed the upload returns assetId.
+    a.photoAssetId=asset.assetId;
+    state.uploading=false;
+    markDirty(a.id);
+    renderEditor();renderCommand();
+  }catch(e){
+    state.uploading=false;state.uploadError=e.message||"Impossible d’importer la photo.";
+    renderEditor();renderCommand();
+  }
+}
+
+photoInput.addEventListener("change",()=>{
+  const file=photoInput.files?.[0];if(file)uploadPhoto(file);
+});
+
+function moveAmbassador(delta){
+  flushDomToState();
+  const a=active();if(!a)return;
+  const i=state.ambassadors.findIndex(x=>String(x.id)===String(a.id)),j=i+delta;
+  if(i<0||j<0||j>=state.ambassadors.length)return;
+  [state.ambassadors[i],state.ambassadors[j]]=[state.ambassadors[j],state.ambassadors[i]];
+  state.ambassadors.forEach((x,k)=>x.position=k);
+
+  // Each ambassador is its own optimistic-lock resource.
+  // Persist both affected resources, never invent a bulk reorder endpoint.
+  markDirty(state.ambassadors[i].id);
+  markDirty(state.ambassadors[j].id);
+  renderList();renderEditor();
+}
+
+function closeDelete(){
+  deleteSheet.hidden=true;state.deleteTarget=null;state.lastMenu?.focus();
+}
+async function confirmDelete(){
+  const id=state.deleteTarget;
+  const a=state.ambassadors.find(x=>String(x.id)===String(id));
+  if(!a)return closeDelete();
+
+  state.save="saving";renderCommand();
+  try{
+    await api(`/api/projects/${encodeURIComponent(projectId)}/studio/ambassadors/${encodeURIComponent(id)}?version=${encodeURIComponent(a.version)}`,{method:"DELETE"});
+    state.ambassadors=state.ambassadors.filter(x=>String(x.id)!==String(id));
+    state.ambassadors.forEach((x,k)=>x.position=k);
+    state.activeId=state.ambassadors[0]?.id||null;
+    state.unpublished=true;state.save="saved";
+    deleteSheet.hidden=true;state.deleteTarget=null;renderAll();
+  }catch(e){
+    deleteSheet.hidden=true;state.deleteTarget=null;
+    state.save=e.status===409?"conflict":"error";state.error=e;renderCommand();
+  }
+}
+
+function setCommand(html){
+  commandState.innerHTML=html;
+  commandState.querySelector('[data-cmd="reload"]')?.addEventListener("click",hydrate);
+  commandState.querySelector('[data-cmd="retry"]')?.addEventListener("click",()=>active()&&queueSave(active().id));
+  commandState.querySelector('[data-cmd="publish"]')?.addEventListener("click",()=>{
+    setCommand('<span class="command-message"><strong>Publier</strong> sera branché avec le pipeline de publication.</span>');
+  });
+}
+function renderCommand(){
+  if(state.commandLocked)return;
+  if(state.load==="loading")return setCommand('<span class="command-message">Chargement…</span>');
+  if(state.uploading)return setCommand('<span class="command-message">Import de la photo…</span>');
+  if(state.save==="dirty"||state.save==="saving")return setCommand('<span class="command-message">Enregistrement…</span>');
+  if(state.save==="conflict")return setCommand('<span class="command-message"><strong>Cet ambassadeur a changé ailleurs.</strong></span><button class="command-button primary" data-cmd="reload" type="button">Recharger</button>');
+  if(state.save==="error")return setCommand('<span class="command-message">Impossible d’enregistrer.</span><button class="command-button primary" data-cmd="retry" type="button">Réessayer</button>');
+  if(state.unpublished)return setCommand('<span class="command-message">Tout est enregistré</span><button class="command-button primary" data-cmd="publish" type="button">Publier</button>');
+  return setCommand('<span class="command-message"><strong>Ambassadeurs</strong> · Tout est enregistré</span>');
+}
+
+commandLayer.addEventListener("focusin",()=>state.commandLocked=true);
+commandLayer.addEventListener("focusout",e=>{if(commandLayer.contains(e.relatedTarget))return;state.commandLocked=false;renderCommand()});
+
+async function hydrate(){
+  state.load="loading";state.error=null;renderAll();
+  try{
+    const [ctx,me,ambassadors]=await Promise.all([
+      api(`/api/projects/${encodeURIComponent(projectId)}/context`),
+      api("/api/me"),
+      api(`/api/projects/${encodeURIComponent(projectId)}/studio/ambassadors`)
+    ]);
+    state.context=ctx;state.me=me;
+    if(!hasCap("content.edit"))throw Object.assign(new Error("Forbidden"),{status:403});
+
+    document.getElementById("brandProject").textContent=ctx.project?.name||"Projet";
+    document.getElementById("avatarBtn").textContent=(me.displayName||"SU").split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase();
+
+    state.ambassadors=(Array.isArray(ambassadors)?ambassadors:[]).map(normalize);
+    if(!state.ambassadors.some(a=>String(a.id)===String(state.activeId)))state.activeId=state.ambassadors[0]?.id||null;
+    state.load="ready";state.save="saved";renderAll();
+  }catch(e){
+    state.load="error";state.save="error";state.error=e;renderAll();
+  }
+}
+
+function renderAll(){renderList();renderEditor();renderCommand()}
+
+document.getElementById("projectLink").onclick=()=>location.assign(preserveDev(`/projects/${encodeURIComponent(projectId)}`));
+document.getElementById("cancelDelete").onclick=closeDelete;
+document.getElementById("confirmDelete").onclick=confirmDelete;
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    if(!deleteSheet.hidden){closeDelete();return}
+    document.querySelectorAll(".popover").forEach(p=>p.hidden=true);
+  }
+});
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".editor-head"))document.querySelectorAll(".popover").forEach(p=>p.hidden=true);
+});
+document.querySelectorAll(".nav-item").forEach(btn=>btn.addEventListener("click",()=>{
+  if(btn.dataset.domain==="ambassadors")return;
+  setCommand(`<span class="command-message"><strong>${esc(btn.textContent)}</strong> arrive dans une prochaine vertical slice.</span>`);
+}));
+
+hydrate();
+</script>
+</body>
+</html>

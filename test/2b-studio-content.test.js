@@ -649,6 +649,49 @@ test('Espaces : 409 sur version périmée du parent, toujours fonctionnel après
   await pool.query('delete from project_spaces where id=$1', [created.id]);
 });
 
+// ── Régression : PATCH sur un "domaine simple" (Questions/Jalons/
+// Équipe/Ambassadeurs) doit réellement persister position. Bug trouvé
+// pendant l'intégration Ambassadeurs (updateAmbassador n'incluait pas
+// position dans son SET) -- confirmé systémique aux 4 domaines
+// partageant mountSimpleDomain, corrigé partout avec COALESCE (pour
+// ne jamais casser un domaine qui n'envoie pas encore ce champ,
+// comme Questions aujourd'hui).
+
+test('Ambassadeurs : PATCH avec un nouveau position le persiste réellement (pas seulement les autres champs)', async () => {
+  const a = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ name: 'Ambassadeur A', position: 0 })
+  })).json();
+  const b = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ name: 'Ambassadeur B', position: 1 })
+  })).json();
+
+  // Échanger les positions via deux PATCH indépendants, comme le fait le front réel.
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors/${a.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ name: 'Ambassadeur A', position: 1, version: a.version })
+  });
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors/${b.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ name: 'Ambassadeur B', position: 0, version: b.version })
+  });
+
+  const order = await pool.query('select name from project_ambassadors where id = ANY($1) order by position', [[a.id, b.id]]);
+  assert.deepEqual(order.rows.map(r => r.name), ['Ambassadeur B', 'Ambassadeur A'], 'position doit être réellement persistée, pas silencieusement ignorée');
+
+  await pool.query('delete from project_ambassadors where id = ANY($1)', [[a.id, b.id]]);
+});
+
+test('Questions : un PATCH sans position ne casse rien (COALESCE conserve la valeur existante)', async () => {
+  const q = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/questions`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ question: 'Q', answerRuns: [], position: 3 })
+  })).json();
+
+  const patched = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/questions/${q.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ question: 'Q modifiée', answerRuns: [], version: q.version })
+  })).json();
+  assert.equal(patched.position, 3, 'position doit rester inchangée quand elle n\'est pas fournie dans le payload');
+
+  await pool.query('delete from project_questions where id=$1', [q.id]);
+});
+
 // ── Section content (Homepage) ──
 
 test('Section content Homepage : GET initial vide, POST/PATCH crée puis met à jour', async () => {

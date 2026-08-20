@@ -893,3 +893,95 @@ test('Publication Slice 3 : invariant content.project lié à modules.timeline, 
   await pool.query('delete from project_team_members where id=$1', [member.id]);
 });
 
+// ── Slice 4 : Homepage enrichie — contrat final now/next/featured/showMilestones/showAskPrompt ──
+
+test('Publication Slice 4 : now/next restent compilés depuis les vrais jalons même si showMilestones=false', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+  const current = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/milestones`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ status: 'current', dateLabel: 'T2 2026', label: 'Travaux', position: 0 })
+  })).json();
+  const future = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/milestones`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ status: 'future', dateLabel: 'T4 2026', label: 'Livraison', position: 1 })
+  })).json();
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { showMilestones: false } })
+  });
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const home = body.manifest.content.home;
+  assert.equal(home.showMilestones, false, 'le signal de présentation doit refléter le choix Studio');
+  assert.equal(home.now.id, current.id, 'now doit rester renseigné avec le vrai jalon, showMilestones ne vide jamais la donnée');
+  assert.equal(home.next.id, future.id, 'next doit rester renseigné pour la même raison');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_milestones where id = ANY($1)', [[current.id, future.id]]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+});
+
+test('Publication Slice 4 : askPrompt reste le texte réel même si showAskPrompt=false', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { askPrompt: 'Une vraie question saisie', showAskPrompt: false } })
+  });
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const home = body.manifest.content.home;
+  assert.equal(home.showAskPrompt, false);
+  assert.equal(home.askPrompt, 'Une vraie question saisie', 'showAskPrompt=false ne doit jamais vider ou remplacer le texte réel');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+});
+
+test('Publication Slice 4 : askPrompt vide retombe sur "Une question sur le projet ?" (défaut Orogeny, pas celui de Tectonic)', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { askPrompt: '' } })
+  });
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.equal(body.manifest.content.home.askPrompt, 'Une question sur le projet ?');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+});
+
+test('Publication Slice 4 : manual sans featuredArticleId choisi -> fallback latest SANS warning (brouillon incomplet, pas une référence obsolète)', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+  const article = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Seul Article', chapeauRuns: [], position: 0, blocks: [] })
+  })).json();
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: null } })
+  });
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.equal(body.manifest.content.home.featured.source.id, article.id, 'doit retomber sur latest');
+  assert.deepEqual(body.warnings, [], 'un mode manual pas encore configuré ne doit jamais produire de warning');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [article.id]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+});
+
+test('Publication Slice 4 : aucune actualité -> featured strictement null', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where project_id=$1', [ids.project]);
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.equal(body.manifest.content.home.featured, null);
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Publication Slice 4 : aucun jalon current/future -> now/next strictement null', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_milestones where project_id=$1', [ids.project]);
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.equal(body.manifest.content.home.now, null);
+  assert.equal(body.manifest.content.home.next, null);
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+

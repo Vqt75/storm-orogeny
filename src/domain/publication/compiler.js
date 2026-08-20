@@ -522,6 +522,41 @@ function compileTeam(candidate, projectId) {
 // now/next dérivés des jalons compilés (Slice 3) : premier jalon
 // status='current' pour now, premier status='future' pour next --
 // simple .find(), même logique que le Compiler de référence.
+//
+// Contrat final arbitré (Slice 4) :
+//   - now/next restent TOUJOURS dérivés des vrais jalons, même si
+//     showMilestones=false. showMilestones est un signal de
+//     présentation séparé, jamais une raison de vider la donnée --
+//     confondre "pas de jalon" et "jalon présent mais masqué" priverait
+//     tout futur consommateur de cette distinction.
+//   - askPrompt reste TOUJOURS le texte réel (ou son défaut), même si
+//     showAskPrompt=false, exactement pour la même raison.
+//   - manual sans featuredArticleId choisi (jamais renseigné) retombe
+//     sur latest SANS warning -- c'est un brouillon incomplet ordinaire
+//     (doctrine déjà posée partout ailleurs), pas une référence
+//     devenue obsolète. Le warning reste réservé au cas où un id
+//     valide a existé puis disparu (voir plus bas).
+//   - Le défaut "Une question sur le projet ?" est un choix Orogeny
+//     délibéré (Slice 0), PAS porté depuis Tectonic. Le Compiler de
+//     référence n'avait aucun défaut pour askPrompt ; le renderer
+//     Ivory a son propre repli interne ("Une question en tête ?"),
+//     jamais atteint en pratique puisque ce Compiler remplit toujours
+//     ce champ. Confirmé, tranché explicitement au Slice 4 : on ne
+//     réaligne PAS sur Tectonic seulement parce que c'est plus ancien
+//     -- ce n'est qu'une microcopy de repli d'un renderer POC, pas un
+//     invariant métier, et "Une question sur le projet ?" est plus
+//     explicite dans le contexte d'une plateforme projet.
+//
+// DETTE IVORY CONFIRMÉE (audit Slice 4, lecture directe du code
+// source) : le renderer Ivory actuel ne consulte NULLE PART
+// home.showMilestones ni home.showAskPrompt -- le bloc "À suivre"
+// s'affiche dès que now/next existent, le bloc "Questions" est
+// toujours rendu, sans condition sur ces deux booléens. Le Compiler
+// fournit une information honnête et complète ; c'est au slice de
+// branchement Ivory (pas à ce Compiler) de faire respecter ces deux
+// signaux avant l'affichage. Ne pas contourner ça ici en modulant les
+// données compilées pour simuler un effet qu'Ivory ne produit pas
+// encore réellement.
 // ─────────────────────────────────────────────────────────────────
 const DEFAULT_ASK_PROMPT = 'Une question sur le projet ?';
 

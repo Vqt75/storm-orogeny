@@ -17,6 +17,7 @@
 //   Slice 0 -> project/identity/homepage (déjà camelCase à la source).
 //   Slice 1 -> articles/questions.
 //   Slice 2 -> spaces/ambassadors, assetContentTypes.
+//   Slice 3 -> leProjet (intro/sections/media/milestones/team).
 
 function mapBlock(b) {
   return {
@@ -89,6 +90,59 @@ function mapAmbassador(a) {
   };
 }
 
+function mapNarrativeSectionMedia(m) {
+  return {
+    id: m.id,
+    sectionId: m.section_id,
+    assetId: m.asset_id,
+    alt: m.alt,
+    position: m.position
+  };
+}
+
+function mapNarrativeSection(s) {
+  return {
+    id: s.id,
+    sectionType: s.section_type,
+    payload: s.payload,
+    position: s.position,
+    enabled: s.enabled,
+    media: (s.media ?? []).map(mapNarrativeSectionMedia)
+  };
+}
+
+function mapMilestone(m) {
+  return {
+    id: m.id,
+    status: m.status,
+    dateLabel: m.date_label,
+    label: m.label,
+    description: m.description,
+    position: m.position
+  };
+}
+
+function mapTeamMember(m) {
+  return {
+    id: m.id,
+    name: m.name,
+    title: m.title,
+    badge: m.badge,
+    photoAssetId: m.photo_asset_id,
+    position: m.position
+  };
+}
+
+function mapLeProjet(lp) {
+  const s = lp || {};
+  return {
+    intro: s.intro ?? {},
+    sections: (s.sections ?? []).map(mapNarrativeSection),
+    milestones: (s.milestones ?? []).map(mapMilestone),
+    team: (s.team ?? []).map(mapTeamMember)
+  };
+}
+
 export function buildCandidate(snapshot) {
   const s = snapshot || {};
   return {
@@ -99,6 +153,7 @@ export function buildCandidate(snapshot) {
     questions: (s.questions ?? []).map(mapQuestion),
     spaces: (s.spaces ?? []).map(mapSpace),
     ambassadors: (s.ambassadors ?? []).map(mapAmbassador),
+    leProjet: mapLeProjet(s.leProjet),
     // Table de correspondance assetId -> content_type réel. Nécessaire
     // structurellement pour que le Compiler construise des URLs
     // publiques portant la bonne extension de fichier — jamais une

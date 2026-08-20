@@ -15,9 +15,11 @@
 //     Slice 2 : intro/contact/join Ambassadeurs restent vides plutôt
 //     que remplis d'un texte inventé ici).
 //
-// Slice 0 : home uniquement. Slice 1 : news/questions. Slice 2 (ce
-// fichier) : spaces/ambassadors. now/next (jalons) restent null — Le
-// projet n'est pas encore compilé, ce sera Slice 3.
+// Slice 0 : home uniquement. Slice 1 : news/questions. Slice 2 :
+// spaces/ambassadors. Slice 3 (ce fichier) : Le projet — sections
+// narratives (9 types), timeline (jalons), team (équipe). Tous les 7
+// modules sont désormais actifs. Il ne reste que Homepage enrichie
+// (Slice 4) avant de brancher Ivory.
 
 export class CompilerBlockingError extends Error {
   constructor(message, code) {
@@ -361,15 +363,176 @@ function compileAmbassadors(candidate, projectId) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// content.home — featured désormais réellement dérivé des Actualités
-// compilées. now/next restent null (Le projet, Slice 3).
+// content.project — les 9 types de sections narratives. enabled=false
+// exclut la section du Manifest sans jamais toucher au Snapshot (déjà
+// garanti par construction : le Snapshot est une copie figée, cette
+// fonction ne fait que filtrer en lecture). timeline/team restent des
+// marqueurs purs ({id,type}) -- leurs vraies données viennent
+// respectivement de content.timeline/content.team, jamais dupliquées
+// ici (arbitrage explicite, confirmé par audit contre la référence
+// Tectonic : compileProjectContent ne fait que ça).
+//
+// Les champs texte (title/body/quote/attribution/items[].value/label/
+// title/body) sont déjà du texte brut côté Orogeny (validés comme
+// string, jamais des runs) — aucune conversion runsToInlineMarkdown
+// nécessaire ici, contrairement à Actualités/Questions.
+// ─────────────────────────────────────────────────────────────────
+function compileNarrativeSectionMedia(media, projectId, assetContentTypes) {
+  if (!media || !media.assetId) return null;
+  const url = publicAssetUrl(projectId, media.assetId, assetContentTypes);
+  if (!url) return null;
+  return { url, alt: media.alt || '' };
+}
+
+function compileNarrativeSection(section, projectId, assetContentTypes) {
+  if (!section || !section.sectionType) return null;
+  const type = section.sectionType;
+  const base = { id: section.id, type };
+  const payload = section.payload || {};
+
+  if (type === 'focus' || type === 'text') {
+    return { ...base, title: payload.title || '', body: payload.body || '' };
+  }
+  if (type === 'quote') {
+    return { ...base, quote: payload.quote || '', attribution: payload.attribution || '' };
+  }
+  if (type === 'keyFigures') {
+    return {
+      ...base,
+      title: payload.title || '',
+      items: (Array.isArray(payload.items) ? payload.items : []).map(item => ({
+        value: item?.value || '',
+        label: item?.label || ''
+      }))
+    };
+  }
+  if (type === 'choices') {
+    return {
+      ...base,
+      title: payload.title || '',
+      items: (Array.isArray(payload.items) ? payload.items : []).map(item => ({
+        title: item?.title || '',
+        body: item?.body || ''
+      }))
+    };
+  }
+  if (type === 'image') {
+    // Un seul média compilé -- le premier par position (arbitrage
+    // explicite, Slice 3). Orogeny autorise plusieurs médias même sur
+    // une section 'image' (la validation ne le distingue pas de
+    // 'gallery'), mais Ivory n'attend qu'un seul asset pour ce type.
+    // Les médias en trop restent dans le Snapshot, simplement non
+    // compilés -- jamais une erreur, jamais un warning (ce n'est pas
+    // une incohérence structurelle, juste un excédent que Studio n'a
+    // pas nettoyé).
+    const sorted = (Array.isArray(section.media) ? section.media : []).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    const asset = compileNarrativeSectionMedia(sorted[0], projectId, assetContentTypes);
+    return { ...base, asset, caption: payload.caption || '' };
+  }
+  if (type === 'gallery') {
+    const sorted = (Array.isArray(section.media) ? section.media : []).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    const items = sorted.map(m => compileNarrativeSectionMedia(m, projectId, assetContentTypes)).filter(Boolean);
+    return { ...base, title: payload.title || '', items };
+  }
+  if (type === 'timeline' || type === 'team') return base;
+  return null;
+}
+
+function compileProjectContent(candidate, projectId) {
+  const leProjet = candidate?.leProjet || {};
+  const intro = leProjet.intro || {};
+  const sections = (Array.isArray(leProjet.sections) ? leProjet.sections : [])
+    .filter(s => s && s.enabled !== false);
+  return {
+    intro: { title: intro.title || '', body: intro.body || '' },
+    sections: sections.map(s => compileNarrativeSection(s, projectId, candidate?.assetContentTypes)).filter(Boolean)
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// content.timeline — domaine séparé du marqueur 'timeline' dans
+// content.project.sections. Alimenté directement par les jalons
+// (leProjet.milestones), jamais par le payload d'une section.
+// intro n'a aucun équivalent Studio -- structure neutre, valeurs
+// vides, aucune microcopy inventée (arbitrage explicite, même
+// doctrine qu'Ambassadeurs au Slice 2).
+//
+// Comportement done/current/future porté FIDÈLEMENT depuis la
+// référence Tectonic, y compris le cas de plusieurs 'current' :
+// findIndex ne retient que le PREMIER trouvé pour le calcul de
+// progression (les suivants restent listés dans milestones[], mais
+// n'influencent pas percent/currentStepLabel). Aucune nouvelle règle
+// métier introduite dans ce slice.
+// ─────────────────────────────────────────────────────────────────
+function computeProgressFromMilestones(milestones) {
+  const items = Array.isArray(milestones) ? milestones : [];
+  const total = items.length;
+  if (!total) return { currentStepLabel: 'Étape 0', totalSteps: 0, percent: 0 };
+  const doneCount = items.filter(m => m.status === 'done').length;
+  const currentIndex = items.findIndex(m => m.status === 'current');
+  const stepNumber = currentIndex >= 0 ? currentIndex + 1 : Math.min(doneCount + 1, total);
+  const percent = Math.round(((doneCount + (currentIndex >= 0 ? 0.5 : 0)) / total) * 100);
+  return {
+    currentStepLabel: `Étape ${stepNumber}`,
+    totalSteps: total,
+    percent: Math.max(0, Math.min(100, percent))
+  };
+}
+
+function compileTimeline(candidate) {
+  const milestones = Array.isArray(candidate?.leProjet?.milestones) ? candidate.leProjet.milestones : [];
+  return {
+    intro: { eyebrow: '', title: '', description: '' },
+    progress: computeProgressFromMilestones(milestones),
+    milestones: milestones.map(m => ({
+      id: m.id,
+      status: m.status,
+      date: m.dateLabel || '',
+      label: m.label || '',
+      description: m.description || ''
+    }))
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// content.team — domaine séparé du marqueur 'team'. group: m.badge
+// (confirmé exact contre la référence Tectonic). intro/cta neutres,
+// aucune microcopy inventée. Sans photo -> photo:null, déjà géré
+// gracieusement côté Ivory (repli sur initiales).
+// ─────────────────────────────────────────────────────────────────
+function compileTeam(candidate, projectId) {
+  const members = Array.isArray(candidate?.leProjet?.team) ? candidate.leProjet.team : [];
+  return {
+    intro: { introBody: '' },
+    cta: { title: '', body: '' },
+    members: members.map(m => ({
+      id: m.id,
+      name: m.name || '',
+      title: m.title || '',
+      group: m.badge || '',
+      photo: wrapAsset(publicAssetUrl(projectId, m.photoAssetId, candidate?.assetContentTypes), personAltDefault(m.name, m.title))
+    }))
+  };
+}
+
+
+
+// ─────────────────────────────────────────────────────────────────
+// content.home — featured dérivé des Actualités compilées (Slice 1).
+// now/next dérivés des jalons compilés (Slice 3) : premier jalon
+// status='current' pour now, premier status='future' pour next --
+// simple .find(), même logique que le Compiler de référence.
 // ─────────────────────────────────────────────────────────────────
 const DEFAULT_ASK_PROMPT = 'Une question sur le projet ?';
 
-function compileHome(candidate, compiledNews, warnings) {
+function compileHome(candidate, compiledNews, compiledTimeline, warnings) {
   const home = candidate?.homepage || {};
   const items = compiledNews?.items || [];
+  const milestones = compiledTimeline?.milestones || [];
   const mode = home.featuredArticleMode === 'manual' ? 'manual' : 'latest';
+
+  const now = milestones.find(m => m.status === 'current') || null;
+  const next = milestones.find(m => m.status === 'future') || null;
 
   let featured = null;
   if (mode === 'manual' && home.featuredArticleId) {
@@ -396,8 +559,8 @@ function compileHome(candidate, compiledNews, warnings) {
   return {
     message: home.message ?? null,
     askPrompt: (home.askPrompt && String(home.askPrompt).trim()) ? home.askPrompt : DEFAULT_ASK_PROMPT,
-    now: null,
-    next: null,
+    now,
+    next,
     featured,
     showMilestones: home.showMilestones !== false,
     showAskPrompt: home.showAskPrompt !== false
@@ -408,8 +571,15 @@ function compileHome(candidate, compiledNews, warnings) {
 // injecté dans le Candidate ne doit jamais se retrouver validé par
 // simple présence des clés attendues.
 const REQUIRED_MODULE_KEYS = ['home', 'timeline', 'spaces', 'news', 'questions', 'ambassadors', 'team'];
-const NAV_LABELS = { questions: 'Questions', news: 'Actualités', spaces: 'Espaces', ambassadors: 'Ambassadeurs', team: 'Équipe projet' };
-const NAV_ORDER = ['questions', 'news', 'spaces', 'ambassadors', 'team'];
+// timeline/team jamais dans navigation — confirmé par lecture directe
+// du code source Ivory (renderNavigation filtre explicitement ces deux
+// modules et réinjecte elle-même 'timeline' sous le libellé "Le
+// projet", en interne, indépendamment de ce que le Manifest fournit).
+// Les inclure ici serait harmless (Ivory les ignorerait) mais
+// trompeur : ça donnerait l'impression que le Compiler pilote un
+// libellé qu'Ivory ne consultera jamais.
+const NAV_LABELS = { questions: 'Questions', news: 'Actualités', spaces: 'Espaces', ambassadors: 'Ambassadeurs' };
+const NAV_ORDER = ['questions', 'news', 'spaces', 'ambassadors'];
 
 function validateManifestInvariants(manifest) {
   const modules = manifest.modules;
@@ -452,6 +622,19 @@ function validateManifestInvariants(manifest) {
       throw new CompilerBlockingError(`Invariant violé : navigation référence le module "${entry.module}", désactivé.`, 'INVARIANT_NAVIGATION_MODULE');
     }
   });
+
+  // content.project n'a pas de clé de module dédiée (pas l'un des 7
+  // noms fermés) : sa présence est gouvernée par modules.timeline,
+  // exactement comme content.timeline -- les deux représentent la même
+  // page "Le projet" côté Ivory (sections + jalons), jamais l'un sans
+  // l'autre.
+  const hasProjectContent = Object.prototype.hasOwnProperty.call(manifest.content, 'project');
+  if (modules.timeline === true && !hasProjectContent) {
+    throw new CompilerBlockingError('Invariant violé : modules.timeline est activé mais content.project est absent.', 'INVARIANT_CONTENT_MISSING');
+  }
+  if (modules.timeline === false && hasProjectContent) {
+    throw new CompilerBlockingError('Invariant violé : modules.timeline est désactivé mais content.project est présent.', 'INVARIANT_CONTENT_UNEXPECTED');
+  }
 }
 
 // compile(candidate, context) → { manifest, warnings }
@@ -467,19 +650,21 @@ export function compile(candidate, context) {
   const branding = compileBranding(candidate, projectId);
   const edition = compileEdition(candidate);
 
-  // Slice 2 : home + news + questions + spaces + ambassadors actifs.
-  // timeline/team apparaîtront quand Le projet sera réellement compilé
-  // (Slice 3).
-  const modules = { home: true, timeline: false, spaces: true, news: true, questions: true, ambassadors: true, team: false };
+  // Slice 3 : tous les 7 modules désormais actifs.
+  const modules = { home: true, timeline: true, spaces: true, news: true, questions: true, ambassadors: true, team: true };
   const navigation = NAV_ORDER.filter(key => modules[key]).map(key => ({ module: key, label: NAV_LABELS[key] }));
 
-  // Ordre contraint : news doit être compilé avant home (featured en dépend).
+  // Ordre contraint : news et timeline doivent être compilés avant
+  // home (featured/now/next en dépendent).
   const content = {};
   content.news = compileNews(candidate, projectId);
   content.questions = compileQuestions(candidate);
   content.spaces = compileSpaces(candidate, projectId);
   content.ambassadors = compileAmbassadors(candidate, projectId);
-  content.home = compileHome(candidate, content.news, warnings);
+  content.project = compileProjectContent(candidate, projectId);
+  content.timeline = compileTimeline(candidate);
+  content.team = compileTeam(candidate, projectId);
+  content.home = compileHome(candidate, content.news, content.timeline, warnings);
 
   const meta = { generatedAt: context?.generatedAt, revision: context?.revision };
 

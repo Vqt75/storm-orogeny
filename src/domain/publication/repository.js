@@ -21,7 +21,7 @@ import {
 import { buildCandidate } from './candidate.js';
 import { compile, CompilerBlockingError } from './compiler.js';
 
-const COMPILER_VERSION = 'orogeny-slice2';
+const COMPILER_VERSION = 'orogeny-slice3';
 
 // Une seule lecture par domaine, séquentielle (une connexion pg ne
 // peut exécuter qu'une requête à la fois) mais toutes dans la MÊME

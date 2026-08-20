@@ -15,7 +15,8 @@
 // propres). Cette fonction est étendue domaine par domaine, slice
 // après slice (jamais remplacée) :
 //   Slice 0 -> project/identity/homepage (déjà camelCase à la source).
-//   Slice 1 -> articles/questions (mapping ajouté ici).
+//   Slice 1 -> articles/questions.
+//   Slice 2 -> spaces/ambassadors, assetContentTypes.
 
 function mapBlock(b) {
   return {
@@ -50,6 +51,44 @@ function mapQuestion(q) {
   };
 }
 
+function mapSpaceMedia(m) {
+  return {
+    id: m.id,
+    kind: m.kind,
+    assetId: m.asset_id,
+    label: m.label,
+    alt: m.alt,
+    position: m.position
+  };
+}
+
+function mapSpace(s) {
+  return {
+    id: s.id,
+    name: s.name,
+    location: s.location,
+    description: s.description,
+    status: s.status,
+    usages: s.usages,
+    position: s.position,
+    media: (s.media ?? []).map(mapSpaceMedia)
+  };
+}
+
+function mapAmbassador(a) {
+  return {
+    id: a.id,
+    name: a.name,
+    role: a.role,
+    tag: a.tag,
+    photoAssetId: a.photo_asset_id,
+    contactable: a.contactable,
+    contactChannel: a.contact_channel,
+    contactValue: a.contact_value,
+    position: a.position
+  };
+}
+
 export function buildCandidate(snapshot) {
   const s = snapshot || {};
   return {
@@ -57,6 +96,13 @@ export function buildCandidate(snapshot) {
     identity: s.identity,
     homepage: s.homepage,
     articles: (s.articles ?? []).map(mapArticle),
-    questions: (s.questions ?? []).map(mapQuestion)
+    questions: (s.questions ?? []).map(mapQuestion),
+    spaces: (s.spaces ?? []).map(mapSpace),
+    ambassadors: (s.ambassadors ?? []).map(mapAmbassador),
+    // Table de correspondance assetId -> content_type réel. Nécessaire
+    // structurellement pour que le Compiler construise des URLs
+    // publiques portant la bonne extension de fichier — jamais une
+    // donnée sensible, juste un type MIME déjà public par nature.
+    assetContentTypes: s.assetContentTypes ?? {}
   };
 }

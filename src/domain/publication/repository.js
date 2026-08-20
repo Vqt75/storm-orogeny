@@ -21,7 +21,7 @@ import {
 import { buildCandidate } from './candidate.js';
 import { compile, CompilerBlockingError } from './compiler.js';
 
-const COMPILER_VERSION = 'orogeny-slice1';
+const COMPILER_VERSION = 'orogeny-slice2';
 
 // Une seule lecture par domaine, séquentielle (une connexion pg ne
 // peut exécuter qu'une requête à la fois) mais toutes dans la MÊME
@@ -65,6 +65,14 @@ async function buildSnapshot(client, { projectId }) {
   const ambassadors = await listAmbassadors(client, projectId);
   const questions = await listQuestions(client, projectId);
 
+  // Content-type réel de chaque asset du projet — nécessaire pour que
+  // le Compiler puisse construire des URLs publiques portant la bonne
+  // extension de fichier (voir publicAssetUrl, compiler.js). Une seule
+  // lecture groupée, jamais une requête par référence éparpillée dans
+  // chaque domaine.
+  const { rows: assetRows } = await client.query('select id, content_type from assets where project_id=$1', [projectId]);
+  const assetContentTypes = Object.fromEntries(assetRows.map(a => [a.id, a.content_type]));
+
   return {
     project,
     identity,
@@ -73,7 +81,8 @@ async function buildSnapshot(client, { projectId }) {
     spaces,
     articles,
     ambassadors,
-    questions
+    questions,
+    assetContentTypes
   };
 }
 

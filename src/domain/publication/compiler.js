@@ -9,11 +9,15 @@
 //     jamais recalculés ici ;
 //   - un repli non structurel (ex. featuredArticleId obsolète) est
 //     toléré, MAIS jamais silencieux : il produit un warning explicite
-//     porté par la publication, jamais juste une correction discrète.
+//     porté par la publication, jamais juste une correction discrète ;
+//   - le Compiler assemble et dérive ; il n'écrit jamais de microcopy
+//     éditoriale que Studio n'a pas produite (arbitrage explicite,
+//     Slice 2 : intro/contact/join Ambassadeurs restent vides plutôt
+//     que remplis d'un texte inventé ici).
 //
-// Slice 0 : home uniquement. Slice 1 (ce fichier) : ajoute
-// news/questions. now/next (jalons) restent null — Le projet n'est
-// pas encore compilé, ce sera Slice 3.
+// Slice 0 : home uniquement. Slice 1 : news/questions. Slice 2 (ce
+// fichier) : spaces/ambassadors. now/next (jalons) restent null — Le
+// projet n'est pas encore compilé, ce sera Slice 3.
 
 export class CompilerBlockingError extends Error {
   constructor(message, code) {
@@ -35,16 +39,36 @@ function wrapAsset(url, altDefault) {
   return { url, alt: typeof altDefault === 'string' ? altDefault : '' };
 }
 
-// URL d'asset PUBLIQUE — Slice 1, option A arbitrée. Jamais
-// /api/assets/:id (authentifié, inutilisable par un visiteur anonyme
-// d'Ivory, voir audit Phase 2D). La visibilité réelle est décidée par
-// la route elle-même (src/http/routes/publicAssets.js), qui ne sert le
-// fichier QUE s'il est référencé par la publication active — jamais
-// par Studio vivant. Politique V1 pragmatique, documentée comme telle :
-// elle repose sur l'absence actuelle de suppression/mutation physique
-// des fichiers, à réexaminer si cette hypothèse change un jour.
-function publicAssetUrl(projectId, assetId) {
-  return assetId ? `/public/projects/${projectId}/assets/${assetId}` : null;
+// URL d'asset PUBLIQUE — Slice 1 (option A arbitrée), étendue Slice 2
+// avec une extension de fichier réelle dans le chemin. Trouvé par
+// audit, confirmé en lisant le code source d'Ivory : isPdfUrl() ne
+// détecte un PDF QUE par l'extension ".pdf" en fin d'URL -- jamais par
+// un champ "kind" du Manifest. Sans extension, un document PDF publié
+// se serait affiché comme une image cassée, quel que soit
+// media.kind='document' correctement présent par ailleurs. Ce n'est
+// pas une modification d'Ivory : Ivory sait déjà tout faire, il fallait
+// seulement lui donner une URL qu'elle sait interpréter avec son code
+// existant.
+//
+// L'extension est dérivée du content_type RÉEL de l'asset (jamais
+// devinée depuis le nom de fichier d'origine, jamais acceptée telle
+// quelle depuis une entrée non fiable) -- voir assetContentTypes,
+// construit une seule fois à la lecture du Snapshot. Si le content_type
+// est inconnu (asset supprimé après coup, type non supporté), la
+// fonction retourne null plutôt qu'une URL sans extension qui romprait
+// silencieusement isPdfUrl côté Ivory.
+const MIME_TO_EXTENSION = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'application/pdf': 'pdf'
+};
+
+function publicAssetUrl(projectId, assetId, assetContentTypes) {
+  if (!assetId) return null;
+  const contentType = assetContentTypes?.[assetId];
+  const extension = MIME_TO_EXTENSION[contentType];
+  if (!extension) return null;
+  return `/public/projects/${projectId}/assets/${assetId}.${extension}`;
 }
 
 // Conversion runs structurés -> chaîne avec syntaxe Ivory
@@ -78,7 +102,7 @@ function compileBranding(candidate, projectId) {
   const identity = candidate?.identity || {};
   const primary = identity.primaryColor || '#1E1D1E';
   return {
-    logo: wrapAsset(publicAssetUrl(projectId, identity.logoAssetId), ''),
+    logo: wrapAsset(publicAssetUrl(projectId, identity.logoAssetId, candidate?.assetContentTypes), ''),
     colors: {
       primary,
       // Une seule couleur explicitement fournie reste une seule
@@ -115,7 +139,7 @@ function estimateReadingMinutes(text) {
   return Math.max(1, Math.ceil(words / 220));
 }
 
-function compileBlock(block, projectId) {
+function compileBlock(block, projectId, assetContentTypes) {
   if (!block || typeof block !== 'object') return null;
   const type = block.blockType;
   if (type === 'paragraph' || type === 'heading') {
@@ -134,7 +158,7 @@ function compileBlock(block, projectId) {
   }
   if (type === 'image') {
     if (!block.imageAssetId) return null;
-    return { id: block.id, type: 'image', asset: wrapAsset(publicAssetUrl(projectId, block.imageAssetId), '') };
+    return { id: block.id, type: 'image', asset: wrapAsset(publicAssetUrl(projectId, block.imageAssetId, assetContentTypes), '') };
   }
   return null;
 }
@@ -147,9 +171,9 @@ function blockToPlainText(block) {
   return '';
 }
 
-function compileArticle(article, projectId) {
+function compileArticle(article, projectId, assetContentTypes) {
   const blocks = (Array.isArray(article.blocks) ? article.blocks : [])
-    .map(b => compileBlock(b, projectId))
+    .map(b => compileBlock(b, projectId, assetContentTypes))
     .filter(Boolean);
   const plainText = blocks.map(blockToPlainText).filter(Boolean).join('\n');
   // asset de couverture : dérivé du premier bloc image trouvé — une
@@ -188,7 +212,7 @@ function compileNews(candidate, projectId) {
     }
     return (a?.position ?? 0) - (b?.position ?? 0);
   });
-  return { items: sorted.map(a => compileArticle(a, projectId)) };
+  return { items: sorted.map(a => compileArticle(a, projectId, candidate?.assetContentTypes)) };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -208,6 +232,131 @@ function compileQuestions(candidate) {
       title: q.question || '',
       answer: runsToInlineMarkdown(q.answerRuns)
     }))
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// content.spaces — le dictionnaire status/statusBody n'existe nulle
+// part côté backend Orogeny (confirmé par audit : seul l'enum brut
+// designing/approved/delivered est validé serveur, les libellés et
+// phrases ne vivent que dans public/studio-espaces.html). Porté ici
+// verbatim, jamais reformulé — c'est une narration de maturité déjà
+// éprouvée par Studio, pas une occasion de la retoucher.
+// ─────────────────────────────────────────────────────────────────
+const SPACE_STATUS = {
+  designing: {
+    label: 'En cours de conception',
+    body: 'Cet espace est encore en cours de conception. Son organisation et certains détails peuvent évoluer.'
+  },
+  approved: {
+    label: 'Validé',
+    body: 'Les grands principes de cet espace sont validés. Les ajustements restants portent sur des détails de mise au point.'
+  },
+  delivered: {
+    label: 'Livré',
+    body: 'Cet espace est livré et peut désormais être découvert tel qu\'il sera utilisé au quotidien.'
+  }
+};
+
+function compileSpaceMedia(media, projectId, assetContentTypes, spaceName) {
+  if (!media || !media.assetId) return null;
+  const url = publicAssetUrl(projectId, media.assetId, assetContentTypes);
+  if (!url) return null;
+  return {
+    url,
+    alt: media.alt || media.label || spaceName || '',
+    label: media.label || '',
+    kind: media.kind || 'view'
+  };
+}
+
+function compileSpace(space, projectId, assetContentTypes) {
+  const status = SPACE_STATUS[space.status] || SPACE_STATUS.designing;
+  // position ne sert qu'au tri (déjà appliqué par listSpaces, ordre
+  // conservé tel quel) -- jamais exposée comme donnée métier, Ivory
+  // n'en a pas besoin.
+  const media = (Array.isArray(space.media) ? space.media : [])
+    .map(m => compileSpaceMedia(m, projectId, assetContentTypes, space.name))
+    .filter(Boolean);
+  return {
+    id: space.id,
+    type: 'Espace',
+    title: space.name || '',
+    location: space.location || '',
+    comment: space.description || '',
+    status: status.label,
+    statusBody: status.body,
+    usageTags: Array.isArray(space.usages) ? space.usages : [],
+    usages: Array.isArray(space.usages) ? space.usages : [],
+    media,
+    asset: media[0] || null
+  };
+}
+
+function compileSpaces(candidate, projectId) {
+  const spaces = Array.isArray(candidate?.spaces) ? candidate.spaces : [];
+  return {
+    intro: { eyebrow: '', title: '', description: '' },
+    items: spaces.map(s => compileSpace(s, projectId, candidate?.assetContentTypes))
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// content.ambassadors — arbitrage explicite Slice 2 : intro/contact/
+// join publiés avec une structure neutre (Ivory les attend), jamais
+// une microcopy éditoriale inventée par le Compiler. Aucun nouveau
+// section-content/ambassadeurs dans ce slice -- une évolution Studio
+// dédiée pourra piloter ces trois blocs plus tard si un vrai besoin
+// éditorial apparaît. roster, lui, est réel et complet.
+// ─────────────────────────────────────────────────────────────────
+function personAltDefault(name, roleOrTag) {
+  if (roleOrTag && String(roleOrTag).trim()) return `${name} — ${roleOrTag}`;
+  return name || '';
+}
+
+// Repris quasi verbatim de la référence Tectonic (ambassadorContactHref) :
+// validation réelle par canal, jamais une confiance aveugle dans une
+// valeur saisie dans Studio. contactChannel/contactValue/contactable
+// du modèle Orogeny correspondent déjà exactement à ce que cette
+// fonction attend -- aucune adaptation de forme nécessaire.
+function ambassadorContactHref(person) {
+  const channel = ['email', 'teams', 'link'].includes(person?.contactChannel) ? person.contactChannel : 'email';
+  const raw = String(person?.contactValue || '').trim();
+  if (!raw) return '';
+
+  if (channel === 'email') {
+    const email = raw.replace(/^mailto:/i, '').trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : '';
+  }
+  if (channel === 'teams') {
+    return /^(https?:\/\/|msteams:)/i.test(raw) ? raw : '';
+  }
+  return /^https?:\/\//i.test(raw) ? raw : '';
+}
+
+function compileAmbassador(person, projectId, assetContentTypes) {
+  const contactable = person.contactable !== false;
+  return {
+    id: person.id,
+    name: person.name || '',
+    role: person.role || '',
+    tag: person.tag || '',
+    contactable,
+    contactHref: contactable ? ambassadorContactHref(person) : '',
+    contactLabel: 'Contacter',
+    photo: wrapAsset(publicAssetUrl(projectId, person.photoAssetId, assetContentTypes), personAltDefault(person.name, person.role))
+  };
+}
+
+function compileAmbassadors(candidate, projectId) {
+  const roster = Array.isArray(candidate?.ambassadors) ? candidate.ambassadors : [];
+  return {
+    // Structure présente, valeurs vides sauf nécessité structurelle --
+    // jamais de microcopy éditoriale inventée ici (arbitrage explicite).
+    intro: { title: '', body: '', rosterLabel: '' },
+    contact: { enabled: false, defaultHref: null, label: '' },
+    join: { enabled: false, mode: null, title: '', body: '', label: '', href: null },
+    roster: roster.map(p => compileAmbassador(p, projectId, candidate?.assetContentTypes))
   };
 }
 
@@ -318,15 +467,18 @@ export function compile(candidate, context) {
   const branding = compileBranding(candidate, projectId);
   const edition = compileEdition(candidate);
 
-  // Slice 1 : home + news + questions actifs. Les 4 autres apparaîtront
-  // quand les slices suivants les captureront réellement.
-  const modules = { home: true, timeline: false, spaces: false, news: true, questions: true, ambassadors: false, team: false };
+  // Slice 2 : home + news + questions + spaces + ambassadors actifs.
+  // timeline/team apparaîtront quand Le projet sera réellement compilé
+  // (Slice 3).
+  const modules = { home: true, timeline: false, spaces: true, news: true, questions: true, ambassadors: true, team: false };
   const navigation = NAV_ORDER.filter(key => modules[key]).map(key => ({ module: key, label: NAV_LABELS[key] }));
 
   // Ordre contraint : news doit être compilé avant home (featured en dépend).
   const content = {};
   content.news = compileNews(candidate, projectId);
   content.questions = compileQuestions(candidate);
+  content.spaces = compileSpaces(candidate, projectId);
+  content.ambassadors = compileAmbassadors(candidate, projectId);
   content.home = compileHome(candidate, content.news, warnings);
 
   const meta = { generatedAt: context?.generatedAt, revision: context?.revision };

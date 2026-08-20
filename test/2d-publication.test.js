@@ -88,8 +88,8 @@ test('Publication : pipeline complet réussit et produit un manifest valide (Hom
   assert.equal(body.manifest.schemaVersion, 1);
   assert.equal(body.manifest.project.name, 'Projet Publication');
   assert.equal(body.manifest.edition.id, 'ivory');
-  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: false, news: true, questions: true, ambassadors: false, team: false });
-  assert.deepEqual(body.manifest.navigation.map(n => n.module), ['questions', 'news']);
+  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: true, news: true, questions: true, ambassadors: true, team: false });
+  assert.deepEqual(body.manifest.navigation.map(n => n.module), ['questions', 'news', 'spaces', 'ambassadors']);
   assert.equal(body.manifest.content.home.message, 'Bienvenue');
   assert.equal(body.manifest.content.home.askPrompt, 'Une question ?');
   assert.equal(body.manifest.content.home.now, null);
@@ -103,7 +103,7 @@ test('Publication : pipeline complet réussit et produit un manifest valide (Hom
   // Invariant d'atomicité : le Snapshot capture TOUS les 6 domaines
   // Studio dès ce slice, même si le Candidate V0 n'en sélectionne qu'un.
   const snapshotKeys = Object.keys(row.rows[0].snapshot).sort();
-  assert.deepEqual(snapshotKeys, ['ambassadors', 'articles', 'homepage', 'identity', 'leProjet', 'project', 'questions', 'spaces'].sort());
+  assert.deepEqual(snapshotKeys, ['ambassadors', 'articles', 'assetContentTypes', 'homepage', 'identity', 'leProjet', 'project', 'questions', 'spaces'].sort());
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
 });
@@ -267,9 +267,9 @@ test('Publication Slice 1 : mapping exact des Actualités — tag/date/title/sum
   assert.equal(item.blocks.length, 3);
   assert.deepEqual(item.blocks[0].runs, [{ text: 'Un texte ' }, { text: 'souligné', underline: true }], 'les blocs gardent des runs structurés, jamais aplatis');
   assert.equal(item.blocks[2].type, 'image');
-  assert.equal(item.blocks[2].asset.url, `/public/projects/${ids.project}/assets/${assetId}`);
+  assert.equal(item.blocks[2].asset.url, `/public/projects/${ids.project}/assets/${assetId}.png`);
   assert.ok(item.asset, 'asset de couverture dérivé du premier bloc image');
-  assert.equal(item.asset.url, `/public/projects/${ids.project}/assets/${assetId}`);
+  assert.equal(item.asset.url, `/public/projects/${ids.project}/assets/${assetId}.png`);
   assert.equal(typeof item.readingMinutes, 'number');
   assert.ok(item.readingMinutes >= 1);
 
@@ -326,12 +326,12 @@ test('Publication Slice 1 : asset public — 200 si référencé par la publicat
   })).json();
   await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
 
-  const okRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${assetId}`);
+  const okRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${assetId}.png`);
   assert.equal(okRes.status, 200);
   assert.equal(okRes.headers.get('content-type'), 'image/png');
 
   const notReferenced = await uploadTestImage();
-  const koRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${notReferenced}`);
+  const koRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${notReferenced}.png`);
   assert.equal(koRes.status, 404, 'un asset qui existe en DB mais non référencé par la publication active reste 404 -- jamais Studio vivant qui décide');
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
@@ -454,9 +454,207 @@ test('Publication Slice 1 : modifier/supprimer une Actualité après publication
 test('Publication Slice 1 : modules/navigation cohérents — home+news+questions actifs, les 4 autres désactivés sans content', async () => {
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
   const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
-  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: false, news: true, questions: true, ambassadors: false, team: false });
-  assert.deepEqual(Object.keys(body.manifest.content).sort(), ['home', 'news', 'questions']);
-  assert.deepEqual(body.manifest.navigation.map(n => n.module), ['questions', 'news']);
+  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: true, news: true, questions: true, ambassadors: true, team: false });
+  assert.deepEqual(Object.keys(body.manifest.content).sort(), ['ambassadors', 'home', 'news', 'questions', 'spaces']);
+  assert.deepEqual(body.manifest.navigation.map(n => n.module), ['questions', 'news', 'spaces', 'ambassadors']);
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+// ── Slice 2 : Espaces + Ambassadeurs dans le Candidate/Manifest, extension de fichier dans l'URL publique ──
+
+async function uploadTestAsset(kind, buffer, mimeType, filename) {
+  const fd = new FormData();
+  fd.append('kind', kind);
+  fd.append('file', new Blob([buffer], { type: mimeType }), filename);
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, { method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd });
+  const { assetId } = await res.json();
+  return assetId;
+}
+const TEST_PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da63600000020001557f6e5c0000000049454e44ae426082', 'hex');
+const TEST_PDF = Buffer.from('%PDF-1.4\n%fake pdf for signature test\n', 'ascii');
+
+test('Publication Slice 2 : URL publique porte l\'extension réelle (png/jpg/pdf) dérivée du content_type', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const pngAsset = await uploadTestAsset('space_media', TEST_PNG, 'image/png', 'x.png');
+  const pdfAsset = await uploadTestAsset('space_media', TEST_PDF, 'application/pdf', 'x.pdf');
+
+  const space = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Test', position: 0, media: [
+      { kind: 'view', assetId: pngAsset, position: 0 },
+      { kind: 'document', assetId: pdfAsset, label: 'Plan', position: 1 }
+    ] })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const item = body.manifest.content.spaces.items[0];
+  assert.equal(item.media[0].url, `/public/projects/${ids.project}/assets/${pngAsset}.png`);
+  assert.equal(item.media[1].url, `/public/projects/${ids.project}/assets/${pdfAsset}.pdf`);
+  assert.match(item.media[1].url, /\.pdf($|\?)/i, 'doit matcher exactement la regex isPdfUrl() d\'Ivory');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_spaces where id=$1', [space.id]);
+  await pool.query('delete from assets where id = ANY($1)', [[pngAsset, pdfAsset]]);
+});
+
+test('Publication Slice 2 : asset public — extension incohérente avec le MIME réel est rejetée (404)', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const pngAsset = await uploadTestAsset('space_media', TEST_PNG, 'image/png', 'x.png');
+  const space = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ name: 'Espace', position: 0, media: [{ kind: 'view', assetId: pngAsset, position: 0 }] })
+  })).json();
+  await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
+
+  const correct = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${pngAsset}.png`);
+  assert.equal(correct.status, 200);
+
+  const wrongExt = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${pngAsset}.pdf`);
+  assert.equal(wrongExt.status, 404, 'un PNG réel demandé avec .pdf ne doit jamais être servi -- extension vérifiée contre le MIME réel, pas simplement acceptée depuis l\'URL');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_spaces where id=$1', [space.id]);
+  await pool.query('delete from assets where id=$1', [pngAsset]);
+});
+
+test('Publication Slice 2 : mapping exact des Espaces — status/statusBody exacts, usages, ordre par position', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const s1 = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Second', location: 'R+1', description: 'Une description', status: 'delivered', usages: ['Se concentrer', 'Collaborer'], position: 1 })
+  })).json();
+  const s0 = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ name: 'Premier', status: 'designing', position: 0 })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const items = body.manifest.content.spaces.items;
+  assert.deepEqual(items.map(i => i.title), ['Premier', 'Second'], 'ordre par position, pas par date de création');
+
+  const second = items.find(i => i.title === 'Second');
+  assert.equal(second.location, 'R+1');
+  assert.equal(second.comment, 'Une description');
+  assert.equal(second.status, 'Livré');
+  assert.equal(second.statusBody, "Cet espace est livré et peut désormais être découvert tel qu'il sera utilisé au quotidien.");
+  assert.deepEqual(second.usages, ['Se concentrer', 'Collaborer']);
+  assert.deepEqual(second.usageTags, ['Se concentrer', 'Collaborer']);
+
+  const first = items.find(i => i.title === 'Premier');
+  assert.equal(first.status, 'En cours de conception');
+  assert.equal(first.statusBody, 'Cet espace est encore en cours de conception. Son organisation et certains détails peuvent évoluer.');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_spaces where id = ANY($1)', [[s0.id, s1.id]]);
+});
+
+test('Publication Slice 2 : kind view/plan/document préservé dans le Manifest', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const asset = await uploadTestAsset('space_media', TEST_PNG, 'image/png', 'x.png');
+  const space = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Espace Kinds', position: 0, media: [
+      { kind: 'view', assetId: asset, position: 0 },
+      { kind: 'plan', assetId: asset, position: 1 }
+    ] })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const media = body.manifest.content.spaces.items[0].media;
+  assert.equal(media[0].kind, 'view');
+  assert.equal(media[1].kind, 'plan');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_spaces where id=$1', [space.id]);
+  await pool.query('delete from assets where id=$1', [asset]);
+});
+
+test('Publication Slice 2 : Ambassadeurs — avec photo, sans photo, contact email/Teams/lien', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const photo = await uploadTestAsset('ambassador_photo', TEST_PNG, 'image/png', 'x.png');
+
+  const withPhoto = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Julie Martin', role: 'RH', photoAssetId: photo, contactable: true, contactChannel: 'email', contactValue: 'julie@test.fr', position: 0 })
+  })).json();
+  const withoutPhoto = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ name: 'Marc Dubois', position: 1 })
+  })).json();
+  const teamsContact = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Sophie Leroux', contactable: true, contactChannel: 'teams', contactValue: 'https://teams.microsoft.com/l/chat/x', position: 2 })
+  })).json();
+  const linkContact = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Karim Haddad', contactable: true, contactChannel: 'link', contactValue: 'https://example.com/karim', position: 3 })
+  })).json();
+  const invalidEmail = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ name: 'Email Invalide', contactable: true, contactChannel: 'email', contactValue: 'pas-un-email', position: 4 })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const roster = body.manifest.content.ambassadors.roster;
+
+  const jm = roster.find(r => r.id === withPhoto.id);
+  assert.equal(jm.photo.url, `/public/projects/${ids.project}/assets/${photo}.png`);
+  assert.equal(jm.photo.alt, 'Julie Martin — RH');
+  assert.equal(jm.contactHref, 'mailto:julie@test.fr');
+
+  const md = roster.find(r => r.id === withoutPhoto.id);
+  assert.equal(md.photo, null, 'un ambassadeur sans photo doit avoir photo:null, jamais une URL cassée');
+
+  const sl = roster.find(r => r.id === teamsContact.id);
+  assert.equal(sl.contactHref, 'https://teams.microsoft.com/l/chat/x');
+
+  const kh = roster.find(r => r.id === linkContact.id);
+  assert.equal(kh.contactHref, 'https://example.com/karim');
+
+  const ei = roster.find(r => r.id === invalidEmail.id);
+  assert.equal(ei.contactHref, '', 'un email malformé ne doit jamais produire un mailto: invalide -- validation réelle, pas une confiance aveugle');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_ambassadors where id = ANY($1)', [[withPhoto.id, withoutPhoto.id, teamsContact.id, linkContact.id, invalidEmail.id]]);
+  await pool.query('delete from assets where id=$1', [photo]);
+});
+
+test('Publication Slice 2 : intro/contact/join Ambassadeurs neutres, aucune microcopy inventée', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const ambassadors = body.manifest.content.ambassadors;
+  assert.deepEqual(ambassadors.intro, { title: '', body: '', rosterLabel: '' });
+  assert.deepEqual(ambassadors.contact, { enabled: false, defaultHref: null, label: '' });
+  assert.deepEqual(ambassadors.join, { enabled: false, mode: null, title: '', body: '', label: '', href: null });
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Publication Slice 2 : invariants modules/content/navigation avec spaces+ambassadors actifs', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: true, news: true, questions: true, ambassadors: true, team: false });
+  assert.deepEqual(Object.keys(body.manifest.content).sort(), ['ambassadors', 'home', 'news', 'questions', 'spaces']);
+  assert.deepEqual(body.manifest.navigation.map(n => n.module), ['questions', 'news', 'spaces', 'ambassadors']);
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Publication Slice 2 : aucun champ Studio interne (version/updatedAt/position) ne fuite pour Espaces/Ambassadeurs', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const space = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/spaces`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ name: 'Espace Fuite Test', position: 0 })
+  })).json();
+  const amb = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/ambassadors`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ name: 'Ambassadeur Fuite Test', position: 0 })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const spaceItem = body.manifest.content.spaces.items.find(i => i.title === 'Espace Fuite Test');
+  const ambItem = body.manifest.content.ambassadors.roster.find(r => r.name === 'Ambassadeur Fuite Test');
+  for (const item of [spaceItem, ambItem]) {
+    assert.equal(item.version, undefined);
+    assert.equal(item.updatedAt, undefined);
+    assert.equal(item.position, undefined);
+  }
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_spaces where id=$1', [space.id]);
+  await pool.query('delete from project_ambassadors where id=$1', [amb.id]);
 });
 

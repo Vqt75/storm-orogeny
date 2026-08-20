@@ -3,7 +3,11 @@ import { findAsset } from '../../domain/project-setup/repository.js';
 import { findActivePublication } from '../../domain/publication/repository.js';
 import { Errors } from '../../errors/AppError.js';
 
-// Assets publics — Slice 1, option A (arbitrée).
+// Assets publics — Slice 1, option A (arbitrée). Étendu Slice 2 avec
+// une extension de fichier réelle dans l'URL (voir MIME_TO_EXTENSION
+// ci-dessous) : Ivory détecte un PDF uniquement par l'extension ".pdf"
+// en fin d'URL (isPdfUrl, confirmé par lecture directe du code source
+// Ivory) -- jamais par un champ "kind" du Manifest.
 //
 // AUCUNE authentification Storm. La visibilité publique d'un asset
 // n'est JAMAIS décidée par Studio vivant (l'asset existe-t-il ?
@@ -38,16 +42,35 @@ function manifestReferencesAsset(manifest, assetId) {
   return walk(manifest);
 }
 
+const EXTENSION_TO_MIME = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  pdf: 'application/pdf'
+};
+
+function parseAssetIdWithExtension(raw) {
+  const dotIndex = raw.lastIndexOf('.');
+  if (dotIndex <= 0) return null;
+  return { assetId: raw.slice(0, dotIndex), extension: raw.slice(dotIndex + 1).toLowerCase() };
+}
+
 export function createPublicAssetsRouter({ pool, storageAdapter }) {
   const router = Router();
 
-  router.get('/projects/:projectId/assets/:assetId', async (req, res, next) => {
+  router.get('/projects/:projectId/assets/:assetIdWithExt', async (req, res, next) => {
+    const parsed = parseAssetIdWithExtension(req.params.assetIdWithExt);
+    if (!parsed) {
+      next(Errors.notFound('Fichier'));
+      return;
+    }
+    const { assetId, extension } = parsed;
+
     const publication = await findActivePublication(pool, req.params.projectId);
     if (!publication || !publication.manifest) {
       next(Errors.notFound('Fichier'));
       return;
     }
-    if (!manifestReferencesAsset(publication.manifest, req.params.assetId)) {
+    if (!manifestReferencesAsset(publication.manifest, assetId)) {
       next(Errors.notFound('Fichier'));
       return;
     }
@@ -55,8 +78,16 @@ export function createPublicAssetsRouter({ pool, storageAdapter }) {
     // aussi exister réellement ET appartenir à ce projet précis
     // (jamais fait confiance à une simple correspondance de chaîne
     // dans le manifest sans revérifier au niveau DB).
-    const asset = await findAsset(pool, req.params.assetId);
+    const asset = await findAsset(pool, assetId);
     if (!asset || String(asset.project_id) !== String(req.params.projectId)) {
+      next(Errors.notFound('Fichier'));
+      return;
+    }
+    // L'extension de l'URL doit correspondre au content_type RÉEL de
+    // l'asset -- jamais simplement acceptée depuis l'URL (arbitrage
+    // explicite, Slice 2). Une extension incohérente est un 404, pas
+    // une tentative de servir le fichier avec le mauvais Content-Type.
+    if (EXTENSION_TO_MIME[extension] !== asset.content_type) {
       next(Errors.notFound('Fichier'));
       return;
     }

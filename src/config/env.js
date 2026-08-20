@@ -28,6 +28,26 @@ export function loadConfig() {
     isProduction: nodeEnv === 'production',
     isTest: nodeEnv === 'test',
     port: requireInt('PORT', '4000'),
+    // Raccord explicite, temporaire, pour une instance de démonstration
+    // déployée — jamais un affaiblissement silencieux du modèle
+    // d'autorisation. Orogeny n'a aujourd'hui AUCUN mécanisme
+    // d'authentification réel pour la production (pas de SSO, pas de
+    // session utilisateur) : devAuth refuse donc systématiquement en
+    // production, par conception (voir devAuth.js). Pour qu'une
+    // instance de DÉMONSTRATION déployée reste fonctionnelle en
+    // attendant un vrai SSO, ce raccord permet — UNIQUEMENT si la
+    // variable porte EXACTEMENT cette phrase complète, jamais un
+    // simple "1"/"true" qu'on pourrait activer par copier-coller
+    // inattentif — de repasser devAuth dans son comportement de
+    // développement (identité déclarée par en-tête, toujours résolue
+    // contre un utilisateur réel en base) MÊME en production.
+    //
+    // Ceci ne touche QUE l'AuthN (qui es-tu ?), jamais l'Authorization
+    // (que peux-tu faire ?) : le moteur de capabilities en aval reste
+    // entièrement inchangé et continue de s'appliquer normalement.
+    // Un vrai SSO remplacera CE seul mécanisme le moment venu.
+    demoAllowHeaderIdentityInProduction:
+      process.env.DEMO_ALLOW_HEADER_IDENTITY_IN_PRODUCTION === 'yes-this-is-a-temporary-demo-instance',
     // Base de données — voir docs/contracts/schema-and-migrations.md.
     // Aucune valeur par défaut pour l'hôte/utilisateur/mot de passe en
     // production : ils doivent être fournis explicitement. En

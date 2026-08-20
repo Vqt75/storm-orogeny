@@ -97,7 +97,7 @@ h1{margin:0;font-size:clamp(54px,6.2vw,88px);line-height:.9;letter-spacing:-.064
 .command-message{padding:0 12px;text-align:center;color:var(--graphite);font-size:13px}
 .command-message strong{color:var(--ink);font-weight:720}
 .command-button{min-height:42px;padding:0 16px;border:0;border-radius:15px;background:transparent;font-size:13px;font-weight:690}
-.command-button:hover{background:rgba(255,255,255,.44)}.command-button.primary{background:#111;color:#fff}
+.command-button:hover{background:rgba(255,255,255,.44)}.command-button.primary{background:#111;color:#fff}.command-link{display:inline-flex;align-items:center;min-height:42px;padding:0 16px;border-radius:15px;color:#343438;font-size:13px;font-weight:690;text-decoration:none}.command-link:hover{background:rgba(255,255,255,.44)}
 @media(max-width:900px){
   .shell{padding:14px 14px 146px}.topbar{top:10px}.brand-project,.project-link{display:none}
   main{padding-top:66px}.studio-grid{grid-template-columns:1fr;gap:30px}
@@ -380,9 +380,24 @@ function setCommand(html){
   commandState.innerHTML=html;
   commandState.querySelector('[data-cmd="reload"]')?.addEventListener("click",hydrate);
   commandState.querySelector('[data-cmd="retry"]')?.addEventListener("click",queueSave);
-  commandState.querySelector('[data-cmd="publish"]')?.addEventListener("click",()=>{
-    setCommand('<span class="command-message"><strong>Publier</strong> sera branché avec le pipeline de publication.</span>');
-  });
+  commandState.querySelector('[data-cmd="publish"]')?.addEventListener("click",doPublish);
+  commandState.querySelector('[data-cmd="close"]')?.addEventListener("click",renderCommand);
+}
+async function doPublish(){
+  setCommand('<span class="command-message">Publication…</span>');
+  let res,data;
+  try{res=await fetch(`/api/projects/${projectId}/publications`,{method:"POST",headers:devHeaders()});data=await res.json().catch(()=>({}))}
+  catch(e){setCommand('<span class="command-message">Connexion impossible. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>');return}
+  if(res.status===201){
+    state.unpublished=false;
+    state.publishedUrl=`/public/projects/${projectId}`;
+    const warn=(data.warnings||[]).map(w=>`<br><span class="command-message">${esc(w.message)}</span>`).join("");
+    setCommand(`<span class="command-message"><strong>Publication n°${data.revision}</strong> publiée.</span>${warn}<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a><button class="command-button" data-cmd="close" type="button">Fermer</button>`);
+    return;
+  }
+  if(res.status===422){setCommand(`<span class="command-message">Compilation impossible : ${esc(data.failureDetail||"erreur inconnue")}. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>`);return}
+  if(res.status===403){setCommand(`<span class="command-message">${esc(data.error?.message||"Cette action nécessite une capability que vous n'avez pas.")}</span><button class="command-button" data-cmd="close" type="button">Fermer</button>`);return}
+  setCommand('<span class="command-message">Publication impossible pour le moment. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>');
 }
 function renderCommand(){
   if(state.commandLocked)return;
@@ -390,8 +405,8 @@ function renderCommand(){
   if(state.save==="dirty"||state.save==="saving")return setCommand('<span class="command-message">Enregistrement…</span>');
   if(state.save==="conflict")return setCommand('<span class="command-message"><strong>La Homepage a changé ailleurs.</strong></span><button class="command-button primary" data-cmd="reload" type="button">Recharger</button>');
   if(state.save==="error")return setCommand('<span class="command-message">Impossible d’enregistrer.</span><button class="command-button primary" data-cmd="retry" type="button">Réessayer</button>');
-  if(state.unpublished)return setCommand('<span class="command-message">Tout est enregistré</span><button class="command-button primary" data-cmd="publish" type="button">Publier</button>');
-  return setCommand('<span class="command-message"><strong>Homepage</strong> · Tout est enregistré</span>');
+  if(state.unpublished&&hasCap("publication.publish"))return setCommand('<span class="command-message">Tout est enregistré</span><button class="command-button primary" data-cmd="publish" type="button">Publier</button>');
+  return setCommand(`<span class="command-message"><strong>Homepage</strong> · Tout est enregistré</span>${state.publishedUrl?` <a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a>`:""}`);
 }
 
 commandLayer.addEventListener("focusin",()=>state.commandLocked=true);
@@ -432,6 +447,7 @@ async function hydrate(){
     state.version=home?.version??null;
     state.updatedAt=home?.updatedAt??null;
     state.articles=Array.isArray(articles)?articles:[];
+    try{const pub=await api(`/api/projects/${encodeURIComponent(projectId)}/publications/active`);state.publishedUrl=pub?`/public/projects/${projectId}`:null}catch(e){state.publishedUrl=null}
     state.load="ready";state.save="saved";
     renderEditor();renderCommand();
   }catch(e){
@@ -440,9 +456,11 @@ async function hydrate(){
 }
 
 document.getElementById("projectLink").onclick=()=>location.assign(preserveDev(`/projects/${encodeURIComponent(projectId)}`));
+const STUDIO_DOMAIN_PATHS={homepage:"",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:""};
 document.querySelectorAll(".nav-item").forEach(btn=>btn.addEventListener("click",()=>{
   if(btn.dataset.domain==="homepage")return;
-  setCommand(`<span class="command-message"><strong>${esc(btn.textContent)}</strong> arrive dans une prochaine vertical slice.</span>`);
+  const seg=STUDIO_DOMAIN_PATHS[btn.dataset.domain];
+  location.assign(preserveDev(`/projects/${projectId}/studio${seg?"/"+seg:""}`));
 }));
 
 hydrate();

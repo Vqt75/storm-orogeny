@@ -70,9 +70,12 @@ test.after(async () => {
 });
 
 // ── Slice 0 : pipeline complet Snapshot -> Candidate -> Compiler -> Manifest -> activation ──
+// (mis à jour Slice 1 : news/questions désormais réellement actifs, jamais figé à l'état Slice 0)
 
-test('Publication : pipeline complet réussit et produit un manifest V0 valide (Home uniquement)', async () => {
+test('Publication : pipeline complet réussit et produit un manifest valide (Home + Actualités + Questions)', async () => {
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_articles where project_id=$1", [ids.project]);
+  await pool.query("delete from project_questions where project_id=$1", [ids.project]);
   await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
     method: 'PATCH', ...withUser(ids.editor),
     body: jsonBody({ fields: { message: 'Bienvenue', featuredArticleMode: 'latest', featuredArticleId: null, showMilestones: true, showAskPrompt: true, askPrompt: 'Une question ?' } })
@@ -85,8 +88,8 @@ test('Publication : pipeline complet réussit et produit un manifest V0 valide (
   assert.equal(body.manifest.schemaVersion, 1);
   assert.equal(body.manifest.project.name, 'Projet Publication');
   assert.equal(body.manifest.edition.id, 'ivory');
-  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: false, news: false, questions: false, ambassadors: false, team: false });
-  assert.deepEqual(body.manifest.navigation, []);
+  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: false, news: true, questions: true, ambassadors: false, team: false });
+  assert.deepEqual(body.manifest.navigation.map(n => n.module), ['questions', 'news']);
   assert.equal(body.manifest.content.home.message, 'Bienvenue');
   assert.equal(body.manifest.content.home.askPrompt, 'Une question ?');
   assert.equal(body.manifest.content.home.now, null);
@@ -220,3 +223,240 @@ test('Publication : isolation tenant/projet — un utilisateur sans membership r
   assert.equal(res.status, 404);
   await pool.query('delete from users where id=$1', [otherUser.id]);
 });
+
+// ── Slice 1 : Actualités + Questions dans le Candidate/Manifest ──
+
+async function uploadTestImage() {
+  const fd = new FormData();
+  fd.append('kind', 'article_image');
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da63600000020001557f6e5c0000000049454e44ae426082', 'hex');
+  fd.append('file', new Blob([png], { type: 'image/png' }), 'x.png');
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/assets`, { method: 'POST', headers: { 'X-Storm-Dev-User': ids.editor }, body: fd });
+  const { assetId } = await res.json();
+  return assetId;
+}
+
+test('Publication Slice 1 : mapping exact des Actualités — tag/date/title/summary/blocks/asset', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const assetId = await uploadTestImage();
+
+  const article = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({
+      title: 'Lancement du chantier', tag: 'Chantier', publicationDate: '2026-08-01',
+      chapeauRuns: [{ text: 'Un chapeau ' }, { text: 'important', bold: true }],
+      position: 0,
+      blocks: [
+        { blockType: 'paragraph', runs: [{ text: 'Un texte ' }, { text: 'souligné', underline: true }], position: 0 },
+        { blockType: 'heading', runs: [{ text: 'Un titre' }], position: 1 },
+        { blockType: 'image', imageAssetId: assetId, position: 2 }
+      ]
+    })
+  })).json();
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
+  const body = await res.json();
+  assert.equal(res.status, 201);
+
+  const item = body.manifest.content.news.items[0];
+  assert.equal(item.id, article.id);
+  assert.equal(item.tag, 'Chantier');
+  assert.equal(item.date, '2026-08-01');
+  assert.equal(item.title, 'Lancement du chantier');
+  assert.equal(item.summary, 'Un chapeau **important**', 'runs -> syntaxe Ivory (**gras**), jamais des runs structurés pour un champ aplati');
+  assert.equal(item.blocks.length, 3);
+  assert.deepEqual(item.blocks[0].runs, [{ text: 'Un texte ' }, { text: 'souligné', underline: true }], 'les blocs gardent des runs structurés, jamais aplatis');
+  assert.equal(item.blocks[2].type, 'image');
+  assert.equal(item.blocks[2].asset.url, `/public/projects/${ids.project}/assets/${assetId}`);
+  assert.ok(item.asset, 'asset de couverture dérivé du premier bloc image');
+  assert.equal(item.asset.url, `/public/projects/${ids.project}/assets/${assetId}`);
+  assert.equal(typeof item.readingMinutes, 'number');
+  assert.ok(item.readingMinutes >= 1);
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [article.id]);
+  await pool.query('delete from assets where id=$1', [assetId]);
+});
+
+test('Publication Slice 1 : temps de lecture recalculé depuis le texte réel des blocs', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const longText = Array.from({ length: 250 }, (_, i) => `mot${i}`).join(' ');
+  const article = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Article Long', chapeauRuns: [], position: 0, blocks: [{ blockType: 'paragraph', runs: [{ text: longText }], position: 0 }] })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const item = body.manifest.content.news.items.find(i => i.id === article.id);
+  assert.equal(item.readingMinutes, 2, '250 mots / 220 mots par minute -> arrondi à 2 minutes');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [article.id]);
+});
+
+test('Publication Slice 1 : tri publicationDate DESC puis position ASC', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const older = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Plus ancien', chapeauRuns: [], position: 0, publicationDate: '2026-01-01', blocks: [] })
+  })).json();
+  const sameDataA = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Même date A', chapeauRuns: [], position: 5, publicationDate: '2026-06-01', blocks: [] })
+  })).json();
+  const sameDataB = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Même date B', chapeauRuns: [], position: 2, publicationDate: '2026-06-01', blocks: [] })
+  })).json();
+  const newest = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Plus récent', chapeauRuns: [], position: 1, publicationDate: '2026-12-01', blocks: [] })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const titles = body.manifest.content.news.items.map(i => i.title);
+  assert.deepEqual(titles, ['Plus récent', 'Même date B', 'Même date A', 'Plus ancien'], 'DESC par date, ASC par position en départage sur une date identique');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id = ANY($1)', [[older.id, sameDataA.id, sameDataB.id, newest.id]]);
+});
+
+test('Publication Slice 1 : asset public — 200 si référencé par la publication active, 404 sinon', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const assetId = await uploadTestImage();
+  const article = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ title: 'Avec image', chapeauRuns: [], position: 0, blocks: [{ blockType: 'image', imageAssetId: assetId, position: 0 }] })
+  })).json();
+  await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
+
+  const okRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${assetId}`);
+  assert.equal(okRes.status, 200);
+  assert.equal(okRes.headers.get('content-type'), 'image/png');
+
+  const notReferenced = await uploadTestImage();
+  const koRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${notReferenced}`);
+  assert.equal(koRes.status, 404, 'un asset qui existe en DB mais non référencé par la publication active reste 404 -- jamais Studio vivant qui décide');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [article.id]);
+  await pool.query('delete from assets where id = ANY($1)', [[assetId, notReferenced]]);
+});
+
+test('Publication Slice 1 : Questions compilées sans aucun signal de scoring, cliquables directement', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const question = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/questions`, {
+    method: 'POST', ...withUser(ids.editor),
+    body: jsonBody({ question: 'Quand ?', answerRuns: [{ text: 'Bientôt, ' }, { text: 'vraiment', italic: true }], position: 0 })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const item = body.manifest.content.questions.items[0];
+  assert.equal(item.id, question.id);
+  assert.equal(item.title, 'Quand ?');
+  assert.equal(item.answer, 'Bientôt, //vraiment//');
+  // Aucun signal de scoring fabriqué -- arbitrage explicite.
+  assert.equal(item.keywords, undefined);
+  assert.equal(item.phrases, undefined);
+  assert.equal(item.intentSignals, undefined);
+  assert.equal(item.priority, undefined);
+  // Le parcours par clic (findById côté Ivory) ne dépend que de id/title/answer -- tous présents.
+  assert.ok(item.id && item.title && item.answer);
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_questions where id=$1', [question.id]);
+});
+
+test('Publication Slice 1 : aucun champ Studio interne (version/updatedAt) ne fuite dans le Manifest', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Test Fuite', chapeauRuns: [], position: 0, blocks: [] })
+  });
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/questions`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ question: 'Q Test Fuite', answerRuns: [], position: 0 })
+  });
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const newsItem = body.manifest.content.news.items.find(i => i.title === 'Article Test Fuite');
+  const questionItem = body.manifest.content.questions.items.find(i => i.title === 'Q Test Fuite');
+  for (const item of [newsItem, questionItem]) {
+    assert.equal(item.version, undefined);
+    assert.equal(item.updatedAt, undefined);
+    assert.equal(item.position, undefined);
+    assert.equal(item.clientKey, undefined);
+  }
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_articles where title='Article Test Fuite'");
+  await pool.query("delete from project_questions where question='Q Test Fuite'");
+});
+
+test('Publication Slice 1 : featured latest par défaut, manual avec article réel, fallback + warning si obsolète', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+
+  const a1 = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Un', chapeauRuns: [], position: 0, publicationDate: '2026-01-01', blocks: [] })
+  })).json();
+  const a2 = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Deux', chapeauRuns: [], position: 1, publicationDate: '2026-06-01', blocks: [] })
+  })).json();
+
+  // 1. latest par défaut (mode absent) -> le plus récent, jamais un warning.
+  const latestBody = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.equal(latestBody.manifest.content.home.featured.source.id, a2.id, 'latest doit être le plus récent par date');
+  assert.deepEqual(latestBody.warnings, []);
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+
+  // 2. manual avec un article réel -> exactement celui choisi, jamais un warning.
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: a1.id } })
+  });
+  const manualBody = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.equal(manualBody.manifest.content.home.featured.source.id, a1.id, 'manual doit respecter le choix explicite, même si ce n\'est pas le plus récent');
+  assert.deepEqual(manualBody.warnings, []);
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+
+  // 3. manual avec référence devenue obsolète (article supprimé après coup) -> fallback latest + warning explicite.
+  const versionRes = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, { headers: { 'X-Storm-Dev-User': ids.editor } });
+  const currentArticles = await versionRes.json();
+  const a1Current = currentArticles.find(a => a.id === a1.id);
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${a1.id}?version=${a1Current.version}`, { method: 'DELETE', headers: { 'X-Storm-Dev-User': ids.editor } });
+
+  const fallbackBody = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.equal(fallbackBody.manifest.content.home.featured.source.id, a2.id, 'fallback doit retomber sur le plus récent restant');
+  assert.equal(fallbackBody.warnings.length, 1);
+  assert.equal(fallbackBody.warnings[0].code, 'FEATURED_ARTICLE_MISSING');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [a2.id]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+});
+
+test('Publication Slice 1 : modifier/supprimer une Actualité après publication laisse la publication déjà active inchangée', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const article = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Titre Original', chapeauRuns: [], position: 0, blocks: [] })
+  })).json();
+
+  const published = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const originalTitle = published.manifest.content.news.items.find(i => i.id === article.id).title;
+  assert.equal(originalTitle, 'Titre Original');
+
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles/${article.id}`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ title: 'Titre Modifié Après Publication', chapeauRuns: [], blocks: [], version: article.version })
+  });
+
+  const stillActive = await pool.query('select manifest from project_publications where id=$1', [published.id]);
+  const stillTitle = stillActive.rows[0].manifest.content.news.items.find(i => i.id === article.id).title;
+  assert.equal(stillTitle, 'Titre Original', 'la publication déjà active ne doit jamais refléter une modification Studio survenue après coup');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [article.id]);
+});
+
+test('Publication Slice 1 : modules/navigation cohérents — home+news+questions actifs, les 4 autres désactivés sans content', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  assert.deepEqual(body.manifest.modules, { home: true, timeline: false, spaces: false, news: true, questions: true, ambassadors: false, team: false });
+  assert.deepEqual(Object.keys(body.manifest.content).sort(), ['home', 'news', 'questions']);
+  assert.deepEqual(body.manifest.navigation.map(n => n.module), ['questions', 'news']);
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+

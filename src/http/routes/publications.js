@@ -24,7 +24,7 @@ export function createPublicationRouter({ pool }) {
       res.status(422).json({ ok: false, revision: result.revision, status: 'failed', failureCode: result.failureCode, failureDetail: result.failureDetail });
       return;
     }
-    res.status(201).json({ id: result.id, revision: result.revision, status: result.status, manifest: result.manifest });
+    res.status(201).json({ id: result.id, revision: result.revision, status: result.status, manifest: result.manifest, warnings: result.warnings ?? [] });
   }));
 
   // Lecture de la publication active — c'est cette route, jamais un
@@ -40,7 +40,7 @@ export function createPublicationRouter({ pool }) {
       return;
     }
     res.status(200).json({
-      id: row.id, revision: row.revision, status: row.status, manifest: row.manifest,
+      id: row.id, revision: row.revision, status: row.status, manifest: row.manifest, warnings: row.warnings ?? [],
       compilerVersion: row.compiler_version, createdAt: row.created_at, compiledAt: row.compiled_at, activatedAt: row.activated_at
     });
   }));
@@ -48,7 +48,7 @@ export function createPublicationRouter({ pool }) {
   router.get('/:projectId/publications', requireProjectCapability(pool, ProjectCapability.VIEW), asyncHandler(async (req, res) => {
     const rows = await listPublications(pool, req.project.id);
     res.status(200).json(rows.map(r => ({
-      id: r.id, revision: r.revision, status: r.status, compilerVersion: r.compiler_version,
+      id: r.id, revision: r.revision, status: r.status, warnings: r.warnings ?? [], compilerVersion: r.compiler_version,
       failureCode: r.failure_code, failureDetail: r.failure_detail,
       createdByUserId: r.created_by_user_id, createdAt: r.created_at, compiledAt: r.compiled_at, activatedAt: r.activated_at
     })));

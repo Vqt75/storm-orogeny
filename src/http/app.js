@@ -8,6 +8,7 @@ import { createAssetsRouter } from './routes/assets.js';
 import { createControlRouter } from './routes/control.js';
 import { createStudioRouter } from './routes/studio.js';
 import { createPublicationRouter } from './routes/publications.js';
+import { createPublicAssetsRouter } from './routes/publicAssets.js';
 import { devAuth } from './middleware/devAuth.js';
 import { errorHandler, notFoundHandler } from './errorHandler.js';
 
@@ -135,6 +136,10 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   app.use('/api/projects', authenticated, createStudioRouter({ pool, storageAdapter }));
   app.use('/api/projects', authenticated, createPublicationRouter({ pool }));
   app.use('/api/assets', authenticated, createAssetsRouter({ pool, storageAdapter }));
+  // Assets publics — jamais derrière `authenticated`. La visibilité
+  // n'est décidée que par la publication active (voir publicAssets.js),
+  // pas par une session Storm.
+  app.use('/public', createPublicAssetsRouter({ pool, storageAdapter }));
   app.use('/api/control', authenticated, createControlRouter({ pool }));
 
   app.use(notFoundHandler);

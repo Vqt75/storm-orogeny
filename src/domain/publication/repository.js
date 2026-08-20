@@ -18,10 +18,10 @@ import {
   listAmbassadors,
   listSpaces
 } from '../studio/repository.js';
-import { buildCandidateHomeOnly } from './candidate.js';
+import { buildCandidate } from './candidate.js';
 import { compile, CompilerBlockingError } from './compiler.js';
 
-const COMPILER_VERSION = 'orogeny-slice0';
+const COMPILER_VERSION = 'orogeny-slice1';
 
 // Une seule lecture par domaine, séquentielle (une connexion pg ne
 // peut exécuter qu'une requête à la fois) mais toutes dans la MÊME
@@ -77,9 +77,9 @@ async function buildSnapshot(client, { projectId }) {
   };
 }
 
-function buildCompilationContext(revision) {
+function buildCompilationContext(revision, projectId) {
   const generatedAt = new Date().toISOString();
-  return { generatedAt, revision };
+  return { generatedAt, revision, projectId };
 }
 
 // createPublication — point d'entrée unique de ce module.
@@ -165,13 +165,16 @@ export async function createPublication(pool, { tenantId, projectId, userId }) {
     throw err;
   }
 
-  const candidate = buildCandidateHomeOnly(snapshot);
-  const context = buildCompilationContext(revision);
+  const candidate = buildCandidate(snapshot);
+  const context = buildCompilationContext(revision, projectId);
 
   let manifest = null;
+  let warnings = [];
   let compileError = null;
   try {
-    manifest = compile(candidate, context);
+    const result = compile(candidate, context);
+    manifest = result.manifest;
+    warnings = result.warnings;
   } catch (err) {
     if (!(err instanceof CompilerBlockingError)) {
       client.release();
@@ -201,9 +204,9 @@ export async function createPublication(pool, { tenantId, projectId, userId }) {
 
     await client.query(
       `update project_publications
-       set status='ready', snapshot=$1, candidate=$2, manifest=$3, compiler_version=$4, compiled_at=now()
-       where id=$5`,
-      [JSON.stringify(snapshot), JSON.stringify(candidate), JSON.stringify(manifest), COMPILER_VERSION, pendingId]
+       set status='ready', snapshot=$1, candidate=$2, manifest=$3, warnings=$4, compiler_version=$5, compiled_at=now()
+       where id=$6`,
+      [JSON.stringify(snapshot), JSON.stringify(candidate), JSON.stringify(manifest), JSON.stringify(warnings), COMPILER_VERSION, pendingId]
     );
 
     // Bascule atomique : l'éventuelle publication active précédente
@@ -219,7 +222,7 @@ export async function createPublication(pool, { tenantId, projectId, userId }) {
     );
 
     await client.query('COMMIT');
-    return { id: pendingId, revision, status: 'active', manifest };
+    return { id: pendingId, revision, status: 'active', manifest, warnings };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -230,7 +233,7 @@ export async function createPublication(pool, { tenantId, projectId, userId }) {
 
 export async function findActivePublication(pool, projectId) {
   const { rows } = await pool.query(
-    `select id, revision, status, manifest, compiler_version, created_at, compiled_at, activated_at
+    `select id, revision, status, manifest, warnings, compiler_version, created_at, compiled_at, activated_at
      from project_publications where project_id=$1 and status='active'`,
     [projectId]
   );
@@ -239,7 +242,7 @@ export async function findActivePublication(pool, projectId) {
 
 export async function listPublications(pool, projectId) {
   const { rows } = await pool.query(
-    `select id, revision, status, compiler_version, failure_code, failure_detail,
+    `select id, revision, status, warnings, compiler_version, failure_code, failure_detail,
             created_by_user_id, created_at, compiled_at, activated_at
      from project_publications where project_id=$1 order by revision desc`,
     [projectId]

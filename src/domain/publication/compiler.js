@@ -597,6 +597,15 @@ function compileHome(candidate, compiledNews, compiledTimeline, warnings) {
     now,
     next,
     featured,
+    // latest — dérivée ici, jamais recalculée par Ivory (branchement
+    // Ivory) : la première actualité DIFFÉRENTE de celle déjà mise en
+    // avant. Confirmé nécessaire précisément pour éviter qu'Ivory
+    // affiche deux fois la même actualité (featured ET latest) quand
+    // featuredArticleMode='latest' -- l'ancien renderer Tectonic
+    // excluait déjà featured de sa propre sélection "latest" ; le
+    // problème n'était pas cette règle métier, seulement le fait
+    // qu'Ivory la recalculait localement au lieu de la lire compilée.
+    latest: items.find(a => !featured || String(a.id) !== String(featured.source.id)) || null,
     showMilestones: home.showMilestones !== false,
     showAskPrompt: home.showAskPrompt !== false
   };

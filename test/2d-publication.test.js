@@ -985,3 +985,62 @@ test('Publication Slice 4 : aucun jalon current/future -> now/next strictement n
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
 });
 
+test('Branchement Ivory : home.latest exclut toujours featured, jamais de duplication en mode latest', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+  const a1 = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Un', chapeauRuns: [], position: 0, publicationDate: '2026-01-01', blocks: [] })
+  })).json();
+  const a2 = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Deux', chapeauRuns: [], position: 1, publicationDate: '2026-06-01', blocks: [] })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const home = body.manifest.content.home;
+  assert.equal(home.featured.source.id, a2.id, 'featured=latest doit être le plus récent');
+  assert.notEqual(home.latest?.id, home.featured.source.id, 'latest ne doit jamais être le même article que featured');
+  assert.equal(home.latest.id, a1.id, 'latest doit être la première actualité réellement différente de featured');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id = ANY($1)', [[a1.id, a2.id]]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+});
+
+test('Branchement Ivory : featured manuel -> latest reste la vraie dernière actualité hors featured', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+  const older = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Ancien', chapeauRuns: [], position: 0, publicationDate: '2026-01-01', blocks: [] })
+  })).json();
+  const newest = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Récent', chapeauRuns: [], position: 1, publicationDate: '2026-06-01', blocks: [] })
+  })).json();
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/section-content/homepage`, {
+    method: 'PATCH', ...withUser(ids.editor), body: jsonBody({ fields: { featuredArticleMode: 'manual', featuredArticleId: older.id } })
+  });
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const home = body.manifest.content.home;
+  assert.equal(home.featured.source.id, older.id, 'featured doit respecter le choix manuel, même si ce n\'est pas le plus récent');
+  assert.equal(home.latest.id, newest.id, 'latest doit rester la vraie dernière actualité (la plus récente), pas juste "la suivante dans le tableau"');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id = ANY($1)', [[older.id, newest.id]]);
+  await pool.query("delete from project_section_content where project_id=$1 and section_key='homepage'", [ids.project]);
+});
+
+test('Branchement Ivory : une seule actualité -> featured la contient, latest reste null', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const only = await (await fetch(`${baseUrl}/api/projects/${ids.project}/studio/articles`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Seule Actualité', chapeauRuns: [], position: 0, blocks: [] })
+  })).json();
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const home = body.manifest.content.home;
+  assert.equal(home.featured.source.id, only.id);
+  assert.equal(home.latest, null, 'sans deuxième actualité, latest doit être strictement null, jamais réutiliser featured');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_articles where id=$1', [only.id]);
+});
+

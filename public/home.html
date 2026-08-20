@@ -902,16 +902,41 @@
     return Array.isArray(me?.organization?.capabilities) && me.organization.capabilities.includes(capability);
   }
 
+  // Amorçage d'identité pour l'instance de démonstration — jamais un
+  // nouveau mécanisme d'authentification, seulement la même identité
+  // ?devUser= que le développement, résolue une fois via le serveur
+  // quand DEMO_ALLOW_HEADER_IDENTITY_IN_PRODUCTION est explicitement
+  // actif (voir src/http/routes/demoIdentity.js). Un ?devUser= déjà
+  // présent dans l'URL garde toujours la priorité — jamais écrasé.
+  let resolvedDemoUserId = null;
+
+  async function resolveDemoIdentity(){
+    if (new URLSearchParams(location.search).get('devUser')) return;
+    try{
+      const response = await fetch('/api/demo-identity', {headers:{'Accept':'application/json'}});
+      if (!response.ok) return;
+      const body = await response.json();
+      if (body && typeof body.userId === 'string') resolvedDemoUserId = body.userId;
+    }catch(error){
+      // Silencieux — absence de mode démo actif, comportement normal.
+    }
+  }
+
+  function currentDevUser(){
+    return new URLSearchParams(location.search).get('devUser') || resolvedDemoUserId;
+  }
+
   function devHeaders(){
-    const devUser = new URLSearchParams(location.search).get('devUser');
+    const devUser = currentDevUser();
     return devUser ? {'X-Storm-Dev-User':devUser} : {};
   }
 
-  // Préserve ?devUser= lors d'une navigation vers une autre page Storm
-  // — mécanisme de développement uniquement, jamais une convention
+  // Préserve ?devUser= (explicite ou résolu via le mode démo) lors
+  // d'une navigation vers une autre page Storm — mécanisme de
+  // développement/démonstration uniquement, jamais une convention
   // d'authentification Orogeny (voir docs/contracts/privacy-and-data-governance.md).
   function navigateWithDevUser(path){
-    const devUser = new URLSearchParams(location.search).get('devUser');
+    const devUser = currentDevUser();
     location.assign(devUser ? `${path}?devUser=${encodeURIComponent(devUser)}` : path);
   }
 
@@ -1085,6 +1110,7 @@
     renderLoading();
 
     try{
+      await resolveDemoIdentity();
       const context = await loadHomeContext();
       renderContext(context);
     }catch(error){

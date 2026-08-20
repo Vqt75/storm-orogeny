@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { healthRouter } from './routes/health.js';
 import { createMeRouter } from './routes/me.js';
+import { createDemoIdentityRouter } from './routes/demoIdentity.js';
 import { createProjectsRouter } from './routes/projects.js';
 import { createAssetsRouter } from './routes/assets.js';
 import { createControlRouter } from './routes/control.js';
@@ -133,6 +134,10 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   // doivent jamais passer par l'authentification.
   const authenticated = devAuth({ pool, config });
   app.use('/api/me', authenticated, createMeRouter({ pool }));
+  // Jamais derrière `authenticated` — voir demoIdentity.js pour le
+  // raisonnement complet (circulaire sinon, et sans objet en dehors
+  // du mode démo, où elle répond 404 strict).
+  app.use('/api/demo-identity', createDemoIdentityRouter({ pool, config }));
   app.use('/api/projects', authenticated, createProjectsRouter({ pool, storageAdapter }));
   app.use('/api/projects', authenticated, createStudioRouter({ pool, storageAdapter }));
   app.use('/api/projects', authenticated, createPublicationRouter({ pool }));

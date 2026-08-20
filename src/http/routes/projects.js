@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { logger } from '../../logger.js';
 import {
   listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules
 } from '../../domain/projects/repository.js';
@@ -28,6 +29,13 @@ export function createProjectsRouter({ pool, storageAdapter }) {
   // explicite pour projects.view_all).
   router.get('/', async (req, res) => {
     const projects = await listProjectsForUser(pool, req.user.id);
+    // Diagnostic temporaire — à retirer une fois la cause du symptôme
+    // "seed réussi, aucun projet affiché" confirmée en production
+    // (voir pool.js pour le log de cible de connexion associé).
+    // Révèle précisément quel userId a été résolu et combien de
+    // project_memberships actives ont été trouvées pour lui, sans
+    // jamais logger de données sensibles.
+    logger.info({ userId: req.user.id, projectCount: projects.length }, 'GET /api/projects');
     res.status(200).json(projects.map(p => ({ id: p.id, name: p.name })));
   });
 

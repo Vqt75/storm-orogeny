@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { logger } from '../logger.js';
 
 const { Pool, types } = pg;
 
@@ -14,6 +15,20 @@ let pool;
 
 export function getPool(config) {
   if (!pool) {
+    // Diagnostic sûr — jamais le mot de passe — de la cible de
+    // connexion réellement utilisée. migrate.js, seed.js et
+    // server.js appellent chacun getPool() dans leur propre process ;
+    // ce log permet de confirmer, en comparant les logs de déploiement,
+    // que les trois pointent bien vers la même base — un déploiement
+    // où le build (migrate+seed) et le service runtime auraient des
+    // variables d'environnement de connexion différentes produirait
+    // exactement le symptôme "seed réussi, mais rien ne s'affiche" :
+    // deux bases distinctes, chacune cohérente avec elle-même,
+    // jamais un bug de requête.
+    logger.info(
+      { host: config.database.host, port: config.database.port, database: config.database.name, ssl: config.database.ssl },
+      'Connexion PostgreSQL — cible'
+    );
     pool = new Pool({
       host: config.database.host,
       port: config.database.port,

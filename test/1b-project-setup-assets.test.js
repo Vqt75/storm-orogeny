@@ -199,3 +199,22 @@ test('régression : uploader sur un projet SANS project_identity échoue bruyamm
   await pool.query('delete from project_memberships where project_id=$1', [projectWithoutIdentity.id]);
   await pool.query('delete from projects where id=$1', [projectWithoutIdentity.id]);
 });
+
+test('Product Integrity Pass #2 — logoAssetId uploadé apparaît dans GET /api/projects (couture Storm Home)', async () => {
+  const form = new FormData();
+  form.append('logo', new Blob([tinyPngBuffer()], { type: 'image/png' }), 'logo.png');
+  const uploadRes = await fetch(`${baseUrl}/api/projects/${ids.project}/logo`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.creator }, body: form
+  });
+  assert.equal(uploadRes.status, 201);
+  const { assetId } = await uploadRes.json();
+
+  const listRes = await fetch(`${baseUrl}/api/projects`, { headers: { 'X-Storm-Dev-User': ids.creator } });
+  const list = await listRes.json();
+  const listed = list.find(p => p.id === ids.project);
+  assert.ok(listed, 'le projet reste bien présent dans la liste');
+  assert.equal(listed.identity.logoAssetId, assetId, 'le logo tout juste uploadé doit apparaître dans /api/projects -- source unique project_identity, jamais un stockage parallèle');
+
+  await pool.query('update project_identity set logo_asset_id = null where project_id=$1', [ids.project]);
+  await pool.query('delete from assets where id=$1', [assetId]);
+});

@@ -42,6 +42,11 @@ test.before(async () => {
   await pool.query('insert into projects (tenant_id, name) values ($1,$2)', [tenantA.id, 'Projet Tenant A 2']);
   await pool.query('insert into projects (tenant_id, name) values ($1,$2)', [tenantB.id, 'Projet Tenant B (ne doit jamais apparaître pour A)']);
 
+  // Membership de projet pour admin sur projA1 -- nécessaire pour
+  // vérifier que /api/projects (Storm Home) reflète bien archive/
+  // restore, distinct de /api/control/projects qui n'en dépend pas.
+  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, projA1.id, admin.id, 'project_admin']);
+
   ids = { tenantA: tenantA.id, tenantB: tenantB.id, admin: admin.id, member: member.id, otherTenantAdmin: otherTenantAdmin.id, projA1: projA1.id };
 
   app = createApp({ logger: silentLogger, pool, config, storageAdapter });
@@ -119,4 +124,58 @@ test('capability control.access vérifiée même si un jour projects.view_all se
   assert.equal(bundleHasOrganizationCapability('organization_admin', 'control.access'), true);
   assert.equal(bundleHasOrganizationCapability('organization_admin', 'projects.view_all'), true);
   assert.equal(bundleHasOrganizationCapability('organization_admin', 'organization.members.manage'), true);
+});
+
+// ── Cycle de vie des projets — archive/restore (Product Integrity Pass #2) ──
+
+test('organization_admin -> POST /archive fait passer un projet actif à archived', async () => {
+  const res = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/archive`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.status, 'archived');
+
+  const listed = await (await fetch(`${baseUrl}/api/control/projects`, withUser(ids.admin))).json();
+  assert.equal(listed.find(p => p.id === ids.projA1).status, 'archived', 'Storm Control continue de le lister, avec le bon statut');
+
+  await pool.query('update projects set status=$1 where id=$2', ['active', ids.projA1]);
+});
+
+test('archiver un projet le fait disparaître de /api/projects (Storm Home), sans changement côté lecture', async () => {
+  await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/archive`, { method: 'POST', ...withUser(ids.admin) });
+  const listed = await (await fetch(`${baseUrl}/api/projects`, withUser(ids.admin))).json();
+  assert.ok(!listed.some(p => p.id === ids.projA1), 'un projet archivé ne doit plus jamais apparaître dans "mes projets"');
+  await pool.query('update projects set status=$1 where id=$2', ['active', ids.projA1]);
+});
+
+test('POST /restore ramène un projet archivé à active, réapparaît dans /api/projects', async () => {
+  await pool.query('update projects set status=$1 where id=$2', ['archived', ids.projA1]);
+  const res = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/restore`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).status, 'active');
+
+  const listed = await (await fetch(`${baseUrl}/api/projects`, withUser(ids.admin))).json();
+  assert.ok(listed.some(p => p.id === ids.projA1), 'redevient visible dans "mes projets" après restauration');
+});
+
+test('member (sans control.access) -> 403 sur /archive et /restore, jamais un contournement', async () => {
+  const archiveRes = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/archive`, { method: 'POST', ...withUser(ids.member) });
+  assert.equal(archiveRes.status, 403);
+  const restoreRes = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/restore`, { method: 'POST', ...withUser(ids.member) });
+  assert.equal(restoreRes.status, 403);
+
+  const row = await pool.query('select status from projects where id=$1', [ids.projA1]);
+  assert.equal(row.rows[0].status, 'active', 'le refus doit être réel, jamais une simple UI masquée -- le statut ne doit pas avoir bougé');
+});
+
+test('otherTenantAdmin (tenant B) -> 404 en tentant d\'archiver un projet du tenant A, jamais un succès cross-tenant', async () => {
+  const res = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/archive`, { method: 'POST', ...withUser(ids.otherTenantAdmin) });
+  assert.equal(res.status, 404, 'même invariant que listAllProjectsForTenant : jamais un projet d\'un autre tenant, même par id direct');
+
+  const row = await pool.query('select status from projects where id=$1', [ids.projA1]);
+  assert.equal(row.rows[0].status, 'active', 'le statut ne doit jamais avoir bougé suite à une tentative cross-tenant');
+});
+
+test('archive/restore sur un id inexistant -> 404 propre', async () => {
+  const res = await fetch(`${baseUrl}/api/control/projects/00000000-0000-0000-0000-000000000000/archive`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal(res.status, 404);
 });

@@ -98,6 +98,9 @@ test('happy path : création complète avec identité, réglages, modules, invit
 
   const { rows: getProjects } = await fetch(`${baseUrl}/api/projects`, { headers: { 'X-Storm-Dev-User': ids.creator } }).then(r => r.json()).then(list => ({ rows: list }));
   assert.ok(getProjects.some(p => p.id === body.id), 'le projet est immédiatement visible dans GET /api/projects');
+  const listed = getProjects.find(p => p.id === body.id);
+  assert.equal(listed.identity.primaryColor, '#1E1D1E', 'GET /api/projects expose identity.primaryColor (Product Integrity Pass #2 — couture logo Storm Home)');
+  assert.equal(listed.identity.logoAssetId, null, 'aucun logo uploadé ici -> logoAssetId strictement null, jamais absent ni une chaîne vide');
 
   const after = await countAll();
   assert.equal(after.projects, before.projects + 1);

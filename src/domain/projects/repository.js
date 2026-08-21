@@ -6,9 +6,11 @@
 
 export async function listProjectsForUser(pool, userId) {
   const { rows } = await pool.query(
-    `select p.id, p.name, pm.permission_bundle as my_bundle
+    `select p.id, p.name, pm.permission_bundle as my_bundle,
+            pi.logo_asset_id, pi.primary_color
      from project_memberships pm
      join projects p on p.id = pm.project_id and p.tenant_id = pm.tenant_id
+     left join project_identity pi on pi.project_id = p.id and pi.tenant_id = p.tenant_id
      where pm.user_id = $1 and pm.status = 'active' and p.status = 'active'
      order by p.name asc`,
     [userId]

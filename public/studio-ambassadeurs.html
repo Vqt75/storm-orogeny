@@ -25,7 +25,7 @@ body{
 button,input{font:inherit;color:inherit}button{cursor:pointer}
 .shell{min-height:100vh;padding:22px 28px 154px}
 .topbar{
-  position:sticky;top:16px;z-index:50;height:62px;display:flex;align-items:center;justify-content:space-between;
+  z-index:50;height:62px;display:flex;align-items:center;justify-content:space-between;
   padding:0 8px 0 20px;border:1px solid rgba(255,255,255,.75);border-radius:20px;
   background:rgba(255,255,255,.37);backdrop-filter:blur(24px) saturate(175%);
   box-shadow:0 10px 34px rgba(17,17,17,.07),inset 0 1px 0 rgba(255,255,255,.82)
@@ -39,7 +39,7 @@ button,input{font:inherit;color:inherit}button{cursor:pointer}
 main{width:min(1280px,100%);margin:0 auto;padding-top:84px}
 .studio-grid{display:grid;grid-template-columns:190px minmax(0,900px);gap:58px;align-items:start}
 .studio-nav{
-  position:sticky;top:102px;padding:7px;border:1px solid rgba(255,255,255,.72);border-radius:22px;
+  padding:7px;border:1px solid rgba(255,255,255,.72);border-radius:22px;
   background:rgba(247,247,244,.44);backdrop-filter:blur(24px) saturate(170%);
   box-shadow:0 12px 38px rgba(17,17,17,.065),inset 0 1px 0 rgba(255,255,255,.82)
 }
@@ -126,7 +126,7 @@ h1{margin:0;font-size:clamp(54px,6.2vw,88px);line-height:.9;letter-spacing:-.064
 .command-message{padding:0 12px;text-align:center;color:var(--graphite);font-size:13px}
 .command-message strong{color:var(--ink);font-weight:720}
 .command-button{min-height:42px;padding:0 16px;border:0;border-radius:15px;background:transparent;font-size:13px;font-weight:690}
-.command-button:hover{background:rgba(255,255,255,.44)}.command-button.primary{background:#111;color:#fff}.command-link{display:inline-flex;align-items:center;min-height:42px;padding:0 16px;border-radius:15px;color:#343438;font-size:13px;font-weight:690;text-decoration:none}.command-link:hover{background:rgba(255,255,255,.44)}
+.command-button:hover{background:rgba(255,255,255,.44)}.command-button.primary{background:#111;color:#fff}.state-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:middle}.state-dot-success{background:#1f8a52}.state-dot-warning{background:#b57a12}.state-dot-error{background:#c23a2e}.command-link{display:inline-flex;align-items:center;min-height:42px;padding:0 16px;border-radius:15px;color:#343438;font-size:13px;font-weight:690;text-decoration:none}.command-link:hover{background:rgba(255,255,255,.44)}
 .sheet{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(10,10,12,.20);backdrop-filter:blur(7px)}
 .sheet-card{width:min(430px,100%);padding:24px;border:1px solid rgba(255,255,255,.8);border-radius:24px;background:rgba(249,249,247,.96);box-shadow:0 28px 80px rgba(17,17,17,.18)}
 .sheet-card h2{margin:0;font-size:24px;letter-spacing:-.04em}.sheet-card p{margin:10px 0 22px;color:var(--muted);font-size:13px;line-height:1.55}
@@ -322,6 +322,17 @@ function photoMarkup(a){
     : `<div class="photo"><span>Aucune photo</span></div>`;
 }
 
+// Aide contextuelle selon le canal choisi -- la sémantique est déjà
+// parfaitement claire dans le code (enum fermé email/phone/teams), un
+// placeholder générique identique pour les 3 canaux n'aidait à rien
+// de plus qu'à décrire vaguement le champ (Product Integrity Pass #2).
+function contactValuePlaceholder(channel){
+  if(channel==="email") return "nom@domaine.fr";
+  if(channel==="phone") return "06 12 34 56 78";
+  if(channel==="teams") return "Identifiant ou lien Teams";
+  return "Choisissez d’abord un canal ci-dessus";
+}
+
 function renderEditor(){
   if(state.load==="loading"){editor.innerHTML='<div class="loading">Storm ouvre les ambassadeurs…</div>';return}
   if(state.load==="error"){editor.innerHTML='<div class="loading">Storm n’arrive pas à ouvrir Ambassadeurs.</div>';return}
@@ -385,7 +396,7 @@ function renderEditor(){
         </label>
         <label>
           <span class="field-label">Coordonnée</span>
-          <div class="plain-edit" contenteditable="true" data-field="contactValue" data-placeholder="Adresse, numéro ou identifiant…">${esc(a.contactValue||"")}</div>
+          <div class="plain-edit" contenteditable="true" data-field="contactValue" data-placeholder="${esc(contactValuePlaceholder(a.contactChannel))}">${esc(a.contactValue||"")}</div>
         </label>
       </div>
     </section>
@@ -453,6 +464,8 @@ function wireEditor(){
 
   document.getElementById("contactChannel")?.addEventListener("change",e=>{
     flushDomToState();a.contactChannel=e.target.value||null;markDirty(a.id);
+    const cv=document.querySelector('[data-field="contactValue"]');
+    if(cv)cv.dataset.placeholder=contactValuePlaceholder(a.contactChannel);
   });
 
   document.getElementById("replacePhoto").onclick=()=>{
@@ -607,27 +620,27 @@ async function doPublish(){
   setCommand('<span class="command-message">Publication…</span>');
   let res,data;
   try{res=await fetch(`/api/projects/${projectId}/publications`,{method:"POST",headers:devHeaders()});data=await res.json().catch(()=>({}))}
-  catch(e){setCommand('<span class="command-message">Connexion impossible. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>');return}
+  catch(e){setCommand('<span class="command-message"><span class="state-dot state-dot-error"></span>Connexion impossible. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>');return}
   if(res.status===201){
     state.unpublished=false;
     state.publishedUrl=`/public/projects/${projectId}`;
-    const warn=(data.warnings||[]).map(w=>`<br><span class="command-message">${esc(w.message)}</span>`).join("");
-    setCommand(`<span class="command-message"><strong>Publication n°${data.revision}</strong> publiée.</span>${warn}<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a><button class="command-button" data-cmd="close" type="button">Fermer</button>`);
+    const warn=(data.warnings||[]).map(w=>`<br><span class="command-message"><span class="state-dot state-dot-warning"></span>${esc(w.message)}</span>`).join("");
+    setCommand(`<span class="command-message"><span class="state-dot state-dot-success"></span><strong>Publication n°${data.revision}</strong> publiée.</span>${warn}<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a><button class="command-button" data-cmd="close" type="button">Fermer</button>`);
     return;
   }
-  if(res.status===422){setCommand(`<span class="command-message">Compilation impossible : ${esc(data.failureDetail||"erreur inconnue")}. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>`);return}
-  if(res.status===403){setCommand(`<span class="command-message">${esc(data.error?.message||"Cette action nécessite une capability que vous n'avez pas.")}</span><button class="command-button" data-cmd="close" type="button">Fermer</button>`);return}
-  setCommand('<span class="command-message">Publication impossible pour le moment. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>');
+  if(res.status===422){setCommand(`<span class="command-message"><span class="state-dot state-dot-error"></span>Compilation impossible : ${esc(data.failureDetail||"erreur inconnue")}. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>`);return}
+  if(res.status===403){setCommand(`<span class="command-message"><span class="state-dot state-dot-error"></span>${esc(data.error?.message||"Cette action nécessite une capability que vous n'avez pas.")}</span><button class="command-button" data-cmd="close" type="button">Fermer</button>`);return}
+  setCommand('<span class="command-message"><span class="state-dot state-dot-error"></span>Publication impossible pour le moment. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>');
 }
 function renderCommand(){
   if(state.commandLocked)return;
   if(state.load==="loading")return setCommand('<span class="command-message">Chargement…</span>');
   if(state.uploading)return setCommand('<span class="command-message">Import de la photo…</span>');
   if(state.save==="dirty"||state.save==="saving")return setCommand('<span class="command-message">Enregistrement…</span>');
-  if(state.save==="conflict")return setCommand('<span class="command-message"><strong>Cet ambassadeur a changé ailleurs.</strong></span><button class="command-button primary" data-cmd="reload" type="button">Recharger</button>');
-  if(state.save==="error")return setCommand('<span class="command-message">Impossible d’enregistrer.</span><button class="command-button primary" data-cmd="retry" type="button">Réessayer</button>');
-  if(state.unpublished&&hasCap("publication.publish"))return setCommand('<span class="command-message">Tout est enregistré</span><button class="command-button primary" data-cmd="publish" type="button">Publier</button>');
-  return setCommand(`<span class="command-message"><strong>Ambassadeurs</strong> · Tout est enregistré</span>${state.publishedUrl?` <a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a>`:""}`);
+  if(state.save==="conflict")return setCommand('<span class="command-message"><span class="state-dot state-dot-error"></span><strong>Cet ambassadeur a changé ailleurs.</strong></span><button class="command-button primary" data-cmd="reload" type="button">Recharger</button>');
+  if(state.save==="error")return setCommand('<span class="command-message"><span class="state-dot state-dot-error"></span>Impossible d’enregistrer.</span><button class="command-button primary" data-cmd="retry" type="button">Réessayer</button>');
+  if(state.unpublished&&hasCap("publication.publish"))return setCommand('<span class="command-message"><span class="state-dot state-dot-warning"></span>Tout est enregistré</span><button class="command-button primary" data-cmd="publish" type="button">Publier</button>');
+  return setCommand(`<span class="command-message"><span class="state-dot state-dot-success"></span><strong>Ambassadeurs</strong> · Tout est enregistré</span>${state.publishedUrl?` <a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a>`:""}`);
 }
 
 commandLayer.addEventListener("focusin",()=>state.commandLocked=true);

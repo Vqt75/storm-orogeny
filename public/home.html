@@ -894,7 +894,7 @@
   }
 
   function safeAccent(project){
-    const accent = project?.identity?.accent;
+    const accent = project?.identity?.primaryColor;
     return /^#[0-9a-f]{6}$/i.test(accent || '') ? accent : '#8a8a8d';
   }
 
@@ -1103,7 +1103,48 @@
     emptyProjects.hidden = list.length !== 0;
 
     wireCards();
+    loadProjectLogos(list);
   }
+
+  // Résolution du logo par carte — même mécanisme authentifié que
+  // Project Shell (voir loadLogo dans project-shell.html) : jamais
+  // d'URL directe (l'auth par en-tête ne peut pas être portée par un
+  // <img src>), un fetch authentifié puis un object URL. Le fallback
+  // (initiale colorée déjà rendue par projectMarkup) reste en place
+  // tant que l'image n'a pas réellement chargé, et définitivement si
+  // aucun logo n'existe ou si le chargement échoue.
+  let logoObjectUrls = [];
+
+  async function loadProjectLogos(list){
+    const withLogo = list.filter(project => project?.identity?.logoAssetId);
+    await Promise.all(withLogo.map(async project => {
+      const card = projectGrid.querySelector(`[data-project-id="${CSS.escape(project.id)}"]`);
+      const mark = card?.querySelector('.identity-mark');
+      if (!mark) return;
+      try {
+        const response = await fetch(`/api/assets/${encodeURIComponent(project.identity.logoAssetId)}`, {
+          headers: devHeaders(),
+          credentials: 'same-origin'
+        });
+        if (!response.ok) return;
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        logoObjectUrls.push(objectUrl);
+        const img = document.createElement('img');
+        img.alt = '';
+        img.onload = () => { mark.textContent = ''; mark.appendChild(img); };
+        img.onerror = () => URL.revokeObjectURL(objectUrl);
+        img.src = objectUrl;
+      } catch(error){
+        // Silencieux — le fallback (initiale) reste affiché, exactement
+        // comme lorsqu'aucun logo n'existe.
+      }
+    }));
+  }
+
+  window.addEventListener('beforeunload', () => {
+    logoObjectUrls.forEach(url => URL.revokeObjectURL(url));
+  });
 
   async function hydrate(){
     clearSelected();

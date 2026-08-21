@@ -36,7 +36,14 @@ export function createProjectsRouter({ pool, storageAdapter }) {
     // project_memberships actives ont été trouvées pour lui, sans
     // jamais logger de données sensibles.
     logger.info({ userId: req.user.id, projectCount: projects.length }, 'GET /api/projects');
-    res.status(200).json(projects.map(p => ({ id: p.id, name: p.name })));
+    res.status(200).json(projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      identity: {
+        logoAssetId: p.logo_asset_id,
+        primaryColor: p.primary_color
+      }
+    })));
   });
 
   // Création transactionnelle — le tenant vient exclusivement du

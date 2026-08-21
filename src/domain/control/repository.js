@@ -15,6 +15,22 @@ export async function listAllProjectsForTenant(pool, tenantId) {
   return rows;
 }
 
+// Transition de statut — scopée par tenant_id explicite, jamais un
+// UPDATE par id seul : un id de projet appartenant à un AUTRE tenant
+// ne doit jamais pouvoir être touché depuis cette route, même par
+// erreur applicative (même invariant que listAllProjectsForTenant
+// ci-dessus). Retourne la ligne mise à jour, ou null si le projet
+// n'existe pas dans ce tenant précisément.
+export async function setProjectStatus(pool, tenantId, projectId, status) {
+  const { rows } = await pool.query(
+    `update projects set status = $3
+     where tenant_id = $1 and id = $2
+     returning id, name, status, created_at`,
+    [tenantId, projectId, status]
+  );
+  return rows[0] ?? null;
+}
+
 export async function listTenantMembers(pool, tenantId) {
   const { rows } = await pool.query(
     `select u.id, u.email, u.display_name, tm.permission_bundle, tm.status, tm.created_at

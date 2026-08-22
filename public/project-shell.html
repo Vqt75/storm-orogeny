@@ -55,7 +55,7 @@ function card(d){return `<button class="destination-card" type="button" data-des
 // route fonctionnelle -- ne pas la transformer ici).
 function openDestination(d){
   if(!d) return;
-  if(d.id==='studio'){ location.assign(preserveDev(d.route)); return; }
+  if(d.id==='studio'||d.id==='pilotage'){ location.assign(preserveDev(d.route)); return; }
   showIntent(d);
 }
 function renderWorkspace(){if(!state.destinations.length){workspaceContent.innerHTML=`<div class="state-panel"><div><strong>${t('empty')}</strong><span>${t('emptyCopy')}</span></div></div>`;return}workspaceContent.innerHTML=`<div class="destinations${state.destinations.length===1?' single':''}">${state.destinations.map(card).join('')}</div>`;workspaceContent.querySelectorAll('[data-destination]').forEach(b=>b.onclick=()=>{const d=state.destinations.find(x=>x.id===b.dataset.destination);openDestination(d)})}

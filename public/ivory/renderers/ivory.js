@@ -5697,7 +5697,15 @@ function wireInteractions(root, manifest, actions) {
 
       const direct = matchFaq(question, items);
       if (direct) {
-        if (explicit) actions.trackMatchResult?.('matched');
+        if (explicit) {
+          // Contrat V1 verrouillé : matchedEntryId + confidenceBucket,
+          // jamais le texte recherché. matchFaq() ne retourne que
+          // l'entrée (pas son score) -- recalcul local, léger, sans
+          // toucher au contrat public de matchFaq/scoreEntry.
+          const score = scoreEntry(question, direct);
+          const confidenceBucket = score >= 28 ? 'high' : score >= 18 ? 'medium' : 'low';
+          actions.trackMatchResult?.('matched', { matchedEntryId: direct.id, confidenceBucket });
+        }
         showAnswer(direct, explicit);
         return;
       }
@@ -5944,7 +5952,7 @@ function wireFoundation(root, manifest, actions) {
     const target = root.querySelector(`#${baseRequested}`) || root.querySelector('#home') || pages[0];
     if (!target) return;
 
-    actions?.trackPageView?.();
+    actions?.trackPageView?.(baseRequested);
 
     pages.forEach(page => page.classList.toggle('is-active', page === target));
     root.querySelectorAll('.tct-nav a').forEach(link => {

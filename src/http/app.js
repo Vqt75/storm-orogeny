@@ -10,6 +10,8 @@ import { createControlRouter } from './routes/control.js';
 import { createStudioRouter } from './routes/studio.js';
 import { createPublicationRouter } from './routes/publications.js';
 import { createPublicAssetsRouter } from './routes/publicAssets.js';
+import { createPublicTelemetryRouter } from './routes/publicTelemetry.js';
+import { createPilotageRouter } from './routes/pilotage.js';
 import { createPublicSiteRouter } from './routes/publicSite.js';
 import { devAuth } from './middleware/devAuth.js';
 import { errorHandler, notFoundHandler } from './errorHandler.js';
@@ -126,6 +128,16 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'studio-identite.html'));
   });
 
+  // Pilotage — hors Studio (accès via Project Shell, jamais depuis la
+  // navigation croisée des 6 domaines Studio). Même principe de route.
+  app.get('/projects/:projectId/pilotage', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'pilotage.html'));
+  });
+
   // Storm Control — même principe. GET /api/control/* protégé par
   // devAuth + capabilities organisationnelles côté serveur (jamais
   // seulement masqué côté front).
@@ -150,12 +162,14 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   app.use('/api/projects', authenticated, createProjectsRouter({ pool, storageAdapter }));
   app.use('/api/projects', authenticated, createStudioRouter({ pool, storageAdapter }));
   app.use('/api/projects', authenticated, createPublicationRouter({ pool }));
+  app.use('/api/projects', authenticated, createPilotageRouter({ pool }));
   app.use('/api/assets', authenticated, createAssetsRouter({ pool, storageAdapter }));
   // Assets publics — jamais derrière `authenticated`. La visibilité
   // n'est décidée que par la publication active (voir publicAssets.js),
   // pas par une session Storm.
   app.use('/public', createPublicSiteRouter({ pool, publicDir: PUBLIC_DIR }));
   app.use('/public', createPublicAssetsRouter({ pool, storageAdapter }));
+  app.use('/public', createPublicTelemetryRouter({ pool }));
   app.use('/api/control', authenticated, createControlRouter({ pool }));
 
   app.use(notFoundHandler);

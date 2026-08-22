@@ -98,7 +98,8 @@ async function loadRenderer(editionId) {
 // Le renderer exprime une intention ; le Runtime reste propriétaire de
 // l'endpoint et du payload. Le reste du tracking demeure hors renderer.
 // ─────────────────────────────────────────────────────────────────
-function buildPublicCoreActions() {
+function buildPublicCoreActions(projectId) {
+  const telemetryUrl = `/public/projects/${encodeURIComponent(projectId)}/telemetry`;
   return {
     async submitContact({ name, email, message }) {
       try {
@@ -121,18 +122,19 @@ function buildPublicCoreActions() {
         return { ok: false, error: 'Ressenti invalide.' };
       }
       try {
-        const res = await fetch('/api/telemetry', {
+        const res = await fetch(telemetryUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          // Le serveur horodate et regroupe (positif/neutre/négatif) —
-          // aucune identité ni session envoyée. Voie canonique unique :
-          // /api/kpi/track (type:'mood') reste réservé à Pangea, jamais
-          // appelé depuis Ivory.
+          // Doctrine Pilotage verrouillée : "Storm mesure le changement,
+          // pas les collaborateurs." Aucune identité ni session envoyée
+          // pour la météo — seule catégorie de donnée réellement
+          // anonyme dès la collecte, jamais seulement pseudonyme.
           body: JSON.stringify({ event: 'mood_feedback', value: numericValue })
         });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.ok) return { ok: true };
-        return { ok: false, error: data.error || 'Enregistrement impossible.' };
+        // Réponse toujours 204 côté serveur (voir publicTelemetry.js) —
+        // un échec de la promesse fetch elle-même (réseau) est la seule
+        // vraie condition d'échec restante à distinguer ici.
+        return { ok: res.ok };
       } catch (e) {
         return { ok: false, error: 'Connexion au serveur impossible.' };
       }
@@ -143,20 +145,27 @@ function buildPublicCoreActions() {
     // ne doit pas avoir à gérer un état d'erreur pour un simple signal
     // d'usage). Un échec réseau ici ne doit strictement rien changer à
     // l'expérience du site public.
-    trackPageView() {
-      fetch('/api/telemetry', {
+    trackPageView(path) {
+      fetch(telemetryUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'page_view' })
+        body: JSON.stringify({ event: 'page_view', path: typeof path === 'string' ? path : undefined })
       }).catch(() => {});
     },
 
-    trackMatchResult(outcome) {
+    // Contrat Storm Match V1 verrouillé : outcome + matchedEntryId (si
+    // matched) + confidenceBucket -- jamais le texte recherché, jamais
+    // une "intention" sémantique (dépend de Liquid Core, non construit,
+    // voir addendum architecture Pilotage). matchedEntryId/
+    // confidenceBucket restent optionnels : un appelant qui ne les
+    // fournit pas encore ne casse rien, le serveur les traite comme
+    // absents plutôt que de rejeter l'événement.
+    trackMatchResult(outcome, { matchedEntryId, confidenceBucket } = {}) {
       if (outcome !== 'matched' && outcome !== 'disambiguated' && outcome !== 'abstained') return;
-      fetch('/api/telemetry', {
+      fetch(telemetryUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'match_result', outcome })
+        body: JSON.stringify({ event: 'match_result', outcome, matchedEntryId, confidenceBucket })
       }).catch(() => {});
     }
   };
@@ -187,7 +196,7 @@ async function boot() {
   }
 
   const root = document.getElementById('tectonic-root') || document.body;
-  const actions = buildPublicCoreActions();
+  const actions = buildPublicCoreActions(projectId);
 
   // Une erreur DANS le rendu (bug du renderer, donnée inattendue) ne
   // doit jamais produire une exception JS non gérée côté visiteur —

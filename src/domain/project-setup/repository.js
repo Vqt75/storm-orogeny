@@ -92,6 +92,53 @@ export async function updateProjectIdentityLogo(pool, { projectId, logoAssetId }
   }
 }
 
+// Police — remplace à la fois le fichier (asset) ET le nom de famille
+// CSS en une seule opération atomique : les deux doivent toujours
+// rester cohérents, jamais une mise à jour partielle de l'un sans
+// l'autre. role ∈ {'primary','secondary'} — validé par l'appelant
+// (route HTTP), jamais construit dynamiquement ici pour éviter toute
+// injection de nom de colonne.
+export async function updateProjectIdentityFontAsset(pool, { projectId, role, assetId, fontName }) {
+  const nameColumn = role === 'primary' ? 'font_primary' : 'font_secondary';
+  const assetColumn = role === 'primary' ? 'font_primary_asset_id' : 'font_secondary_asset_id';
+  const result = await pool.query(
+    `update project_identity set ${nameColumn} = $1, ${assetColumn} = $2 where project_id = $3`,
+    [fontName, assetId, projectId]
+  );
+  if (result.rowCount === 0) {
+    throw new Error(`Aucune project_identity trouvée pour le projet ${projectId} — mise à jour de la police impossible.`);
+  }
+}
+
+// Retrait de la police secondaire uniquement — jamais la primaire,
+// obligatoire par construction produit (le modèle cible interdit un
+// projet sans aucune police). Retour immédiat au régime "principale
+// partout" : fontSecondary/fontSecondaryAssetId redeviennent null,
+// le Compiler retombe alors sur son repli déjà existant vers la
+// primaire (voir compileBranding).
+export async function removeProjectIdentitySecondaryFont(pool, { projectId }) {
+  await pool.query(
+    'update project_identity set font_secondary = null, font_secondary_asset_id = null where project_id = $1',
+    [projectId]
+  );
+}
+
+// Couleurs — verrouillage optimiste, même contrat que les autres
+// domaines Studio (project_section_content) : la version attendue
+// doit correspondre exactement, sinon aucune ligne n'est mise à jour
+// (conflit, jamais un écrasement silencieux). Retourne la nouvelle
+// version si succès, null si la version attendue ne correspond plus.
+export async function updateProjectIdentityColors(pool, { projectId, primaryColor, secondaryColor, expectedVersion, userId }) {
+  const { rows } = await pool.query(
+    `update project_identity
+     set primary_color = $1, secondary_color = $2, version = version + 1, updated_at = now(), updated_by_user_id = $3
+     where project_id = $4 and version = $5
+     returning version, updated_at`,
+    [primaryColor, secondaryColor, userId, projectId, expectedVersion]
+  );
+  return rows[0] ?? null;
+}
+
 export async function findAsset(pool, assetId) {
   const { rows } = await pool.query(
     'select id, tenant_id, project_id, storage_key, content_type from assets where id = $1',

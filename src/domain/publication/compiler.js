@@ -62,7 +62,16 @@ function wrapAsset(url, altDefault) {
 const MIME_TO_EXTENSION = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
-  'application/pdf': 'pdf'
+  'application/pdf': 'pdf',
+  // Police — voir FONT_EXTENSION_TO_CANONICAL_MIME (fontValidation.js) :
+  // ces 4 valeurs sont les SEULES jamais stockées dans assets.content_type
+  // pour un asset de type 'font' (jamais le Content-Type brut annoncé
+  // par le navigateur au moment de l'upload, qui varie selon les
+  // navigateurs/OS pour un même format réel).
+  'font/woff2': 'woff2',
+  'font/woff': 'woff',
+  'font/otf': 'otf',
+  'font/ttf': 'ttf'
 };
 
 function publicAssetUrl(projectId, assetId, assetContentTypes) {
@@ -103,8 +112,30 @@ function compileProject(candidate) {
 function compileBranding(candidate, projectId) {
   const identity = candidate?.identity || {};
   const primary = identity.primaryColor || '#1E1D1E';
+  const assetContentTypes = candidate?.assetContentTypes;
+
+  const fontPrimaryFamily = identity.fontPrimary || 'Roboto';
+  const fontPrimaryAsset = wrapAsset(publicAssetUrl(projectId, identity.fontPrimaryAssetId, assetContentTypes), '');
+
+  // Modèle cible : 1 police = partout, 2 polices = principale + rôle
+  // secondaire. Sans fichier secondaire distinct, le rôle secondaire
+  // doit réutiliser le MÊME fichier que la primaire, pas seulement le
+  // même nom de famille -- sinon @font-face resterait absent pour ce
+  // rôle même quand le nom de famille est correct (voir fontFaceCss,
+  // ivory.js : elle exige un asset.url réel, jamais dérivé du nom
+  // seul). C'est ce qui garantit "retirer la secondaire revient
+  // immédiatement au régime principale partout", y compris pour le
+  // fichier physique, pas seulement le libellé CSS.
+  const hasDistinctSecondary = Boolean(identity.fontSecondaryAssetId);
+  const fontSecondaryFamily = hasDistinctSecondary
+    ? (identity.fontSecondary || fontPrimaryFamily)
+    : fontPrimaryFamily;
+  const fontSecondaryAsset = hasDistinctSecondary
+    ? wrapAsset(publicAssetUrl(projectId, identity.fontSecondaryAssetId, assetContentTypes), '')
+    : fontPrimaryAsset;
+
   return {
-    logo: wrapAsset(publicAssetUrl(projectId, identity.logoAssetId, candidate?.assetContentTypes), ''),
+    logo: wrapAsset(publicAssetUrl(projectId, identity.logoAssetId, assetContentTypes), ''),
     colors: {
       primary,
       // Une seule couleur explicitement fournie reste une seule
@@ -113,8 +144,8 @@ function compileBranding(candidate, projectId) {
       secondary: identity.secondaryColor || primary
     },
     fonts: {
-      primary: { family: identity.fontPrimary || 'Roboto', asset: null },
-      secondary: { family: identity.fontSecondary || identity.fontPrimary || 'Roboto', asset: null }
+      primary: { family: fontPrimaryFamily, asset: fontPrimaryAsset },
+      secondary: { family: fontSecondaryFamily, asset: fontSecondaryAsset }
     }
   };
 }

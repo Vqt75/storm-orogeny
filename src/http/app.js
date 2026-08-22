@@ -117,6 +117,15 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'studio-le-projet.html'));
   });
 
+  // Studio — Identité (logo, couleurs, police réelle). Même principe.
+  app.get('/projects/:projectId/studio/identity', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'studio-identite.html'));
+  });
+
   // Storm Control — même principe. GET /api/control/* protégé par
   // devAuth + capabilities organisationnelles côté serveur (jamais
   // seulement masqué côté front).

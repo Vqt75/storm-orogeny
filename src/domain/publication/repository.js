@@ -39,7 +39,9 @@ async function buildSnapshot(client, { projectId }) {
     primaryColor: identityRow.primary_color,
     secondaryColor: identityRow.secondary_color,
     fontPrimary: identityRow.font_primary,
+    fontPrimaryAssetId: identityRow.font_primary_asset_id,
     fontSecondary: identityRow.font_secondary,
+    fontSecondaryAssetId: identityRow.font_secondary_asset_id,
     theme: identityRow.theme
   } : null;
 

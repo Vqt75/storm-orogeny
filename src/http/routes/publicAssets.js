@@ -45,7 +45,14 @@ function manifestReferencesAsset(manifest, assetId) {
 const EXTENSION_TO_MIME = {
   png: 'image/png',
   jpg: 'image/jpeg',
-  pdf: 'application/pdf'
+  pdf: 'application/pdf',
+  // Police — mêmes 4 valeurs canoniques que MIME_TO_EXTENSION
+  // (compiler.js) et FONT_EXTENSION_TO_CANONICAL_MIME (fontValidation.js) :
+  // jamais le Content-Type brut annoncé par le navigateur à l'upload.
+  woff2: 'font/woff2',
+  woff: 'font/woff',
+  otf: 'font/otf',
+  ttf: 'font/ttf'
 };
 
 function parseAssetIdWithExtension(raw) {

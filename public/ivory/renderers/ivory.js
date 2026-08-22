@@ -137,13 +137,28 @@ function renderLandingStatement(statement) {
 }
 
 function safeCssFont(value, fallback) {
-  const v = String(value || '').replace(/[^a-zA-Z0-9 _-]/g, '').trim();
-  return v || fallback;
+  // Correction bornée (branchement Orogeny) : l'ancienne version
+  // retirait silencieusement chaque caractère refusé un par un
+  // (/[^a-zA-Z0-9 _-]/g), ce qui mutilait tout nom de police accentué
+  // ("Mériadek Pro" devenait "Mriadek Pro" -- un nom qui n'existe nulle
+  // part, jamais corrigé vers le vrai nom ni vers le repli). Un nom de
+  // police valide peut légitimement contenir des lettres accentuées
+  // (\p{L} couvre tout l'alphabet Unicode) -- la seule chose à
+  // refuser est un caractère dangereux pour l'injection CSS/HTML
+  // (guillemets, chevrons, point-virgule, etc.), et dans ce cas on
+  // rejette la valeur ENTIÈREMENT au profit du repli, jamais une
+  // troncature caractère par caractère qui produit un nom inventé.
+  const v = String(value || '').trim();
+  return /^[\p{L}\p{N} '.-]+$/u.test(v) ? v : fallback;
 }
 
 function safeFontAssetUrl(value) {
   const v = String(value || '').trim();
-  return /^\/uploads\/[a-zA-Z0-9._-]+$/.test(v) ? v : '';
+  // Schéma réel produit par le Compiler (branchement Orogeny) --
+  // jamais le chemin /uploads/... hérité de Tectonic, qui n'a jamais
+  // existé côté Orogeny. UUID validés explicitement des deux côtés,
+  // extension limitée aux formats de police réellement supportés.
+  return /^\/public\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/assets\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(woff2|woff|otf|ttf)$/i.test(v) ? v : '';
 }
 
 function fontFaceCss(font, fallbackFamily) {
@@ -1754,7 +1769,7 @@ const STYLE = `
     margin:0 auto;
     max-width:11.2ch;
     text-align:center;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(3.05rem,6.1vw,6.1rem);
     line-height:.98;
     font-weight:400;
@@ -1887,7 +1902,7 @@ const STYLE = `
     font-weight:600;
   }
   .tct-home-nextline-date {
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(2.25rem,3.6vw,4.05rem);
     line-height:.98;
     letter-spacing:-.04em;
@@ -1988,7 +2003,7 @@ const STYLE = `
   }
   .tct-home-latest-date {
     grid-column:3 / span 2;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(1.4rem,2vw,2.15rem);
     line-height:1;
   }
@@ -2108,7 +2123,7 @@ const STYLE = `
     grid-column:3 / span 7;
     margin:0;
     max-width:10.8ch;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(3.45rem,6.55vw,7rem);
     line-height:.96;
     font-weight:400;
@@ -2153,7 +2168,7 @@ const STYLE = `
   .tct-project-focus h2 {
     margin:0;
     max-width:12ch;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(2.7rem,5vw,5.35rem);
     line-height:.99;
     font-weight:400;
@@ -2195,7 +2210,7 @@ const STYLE = `
   }
   .tct-project-figure strong {
     display:block;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(3.1rem,5.8vw,6.3rem);
     line-height:.9;
     font-weight:400;
@@ -2303,7 +2318,7 @@ const STYLE = `
   }
   .tct-project-milestone-date {
     max-width:13ch;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(1.38rem,2vw,2.15rem);
     line-height:1.04;
     letter-spacing:-.035em;
@@ -2364,7 +2379,7 @@ const STYLE = `
     margin-top:0;
     margin-bottom:0;
     max-width:15ch;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(3rem,5.7vw,6rem);
     line-height:1.02;
     font-weight:400;
@@ -2435,7 +2450,7 @@ const STYLE = `
   .tct-project-team-heading h2 {
     max-width:10ch;
     margin:22px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:clamp(2.35rem,4.2vw,4.65rem);
     line-height:1;
     font-weight:400;
@@ -2468,7 +2483,7 @@ const STYLE = `
     display:flex;
     align-items:flex-end;
     padding:18px;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.1rem,4vw,4rem);
     letter-spacing:-.04em;
   }
@@ -2558,7 +2573,7 @@ const STYLE = `
     grid-column:3 / span 7;
     margin:0;
     max-width:9.8ch;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(3.4rem,6.55vw,7rem);
     line-height:.96;
     font-weight:400;
@@ -2673,7 +2688,7 @@ const STYLE = `
   }
   .tct-space-document-mark {
     align-self:flex-start;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(4rem,9vw,9rem);
     line-height:.8;
     letter-spacing:-.06em;
@@ -2706,7 +2721,7 @@ const STYLE = `
     background:var(--tct-soft);
   }
   .tct-space-empty-media span {
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.2rem,5vw,5.2rem);
     line-height:1;
     color:color-mix(in srgb,var(--tct-ink) 26%,transparent);
@@ -2792,7 +2807,7 @@ const STYLE = `
     grid-column:3 / span 7;
     margin:0;
     max-width:10ch;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(3.35rem,6.55vw,7rem);
     line-height:.96;
     font-weight:400;
@@ -2865,7 +2880,7 @@ const STYLE = `
   .tct-space-usages-head h2 {
     max-width:8.6ch;
     margin:22px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.35rem,4.3vw,4.8rem);
     line-height:1;
     font-weight:400;
@@ -2888,7 +2903,7 @@ const STYLE = `
   .tct-space-usages-list li > span {
     padding-top:3px;
     color:var(--tct-faint);
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:1rem;
   }
   .tct-space-usages-list strong {
@@ -2932,7 +2947,7 @@ const STYLE = `
   .tct-space-related h2 {
     max-width:9ch;
     margin:22px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.4rem,4.4vw,4.9rem);
     line-height:1;
     font-weight:400;
@@ -3188,7 +3203,7 @@ const STYLE = `
     grid-column:3 / span 7;
     margin:0;
     max-width:9.6ch;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(3.35rem,6.4vw,6.8rem);
     line-height:.97;
     font-weight:400;
@@ -3228,7 +3243,7 @@ const STYLE = `
   }
   .tct-news-lead-date time {
     max-width:8ch;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.65rem,4.8vw,5.1rem);
     line-height:.93;
     letter-spacing:-.045em;
@@ -3307,7 +3322,7 @@ const STYLE = `
     gap:10px;
   }
   .tct-news-row-date time {
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(1.7rem,2.8vw,2.9rem);
     line-height:1;
     letter-spacing:-.04em;
@@ -3389,7 +3404,7 @@ const STYLE = `
     grid-column:3 / span 8;
     margin:0;
     max-width:12ch;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(3.15rem,6.2vw,6.6rem);
     line-height:.97;
     font-weight:400;
@@ -3436,7 +3451,7 @@ const STYLE = `
   .tct-news-article-date span {
     display:block;
     max-width:8ch;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.3rem,4vw,4.1rem);
     line-height:.95;
     letter-spacing:-.045em;
@@ -3644,7 +3659,7 @@ const STYLE = `
   .tct-news-article-exit h2 {
     max-width:10ch;
     margin:22px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.4rem,4.4vw,4.8rem);
     line-height:1;
     font-weight:400;
@@ -3712,7 +3727,7 @@ const STYLE = `
   /* Transitional styles for existing sections. Their full Experience v2
      direction remains deferred until Home is approved. */
   .tct-intro { max-width:760px; margin-bottom:44px; }
-  .tct-intro h2 { margin:14px 0 0; font-family:var(--tct-font-secondary,'Italiana'), Georgia, serif; font-size:clamp(2.7rem,5vw,5.2rem); line-height:1; font-weight:400; letter-spacing:-.035em; }
+  .tct-intro h2 { margin:14px 0 0; font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size:clamp(2.7rem,5vw,5.2rem); line-height:1; font-weight:400; letter-spacing:-.035em; }
   .tct-desc { max-width:620px; margin:22px 0 0; color:var(--tct-muted); line-height:1.7; }
   .tct-grid, .tct-list { list-style:none; padding:0; margin:28px 0 0; display:grid; gap:16px; }
   .tct-grid { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
@@ -3758,7 +3773,7 @@ const STYLE = `
     grid-column:3 / span 7;
     margin:0;
     max-width:10ch;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(3.25rem,6.1vw,6.5rem);
     line-height:.97;
     font-weight:400;
@@ -3902,7 +3917,7 @@ const STYLE = `
   .tct-question-unknown h2 {
     max-width:14ch;
     margin:0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.6rem,4.7vw,5.15rem);
     line-height:1;
     font-weight:400;
@@ -4025,7 +4040,7 @@ const STYLE = `
   .tct-question-contact-intro h2 {
     max-width:9ch;
     margin:21px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.2rem,3.8vw,4.15rem);
     line-height:1;
     font-weight:400;
@@ -4101,7 +4116,7 @@ const STYLE = `
   .tct-featured-questions-heading h2 {
     max-width:10ch;
     margin:21px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.2rem,3.7vw,4rem);
     line-height:1;
     font-weight:400;
@@ -4132,7 +4147,7 @@ const STYLE = `
   }
   .tct-featured-questions li button > span {
     color:var(--tct-faint);
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:.92rem;
   }
   .tct-featured-questions li strong {
@@ -4224,7 +4239,7 @@ const STYLE = `
     grid-column:3 / span 7;
     max-width:10.2ch;
     margin:0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(3.35rem,6.35vw,6.8rem);
     line-height:.97;
     font-weight:400;
@@ -4296,7 +4311,7 @@ const STYLE = `
     gap:20px;
   }
   .tct-ambassadors-count strong {
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(4rem,8vw,8.6rem);
     line-height:.78;
     font-weight:400;
@@ -4374,7 +4389,7 @@ const STYLE = `
     padding:clamp(18px,2vw,28px);
     background:var(--tct-soft);
     color:color-mix(in srgb,var(--tct-ink) 42%,transparent);
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(3.2rem,6vw,6.4rem);
     line-height:.8;
     letter-spacing:-.055em;
@@ -4389,7 +4404,7 @@ const STYLE = `
   .tct-ambassador-person-copy > span {
     padding-top:3px;
     color:var(--tct-faint);
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:.88rem;
   }
   .tct-ambassador-person-copy strong {
@@ -4463,7 +4478,7 @@ const STYLE = `
   .tct-ambassadors-cta h2 {
     max-width:10ch;
     margin:22px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2.45rem,4.4vw,4.9rem);
     line-height:1;
     font-weight:400;
@@ -4526,7 +4541,7 @@ const STYLE = `
   .tct-ambassador-join-panel-heading h3 {
     max-width:10ch;
     margin:20px 0 0;
-    font-family:var(--tct-font-secondary,'Italiana'),Georgia,serif;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:clamp(2rem,3.5vw,3.8rem);
     line-height:1;
     font-weight:400;
@@ -6055,10 +6070,15 @@ export function render(manifest, root, actions) {
   const secondary = safeCssColor(colors.secondary, '#C2AF7E');
   const expressionAccent = resolveExpressionAccent(primary, secondary);
   const fontPrimary = safeCssFont(fonts.primary && fonts.primary.family, 'Roboto');
-  const fontSecondary = safeCssFont(fonts.secondary && fonts.secondary.family, 'Italiana');
+  // Le repli n'est plus jamais une police nommée en dur (Italiana) --
+  // c'est fontPrimary déjà résolue, cohérent avec la doctrine "1 police
+  // = partout" : même si fonts.secondary.family était vide/invalide
+  // pour une raison imprévue, le résultat reste toujours la police du
+  // projet, jamais une police éditoriale historique de Tectonic.
+  const fontSecondary = safeCssFont(fonts.secondary && fonts.secondary.family, fontPrimary);
   const fontAssetsCss = [
     fontFaceCss(fonts.primary, 'Roboto'),
-    fontFaceCss(fonts.secondary, 'Italiana')
+    fontFaceCss(fonts.secondary, fontPrimary)
   ].filter(Boolean).join('');
   const projectName = esc(manifest.project && manifest.project.name);
   const logoHtml = branding.logo && branding.logo.url

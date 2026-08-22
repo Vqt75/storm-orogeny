@@ -12,12 +12,15 @@ import { listSupportedLocales } from '../../domain/project-setup/repository.js';
 import {
   insertProject, insertProjectIdentity, insertProjectSettings,
   insertProjectModules, insertProjectMembership, insertProjectInvitation,
-  insertAsset, updateProjectIdentityLogo
+  insertAsset, updateProjectIdentityLogo, updateProjectIdentityFontAsset,
+  removeProjectIdentitySecondaryFont, updateProjectIdentityColors
 } from '../../domain/project-setup/repository.js';
 import { Errors } from '../../errors/AppError.js';
 import { ALLOWED_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
+import { ALLOWED_FONT_MIME_TO_EXTENSION, MAX_FONT_BYTES, detectFontExtension, FONT_EXTENSION_TO_CANONICAL_MIME } from '../../domain/assets/fontValidation.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
+const uploadFont = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FONT_BYTES } });
 
 export function createProjectsRouter({ pool, storageAdapter }) {
   const router = Router();
@@ -149,6 +152,107 @@ export function createProjectsRouter({ pool, storageAdapter }) {
     }
   );
 
+  // Police — upload réel du fichier, jamais seulement son nom (voir
+  // migration 0009 pour le contexte complet : le formulaire de Project
+  // Setup ne chargeait jusqu'ici la police qu'en mémoire du navigateur,
+  // pour la prévisualisation — jamais persistée côté serveur, cause
+  // racine du bug observé en production). role validé strictement par
+  // la route elle-même (jamais transmis en paramètre libre), jamais
+  // construit dynamiquement pour la requête SQL (voir
+  // updateProjectIdentityFontAsset).
+  function fontUploadHandler(role) {
+    return async (req, res, next) => {
+      if (!req.file) {
+        next(Errors.invalid('Aucun fichier reçu (champ "font" attendu).'));
+        return;
+      }
+      const extension = detectFontExtension(req.file.buffer);
+      if (!extension) {
+        next(Errors.invalid('Le contenu du fichier ne correspond à aucun format de police reconnu (WOFF2, WOFF, OTF, TTF).'));
+        return;
+      }
+      const fontName = String(req.body.fontName || '').trim() || req.file.originalname.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+      try {
+        const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
+        const assetId = await insertAsset(pool, {
+          tenantId: req.project.tenant_id,
+          projectId: req.project.id,
+          kind: 'font',
+          storageKey,
+          contentType: FONT_EXTENSION_TO_CANONICAL_MIME[extension],
+          byteSize: req.file.size
+        });
+        await updateProjectIdentityFontAsset(pool, { projectId: req.project.id, role, assetId, fontName });
+        res.status(201).json({ assetId, fontName, url: `/api/assets/${assetId}` });
+      } catch (err) {
+        next(err);
+      }
+    };
+  }
+
+  router.post(
+    '/:projectId/identity/fonts/primary',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    uploadFont.single('font'),
+    fontUploadHandler('primary')
+  );
+  router.post(
+    '/:projectId/identity/fonts/secondary',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    uploadFont.single('font'),
+    fontUploadHandler('secondary')
+  );
+
+  // Retrait de la police secondaire uniquement — jamais la primaire,
+  // obligatoire par construction produit (aucune route de suppression
+  // n'existe pour elle). Retour immédiat au régime "principale partout"
+  // dès la prochaine publication (le Compiler retombe sur son repli
+  // déjà existant vers la primaire).
+  router.delete(
+    '/:projectId/identity/fonts/secondary',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    async (req, res, next) => {
+      try {
+        await removeProjectIdentitySecondaryFont(pool, { projectId: req.project.id });
+        res.status(204).end();
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  // Couleurs — verrouillage optimiste, même contrat que les autres
+  // domaines Studio. 409 explicite si la version fournie ne correspond
+  // plus, jamais un écrasement silencieux d'une modification concurrente.
+  const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+  router.patch(
+    '/:projectId/identity',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    async (req, res, next) => {
+      const { primaryColor, secondaryColor, version } = req.body || {};
+      if (!HEX_COLOR_PATTERN.test(primaryColor || '') || !HEX_COLOR_PATTERN.test(secondaryColor || '')) {
+        next(Errors.invalid('primaryColor et secondaryColor doivent être des couleurs hexadécimales valides (#RRGGBB).'));
+        return;
+      }
+      if (!Number.isInteger(version)) {
+        next(Errors.invalid('version (entier) requise pour la mise à jour.'));
+        return;
+      }
+      try {
+        const updated = await updateProjectIdentityColors(pool, {
+          projectId: req.project.id, primaryColor, secondaryColor, expectedVersion: version, userId: req.user.id
+        });
+        if (!updated) {
+          res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Cette identité a été modifiée ailleurs. Rechargez pour repartir de la version actuelle.' } });
+          return;
+        }
+        res.status(200).json({ primaryColor, secondaryColor, version: updated.version, updatedAt: updated.updated_at });
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
   // Contexte projet agrégé — Phase 2A (Project Shell). Une seule
   // requête plutôt que trois appels à recoller côté front.
   //
@@ -191,8 +295,12 @@ export function createProjectsRouter({ pool, storageAdapter }) {
           primaryColor: identity.primary_color,
           secondaryColor: identity.secondary_color,
           fontPrimary: identity.font_primary,
+          fontPrimaryAssetId: identity.font_primary_asset_id,
           fontSecondary: identity.font_secondary,
-          theme: identity.theme
+          fontSecondaryAssetId: identity.font_secondary_asset_id,
+          theme: identity.theme,
+          version: identity.version,
+          updatedAt: identity.updated_at
         } : null,
         settings: settings ? {
           workspaceLocale: settings.workspace_locale,

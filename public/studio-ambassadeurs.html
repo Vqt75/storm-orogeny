@@ -160,6 +160,7 @@ h1{margin:0;font-size:clamp(54px,6.2vw,88px);line-height:.9;letter-spacing:-.064
         <button class="nav-item" data-domain="news" type="button">Actualités</button>
         <button class="nav-item active" data-domain="ambassadors" type="button" aria-current="page">Ambassadeurs</button>
         <button class="nav-item" data-domain="questions" type="button">Questions</button>
+        <button class="nav-item" data-domain="identity" type="button">Identité</button>
       </nav>
 
       <section>
@@ -684,7 +685,7 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("click",e=>{
   if(!e.target.closest(".editor-head"))document.querySelectorAll(".popover").forEach(p=>p.hidden=true);
 });
-const STUDIO_DOMAIN_PATHS={homepage:"homepage",project:"project",spaces:"spaces",news:"news",ambassadors:"",questions:""};
+const STUDIO_DOMAIN_PATHS={homepage:"homepage",project:"project",spaces:"spaces",news:"news",ambassadors:"",questions:"",identity:"identity"};
 document.querySelectorAll(".nav-item").forEach(btn=>btn.addEventListener("click",()=>{
   if(btn.dataset.domain==="ambassadors")return;
   const seg=STUDIO_DOMAIN_PATHS[btn.dataset.domain];

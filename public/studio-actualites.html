@@ -39,7 +39,7 @@ nav{padding:7px;border:1px solid rgba(255,255,255,.72);border-radius:22px;backgr
 <header class="topbar"><div class="brand"><strong>Storm</strong><span id="brandProject">Projet</span></div><div class="top-actions"><button class="home" id="projectLink" type="button">Projet</button><button class="avatar-btn" id="avatarBtn" type="button" aria-label="Compte">VC</button></div></header>
 <main><div class="layout">
 <nav aria-label="Studio">
-<button class="nav" data-domain="homepage">Homepage</button><button class="nav" data-domain="project">Le projet</button><button class="nav" data-domain="spaces">Espaces</button><button class="nav active" data-domain="news">Actualités</button><button class="nav" data-domain="ambassadors">Ambassadeurs</button><button class="nav" data-domain="questions">Questions</button>
+<button class="nav" data-domain="homepage">Homepage</button><button class="nav" data-domain="project">Le projet</button><button class="nav" data-domain="spaces">Espaces</button><button class="nav active" data-domain="news">Actualités</button><button class="nav" data-domain="ambassadors">Ambassadeurs</button><button class="nav" data-domain="questions">Questions</button><button class="nav" data-domain="identity">Identité</button>
 </nav>
 <section>
 <header class="head" id="pageHead"><p class="eyebrow">Studio</p><h1>Actualités</h1><p class="lead">Les informations que vous partagez avec les collaborateurs, au fil du projet.</p></header>
@@ -253,7 +253,7 @@ command.onfocusin=()=>state.locked=true;command.onfocusout=e=>{if(command.contai
 function selection(){const s=getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;const r=s.getRangeAt(0),n=r.commonAncestorContainer.nodeType===3?r.commonAncestorContainer.parentElement:r.commonAncestorContainer,e=n?.closest?.('.editable');return e?{s,r,e}:null}
 document.onselectionchange=()=>requestAnimationFrame(()=>{const a=selection();if(!a){format.hidden=true;return}const rect=a.r.getBoundingClientRect();format.hidden=false;format.style.left=Math.max(8,rect.left+rect.width/2-format.offsetWidth/2)+'px';format.style.top=Math.max(8,rect.top-format.offsetHeight-10)+'px'});
 format.querySelectorAll('[data-format]').forEach(b=>b.onmousedown=e=>{e.preventDefault();if(!selection())return;document.execCommand(b.dataset.format,false,null);dirty()});
-const STUDIO_DOMAIN_PATHS={homepage:'homepage',project:'project',spaces:'spaces',news:'',ambassadors:'ambassadors',questions:''};document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>{if(b.dataset.domain==='news')return;const seg=STUDIO_DOMAIN_PATHS[b.dataset.domain];location.assign(preserve(`/projects/${projectId}/studio${seg?'/'+seg:''}`))});
+const STUDIO_DOMAIN_PATHS={homepage:'homepage',project:'project',spaces:'spaces',news:'',ambassadors:'ambassadors',questions:'',identity:'identity'};document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>{if(b.dataset.domain==='news')return;const seg=STUDIO_DOMAIN_PATHS[b.dataset.domain];location.assign(preserve(`/projects/${projectId}/studio${seg?'/'+seg:''}`))});
 document.getElementById('confirmCancel').onclick=cancelDelete;
 document.getElementById('confirmDelete').onclick=removeArticle;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!confirmSheet.hidden){cancelDelete()}});

@@ -241,3 +241,31 @@ test('Ivory E2E (garde-fou) : mécanisme d\'auth Tectonic retiré du CODE VIVANT
   assert.ok(!/function\s+ensureAdminAuthOverlay/.test(source), 'l\'overlay de connexion Tectonic ne doit jamais être réintroduit');
   assert.match(source, /studioUrlFromLocation/, 'le lien Administration doit passer par le calcul d\'URL Studio Orogeny réelle');
 });
+
+test('Ivory E2E (garde-fou) : aucun repli implicite vers Italiana/Georgia dans le CODE VIVANT (identité réelle)', () => {
+  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
+  assert.ok(!source.includes('Georgia'), 'Georgia ne doit jamais réapparaître comme police nommée en dur -- le modèle cible est "1 police = partout", jamais une police éditoriale historique de Tectonic imposée en repli');
+  // 'Italiana' ne doit plus jamais apparaître dans le CODE VIVANT --
+  // seul un commentaire explicatif peut légitimement la nommer.
+  const livingCodeLines = source.split('\n').filter(line => !line.trim().startsWith('//'));
+  assert.ok(!livingCodeLines.some(line => line.includes('Italiana')), 'Italiana ne doit jamais réapparaître comme défaut codé en dur dans le code vivant');
+});
+
+test('Ivory E2E (garde-fou) : safeFontAssetUrl accepte le vrai schéma d\'URL publique, jamais le legacy /uploads/ inatteignable', () => {
+  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
+  assert.ok(!source.includes("/^\\/uploads\\/"), 'le motif /uploads/ hérité de Tectonic (jamais servi par Orogeny) ne doit jamais réapparaître dans safeFontAssetUrl');
+  assert.ok(source.includes('/public/projects/'), 'safeFontAssetUrl doit reconnaître le vrai schéma d\'URL publique produit par le Compiler');
+});
+
+test('Ivory E2E (garde-fou) : safeCssFont() rejette entièrement une valeur invalide, ne la mutile jamais caractère par caractère', () => {
+  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
+  assert.ok(!source.includes("replace(/[^a-zA-Z0-9 _-]/g"), 'l\'ancienne regex de suppression caractère par caractère (qui mutilait les noms accentués) ne doit jamais réapparaître');
+  // Vérification comportementale directe -- pas seulement une absence
+  // de motif, la fonction doit réellement se comporter correctement.
+  const match = source.match(/function safeCssFont\([^)]*\)\s*\{[\s\S]*?\n\}/);
+  assert.ok(match, 'safeCssFont introuvable');
+  const safeCssFont = new Function(`${match[0]}; return safeCssFont;`)();
+  assert.equal(safeCssFont('Myriad Pro', 'Roboto'), 'Myriad Pro');
+  assert.equal(safeCssFont('Mériadek Pro', 'Roboto'), 'Mériadek Pro', 'un nom accentué valide doit être préservé intact, jamais mutilé caractère par caractère');
+  assert.equal(safeCssFont('"; color:red; --x:"', 'Roboto'), 'Roboto', 'une tentative d\'injection doit être rejetée entièrement, jamais nettoyée partiellement');
+});

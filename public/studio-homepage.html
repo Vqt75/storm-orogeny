@@ -124,6 +124,7 @@ h1{margin:0;font-size:clamp(54px,6.2vw,88px);line-height:.9;letter-spacing:-.064
         <button class="nav-item" data-domain="news" type="button">Actualités</button>
         <button class="nav-item" data-domain="ambassadors" type="button">Ambassadeurs</button>
         <button class="nav-item" data-domain="questions" type="button">Questions</button>
+        <button class="nav-item" data-domain="identity" type="button">Identité</button>
       </nav>
 
       <section>
@@ -456,7 +457,7 @@ async function hydrate(){
 }
 
 document.getElementById("projectLink").onclick=()=>location.assign(preserveDev(`/projects/${encodeURIComponent(projectId)}`));
-const STUDIO_DOMAIN_PATHS={homepage:"",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:""};
+const STUDIO_DOMAIN_PATHS={homepage:"",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:"",identity:"identity"};
 document.querySelectorAll(".nav-item").forEach(btn=>btn.addEventListener("click",()=>{
   if(btn.dataset.domain==="homepage")return;
   const seg=STUDIO_DOMAIN_PATHS[btn.dataset.domain];

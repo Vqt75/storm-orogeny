@@ -41,7 +41,8 @@ export async function findAccessibleProjectForUser(pool, { userId, projectId }) 
 
 export async function findProjectIdentity(pool, projectId) {
   const { rows } = await pool.query(
-    `select logo_asset_id, primary_color, secondary_color, font_primary, font_secondary, theme
+    `select logo_asset_id, primary_color, secondary_color, font_primary, font_secondary,
+            font_primary_asset_id, font_secondary_asset_id, theme, version, updated_at
      from project_identity where project_id = $1`,
     [projectId]
   );

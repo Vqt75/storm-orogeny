@@ -218,3 +218,120 @@ test('Product Integrity Pass #2 — logoAssetId uploadé apparaît dans GET /api
   await pool.query('update project_identity set logo_asset_id = null where project_id=$1', [ids.project]);
   await pool.query('delete from assets where id=$1', [assetId]);
 });
+
+// ── Identité réelle — logo/couleurs/police (Studio, domaine Identité) ──
+
+function fakeFontBuffer(signature) {
+  return Buffer.concat([Buffer.from(signature, 'ascii'), Buffer.alloc(100)]);
+}
+
+test('upload de police primaire : signature réelle vérifiée, jamais le Content-Type seul, MIME canonique stocké', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/primary`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.creator },
+    body: (() => { const fd = new FormData(); fd.append('font', new Blob([fakeFontBuffer('wOF2')], { type: 'font/woff2' }), 'x.woff2'); fd.append('fontName', 'Myriad Pro'); return fd; })()
+  });
+  assert.equal(res.status, 201);
+  const { assetId } = await res.json();
+
+  const asset = await pool.query('select kind, content_type, storage_key from assets where id=$1', [assetId]);
+  assert.equal(asset.rows[0].kind, 'font');
+  assert.equal(asset.rows[0].content_type, 'font/woff2', 'MIME canonique dérivé de la signature, jamais le Content-Type brut annoncé par le client');
+  assert.ok(asset.rows[0].storage_key.endsWith('.woff2'));
+
+  const identity = await pool.query('select font_primary, font_primary_asset_id from project_identity where project_id=$1', [ids.project]);
+  assert.equal(identity.rows[0].font_primary, 'Myriad Pro');
+  assert.equal(identity.rows[0].font_primary_asset_id, assetId);
+
+  await pool.query('update project_identity set font_primary=null, font_primary_asset_id=null where project_id=$1', [ids.project]);
+  await pool.query('delete from assets where id=$1', [assetId]);
+});
+
+test('upload de police : signature invalide rejetée (400), même avec un Content-Type qui prétend être une police', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/primary`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.creator },
+    body: (() => { const fd = new FormData(); fd.append('font', new Blob([Buffer.from('pas une police')], { type: 'font/woff2' }), 'x.woff2'); return fd; })()
+  });
+  assert.equal(res.status, 400);
+});
+
+test('upload de police secondaire, puis DELETE -- jamais la primaire, jamais une route de suppression pour elle', async () => {
+  const primaryRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/primary`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.creator },
+    body: (() => { const fd = new FormData(); fd.append('font', new Blob([fakeFontBuffer('wOF2')], { type: 'font/woff2' }), 'primary.woff2'); fd.append('fontName', 'Myriad Pro'); return fd; })()
+  });
+  const { assetId: primaryAssetId } = await primaryRes.json();
+
+  const secondaryRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/secondary`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': ids.creator },
+    body: (() => { const fd = new FormData(); fd.append('font', new Blob([fakeFontBuffer('wOFF')], { type: 'font/woff' }), 'secondary.woff'); fd.append('fontName', 'Italiana Display'); return fd; })()
+  });
+  assert.equal(secondaryRes.status, 201);
+  const { assetId: secondaryAssetId } = await secondaryRes.json();
+
+  let identity = await pool.query('select font_secondary, font_secondary_asset_id from project_identity where project_id=$1', [ids.project]);
+  assert.equal(identity.rows[0].font_secondary, 'Italiana Display');
+  assert.equal(identity.rows[0].font_secondary_asset_id, secondaryAssetId);
+
+  const deleteRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/secondary`, { method: 'DELETE', headers: { 'X-Storm-Dev-User': ids.creator } });
+  assert.equal(deleteRes.status, 204);
+
+  identity = await pool.query('select font_primary, font_primary_asset_id, font_secondary, font_secondary_asset_id from project_identity where project_id=$1', [ids.project]);
+  assert.equal(identity.rows[0].font_secondary, null, 'retour immédiat au régime "principale partout"');
+  assert.equal(identity.rows[0].font_secondary_asset_id, null);
+  assert.equal(identity.rows[0].font_primary, 'Myriad Pro', 'la primaire ne doit jamais être affectée par la suppression de la secondaire');
+  assert.equal(identity.rows[0].font_primary_asset_id, primaryAssetId);
+
+  await pool.query('update project_identity set font_primary=null, font_primary_asset_id=null where project_id=$1', [ids.project]);
+  await pool.query('delete from assets where id = ANY($1)', [[primaryAssetId, secondaryAssetId]]);
+});
+
+test('member (sans project.manage) -> 403 sur upload/suppression de police, jamais un contournement', async () => {
+  const { rows: [member] } = await pool.query("insert into users (email, display_name) values ('member-font@assets.local','Membre') returning id");
+  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [ids.tenantA, member.id, 'member']);
+  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [ids.tenantA, ids.project, member.id, 'contributor']);
+
+  const uploadRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/primary`, {
+    method: 'POST', headers: { 'X-Storm-Dev-User': member.id },
+    body: (() => { const fd = new FormData(); fd.append('font', new Blob([fakeFontBuffer('wOF2')], { type: 'font/woff2' }), 'x.woff2'); return fd; })()
+  });
+  assert.equal(uploadRes.status, 403);
+
+  const deleteRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/secondary`, { method: 'DELETE', headers: { 'X-Storm-Dev-User': member.id } });
+  assert.equal(deleteRes.status, 403);
+
+  await pool.query('delete from project_memberships where user_id=$1', [member.id]);
+  await pool.query('delete from tenant_memberships where user_id=$1', [member.id]);
+  await pool.query('delete from users where id=$1', [member.id]);
+});
+
+test('PATCH identity (couleurs) : verrouillage optimiste -- version correcte accepte, version périmée -> 409, jamais un écrasement silencieux', async () => {
+  const okRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity`, {
+    method: 'PATCH', headers: { 'X-Storm-Dev-User': ids.creator, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ primaryColor: '#112233', secondaryColor: '#445566', version: 1 })
+  });
+  assert.equal(okRes.status, 200);
+  const okBody = await okRes.json();
+  assert.equal(okBody.version, 2);
+
+  const staleRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity`, {
+    method: 'PATCH', headers: { 'X-Storm-Dev-User': ids.creator, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ primaryColor: '#000000', secondaryColor: '#ffffff', version: 1 })
+  });
+  assert.equal(staleRes.status, 409);
+  const staleBody = await staleRes.json();
+  assert.equal(staleBody.error.code, 'STALE_VERSION');
+
+  const row = await pool.query('select primary_color, version from project_identity where project_id=$1', [ids.project]);
+  assert.equal(row.rows[0].primary_color, '#112233', 'la tentative périmée ne doit jamais avoir modifié la couleur');
+  assert.equal(row.rows[0].version, 2);
+
+  await pool.query('update project_identity set primary_color=null, secondary_color=null, version=1 where project_id=$1', [ids.project]);
+});
+
+test('PATCH identity : couleur hexadécimale invalide rejetée (400)', async () => {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/identity`, {
+    method: 'PATCH', headers: { 'X-Storm-Dev-User': ids.creator, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ primaryColor: 'pas-une-couleur', secondaryColor: '#445566', version: 1 })
+  });
+  assert.equal(res.status, 400);
+});

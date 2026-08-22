@@ -1044,3 +1044,70 @@ test('Branchement Ivory : une seule actualité -> featured la contient, latest r
   await pool.query('delete from project_articles where id=$1', [only.id]);
 });
 
+// ── Identité réelle — résolution des polices dans branding.fonts (Manifest) ──
+
+function fakeFontBuffer(signature) {
+  return Buffer.concat([Buffer.from(signature, 'ascii'), Buffer.alloc(100)]);
+}
+// Insertion directe -- ces tests portent sur la résolution du Compiler
+// (compileBranding), pas sur les permissions d'upload (déjà testées
+// précisément dans test/1b-project-setup-assets.test.js). ids.editor
+// n'a pas project.manage (seul project_admin l'a), sans rapport avec
+// ce qui est vérifié ici.
+async function insertTestFontAsset(role, extension, contentType, fontName) {
+  const { rows: [asset] } = await pool.query(
+    `insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size)
+     values ($1,$2,'font',$3,$4,$5) returning id`,
+    [ids.tenantA, ids.project, `fake-${role}-${Date.now()}.${extension}`, contentType, 104]
+  );
+  const column = role === 'primary' ? 'font_primary_asset_id' : 'font_secondary_asset_id';
+  const nameColumn = role === 'primary' ? 'font_primary' : 'font_secondary';
+  await pool.query(`update project_identity set ${nameColumn}=$1, ${column}=$2 where project_id=$3`, [fontName, asset.id, ids.project]);
+  return asset.id;
+}
+
+test('Identité réelle : une seule police -> branding.fonts.secondary réutilise le MÊME fichier que la primaire, pas seulement le même nom', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const assetId = await insertTestFontAsset('primary', 'woff2', 'font/woff2', 'Myriad Pro');
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const fonts = body.manifest.branding.fonts;
+  assert.equal(fonts.primary.family, 'Myriad Pro');
+  assert.equal(fonts.secondary.family, 'Myriad Pro', 'sans secondaire distincte, le nom de famille hérite de la primaire');
+  assert.ok(fonts.primary.asset && fonts.secondary.asset, 'les deux rôles doivent avoir un asset réel, jamais null, dès qu\'un fichier existe');
+  assert.equal(fonts.primary.asset.url, fonts.secondary.asset.url, 'même URL de fichier -- sinon @font-face resterait absent pour le rôle secondaire malgré un nom correct');
+  assert.ok(fonts.primary.asset.url.endsWith('.woff2'));
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('update project_identity set font_primary=null, font_primary_asset_id=null where project_id=$1', [ids.project]);
+  await pool.query('delete from assets where id=$1', [assetId]);
+});
+
+test('Identité réelle : deux polices distinctes -> branding.fonts.secondary pointe vers son propre fichier', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const primaryId = await insertTestFontAsset('primary', 'woff2', 'font/woff2', 'Myriad Pro');
+  const secondaryId = await insertTestFontAsset('secondary', 'woff', 'font/woff', 'Italiana Display');
+
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const fonts = body.manifest.branding.fonts;
+  assert.equal(fonts.primary.family, 'Myriad Pro');
+  assert.equal(fonts.secondary.family, 'Italiana Display');
+  assert.notEqual(fonts.primary.asset.url, fonts.secondary.asset.url, 'deux fichiers distincts doivent produire deux URLs distinctes');
+  assert.ok(fonts.secondary.asset.url.endsWith('.woff'));
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('update project_identity set font_primary=null, font_primary_asset_id=null, font_secondary=null, font_secondary_asset_id=null where project_id=$1', [ids.project]);
+  await pool.query('delete from assets where id = ANY($1)', [[primaryId, secondaryId]]);
+});
+
+test('Identité réelle : aucune police uploadée -> repli Roboto, asset null, jamais une erreur', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
+  const fonts = body.manifest.branding.fonts;
+  assert.equal(fonts.primary.family, 'Roboto');
+  assert.equal(fonts.secondary.family, 'Roboto');
+  assert.equal(fonts.primary.asset, null);
+  assert.equal(fonts.secondary.asset, null);
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+

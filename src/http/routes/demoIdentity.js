@@ -24,8 +24,11 @@ import { Errors } from '../../errors/AppError.js';
 // L'email est celui, fixe, du persona de démonstration défini dans
 // seed.js ('vivien@parella.example') — jamais un premier utilisateur
 // arbitraire trouvé en base, pour rester déterministe même si
-// d'autres utilisateurs existent.
-const DEMO_USER_EMAIL = 'vivien@parella.example';
+// d'autres utilisateurs existent. Exportée (et non plus locale à ce
+// fichier) pour que seedDemo.js puisse accorder l'accès aux projets de
+// démonstration à cette même identité, sans dupliquer la chaîne et
+// risquer une dérive entre les deux fichiers.
+export const DEMO_USER_EMAIL = 'vivien@parella.example';
 
 export function createDemoIdentityRouter({ pool, config }) {
   const router = Router();

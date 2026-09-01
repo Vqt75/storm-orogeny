@@ -35,10 +35,12 @@ import {
 } from '../domain/studio/repository.js';
 import { createPublication } from '../domain/publication/repository.js';
 import { recordPageView, recordMatchResult, recordMoodFeedback } from '../domain/pilotage/telemetry.js';
+import { findUserByEmail } from '../domain/users/repository.js';
+import { DEMO_USER_EMAIL as PLATFORM_DEMO_IDENTITY_EMAIL } from '../http/routes/demoIdentity.js';
 
 const DEMO_TENANT_NAME = 'Asteria (Démo)';
 const DEMO_PROJECT_NAME = 'Équinoxe';
-const DEMO_USER_EMAIL = 'camille.renaud@demo.storm.local';
+const CONTENT_AUTHOR_EMAIL = 'camille.renaud@demo.storm.local';
 
 async function findOrCreateDemoTenant(pool) {
   const { rows } = await pool.query('select id from tenants where name = $1', [DEMO_TENANT_NAME]);
@@ -56,15 +58,56 @@ async function findOrCreateDemoTenant(pool) {
 async function cleanDemoTenantContent(pool, tenantId) {
   await pool.query('delete from projects where tenant_id = $1', [tenantId]);
   await pool.query('delete from tenant_memberships where tenant_id = $1', [tenantId]);
-  await pool.query('delete from users where email = $1', [DEMO_USER_EMAIL]);
+  await pool.query('delete from users where email = $1', [CONTENT_AUTHOR_EMAIL]);
 }
 
-async function findOrCreateDemoUser(pool) {
+// Utilisateur "auteur de contenu" fictif -- sert de créateur pour les
+// jalons/espaces/actualités/etc. et reste listé comme "Directrice du
+// projet" dans le contenu Équipe narratif. N'est PAS l'identité
+// utilisée pour accéder au projet en démonstration réelle -- voir
+// grantPlatformDemoIdentityAccess ci-dessous.
+async function findOrCreateContentAuthor(pool) {
   const { rows: [row] } = await pool.query(
     'insert into users (email, display_name) values ($1, $2) returning id',
-    [DEMO_USER_EMAIL, 'Camille Renaud']
+    [CONTENT_AUTHOR_EMAIL, 'Camille Renaud']
   );
   return row.id;
+}
+
+// Accorde l'accès au projet démo à l'identité RÉELLEMENT utilisée par
+// /api/demo-identity en production (voir src/http/routes/
+// demoIdentity.js) -- jamais seulement à l'utilisateur fictif créé par
+// ce script. Bug trouvé en production et corrigé ici : sans cette
+// fonction, seul CONTENT_AUTHOR_EMAIL (Camille, jamais l'identité
+// réellement chargée par Storm Home) avait un accès, donc le projet
+// existait mais restait invisible pour quiconque ouvrait
+// l'instance de démonstration normalement.
+//
+// Deux memberships nécessaires, pas une seule : une tenant_membership
+// sur le tenant démo (prérequis FK -- project_memberships_tenant_id_
+// user_id_fkey exige qu'une tenant_membership existe d'abord pour ce
+// couple tenant_id/user_id, confirmé par contrainte réelle), PUIS une
+// project_membership project_admin sur Équinoxe lui-même. Storm
+// Control liste les projets par tenant (listAllProjectsForTenant),
+// jamais cross-tenant -- sans la tenant_membership, l'identité démo
+// ne verrait Équinoxe ni via Storm Home ni via Storm Control.
+//
+// Si l'identité démo n'existe pas dans cette base (environnement où
+// seed.js classique n'a jamais tourné), ne fait rien silencieusement
+// -- le projet reste accessible via CONTENT_AUTHOR_EMAIL en secours,
+// jamais une dépendance stricte à cette identité précise.
+async function grantPlatformDemoIdentityAccess(pool, { tenantId, projectId }) {
+  const platformUser = await findUserByEmail(pool, PLATFORM_DEMO_IDENTITY_EMAIL);
+  if (!platformUser) {
+    logger.info({ email: PLATFORM_DEMO_IDENTITY_EMAIL }, 'Identité démo plateforme introuvable dans cette base -- accès non accordé (seed.js classique n\'a peut-être jamais tourné ici)');
+    return;
+  }
+  await pool.query(
+    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)',
+    [tenantId, platformUser.id, 'organization_admin']
+  );
+  await insertProjectMembership(pool, { tenantId, projectId, userId: platformUser.id, permissionBundle: 'project_admin' });
+  logger.info({ email: PLATFORM_DEMO_IDENTITY_EMAIL, userId: platformUser.id }, 'Accès Équinoxe accordé à l\'identité démo réelle de la plateforme');
 }
 
 async function seedDemo() {
@@ -76,7 +119,7 @@ async function seedDemo() {
   const tenantId = await findOrCreateDemoTenant(pool);
   await cleanDemoTenantContent(pool, tenantId);
 
-  const userId = await findOrCreateDemoUser(pool);
+  const userId = await findOrCreateContentAuthor(pool);
   await pool.query(
     'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)',
     [tenantId, userId, 'organization_admin']
@@ -95,6 +138,7 @@ async function seedDemo() {
     modules: { faq: true, actu: true, jalons: true, plans: true, ambassadeurs: true, equipe: true }
   });
   await insertProjectMembership(pool, { tenantId, projectId, userId, permissionBundle: 'project_admin' });
+  await grantPlatformDemoIdentityAccess(pool, { tenantId, projectId });
 
   logger.info({ tenantId, projectId }, 'Tenant/projet démo créés');
 
@@ -539,7 +583,7 @@ async function generateDemoTelemetry(pool, { tenantId, projectId, questionIdByTe
   logger.info({ inserted }, 'Télémétrie démo générée');
 }
 
-export { seedDemo, generateDemoTelemetry, DEMO_TENANT_NAME, DEMO_PROJECT_NAME, DEMO_USER_EMAIL };
+export { seedDemo, generateDemoTelemetry, DEMO_TENANT_NAME, DEMO_PROJECT_NAME, CONTENT_AUTHOR_EMAIL, findOrCreateDemoTenant, grantPlatformDemoIdentityAccess, PLATFORM_DEMO_IDENTITY_EMAIL };
 
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';

@@ -55,7 +55,27 @@ async function buildPilotageData(pool, { projectId, periodDays }) {
   return {
     period: { days: periodDays, from: from.toISOString(), to: to.toISOString() },
     kpis: {
-      uniqueVisitors: { value: uniqueVisitors.value, exact: uniqueVisitors.exact, delta: computeDelta(uniqueVisitors.value, previousUniqueVisitors.value) },
+      // Bug de restitution trouvé et corrigé (jamais un redesign, ni
+      // un changement de rétention) : countUniqueVisitors borne
+      // honnêtement sa valeur à la fenêtre de rétention brute (40j,
+      // exact=false si tronquée) -- mais computeDelta() ignorait ce
+      // signal et calculait quand même un pourcentage à partir d'une
+      // base tronquée. Pour period=30, la période précédente couvre
+      // J-60 à J-30 : la borne inférieure (J-60) dépasse toujours les
+      // 40 jours garantis, donc previousUniqueVisitors.exact est
+      // structurellement false dans ce cas -- un delta calculé sur
+      // cette base produirait un pourcentage absurde (confirmé par
+      // test direct : une base tronquée de 30 à 8 produit un delta de
+      // +5050% pour une valeur courante de 412). Un KPI dont la
+      // comparaison exacte est indisponible affiche sa valeur
+      // courante sans jamais inventer de delta.
+      uniqueVisitors: {
+        value: uniqueVisitors.value,
+        exact: uniqueVisitors.exact,
+        delta: (uniqueVisitors.exact && previousUniqueVisitors.exact)
+          ? computeDelta(uniqueVisitors.value, previousUniqueVisitors.value)
+          : { value: null, comparable: false }
+      },
       sessions: { value: totals.sessions, delta: computeDelta(totals.sessions, previousTotals.sessions) },
       returningRate: { value: returningRate, delta: returningRate !== null && previousReturningRate !== null ? { value: Math.round((returningRate - previousReturningRate) * 10) / 10, comparable: true, isPoints: true } : { value: null, comparable: false } },
       pageViewsPerSession: { value: pageViewsPerSession, delta: pageViewsPerSession !== null && previousPageViewsPerSession !== null ? computeDelta(pageViewsPerSession, previousPageViewsPerSession) : { value: null, comparable: false } },

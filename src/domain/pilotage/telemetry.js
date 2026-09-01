@@ -22,7 +22,22 @@ export const RAW_RETENTION_DAYS = 40;
 // chaque écriture serait un coût inutile.
 const PURGE_TRIGGER_PROBABILITY = 0.02;
 
-async function maybePurgeOldEvents(pool) {
+// skipPurge (jamais activé par défaut, jamais exposé publiquement en
+// dehors de ce fichier) -- bug trouvé et corrigé par test direct :
+// un chargement en masse d'événements historiques rétrodatés (ex.
+// seed de démonstration insérant des milliers d'événements datés de
+// 30 à 60 jours dans le passé) déclenche presque certainement au
+// moins une purge en cours de route (1-0.98^1869 ≈ 100% sur un lot de
+// cette taille) -- et cette purge supprime alors TOUT événement de
+// plus de 40 jours, y compris ceux que le même lot vient tout juste
+// d'insérrer. Confirmé par test isolé : 1869 insertions réussies,
+// seulement 574 lignes survivantes en base sans ce paramètre, 1869/
+// 1869 exactes avec. Réservé aux scripts de seed qui savent
+// explicitement qu'ils chargent un lot historique cohérent d'un
+// coup -- jamais une politique de rétention modifiée, uniquement un
+// report de la purge après la fin du lot.
+async function maybePurgeOldEvents(pool, skipPurge) {
+  if (skipPurge) return;
   if (Math.random() >= PURGE_TRIGGER_PROBABILITY) return;
   await pool.query(`delete from telemetry_events where occurred_at < now() - interval '${RAW_RETENTION_DAYS} days'`);
 }
@@ -61,7 +76,7 @@ async function resolveSession(pool, { projectId, visitorRef, now }) {
   return { sessionRef: crypto.randomUUID(), isNewSession: true, isReturningVisitor: true };
 }
 
-export async function recordPageView(pool, { tenantId, projectId, visitorRef, path, now = new Date() }) {
+export async function recordPageView(pool, { tenantId, projectId, visitorRef, path, now = new Date(), skipPurge = false }) {
   const day = now.toISOString().slice(0, 10);
 
   const { rows: seenTodayRows } = await pool.query(
@@ -100,11 +115,11 @@ export async function recordPageView(pool, { tenantId, projectId, visitorRef, pa
     );
   }
 
-  await maybePurgeOldEvents(pool);
+  await maybePurgeOldEvents(pool, skipPurge);
   return { sessionRef };
 }
 
-export async function recordMatchResult(pool, { tenantId, projectId, visitorRef, outcome, matchedEntryId, confidenceBucket, now = new Date() }) {
+export async function recordMatchResult(pool, { tenantId, projectId, visitorRef, outcome, matchedEntryId, confidenceBucket, now = new Date(), skipPurge = false }) {
   const day = now.toISOString().slice(0, 10);
   // Storm Match reste rattaché à une session (comme une page_view),
   // pour permettre de relier une recherche à une visite -- jamais au
@@ -125,13 +140,13 @@ export async function recordMatchResult(pool, { tenantId, projectId, visitorRef,
     [tenantId, projectId, day, outcome, matchedEntryId || null, confidenceBucket || null]
   );
 
-  await maybePurgeOldEvents(pool);
+  await maybePurgeOldEvents(pool, skipPurge);
 }
 
 // Météo -- jamais de visitor_ref/session_ref, y compris dans
 // telemetry_events (voir doctrine verrouillée : seule catégorie
 // réellement anonyme dès la collecte, pas seulement pseudonyme).
-export async function recordMoodFeedback(pool, { tenantId, projectId, value, now = new Date() }) {
+export async function recordMoodFeedback(pool, { tenantId, projectId, value, now = new Date(), skipPurge = false }) {
   const day = now.toISOString().slice(0, 10);
 
   await pool.query(
@@ -147,5 +162,5 @@ export async function recordMoodFeedback(pool, { tenantId, projectId, value, now
     [tenantId, projectId, day, value]
   );
 
-  await maybePurgeOldEvents(pool);
+  await maybePurgeOldEvents(pool, skipPurge);
 }

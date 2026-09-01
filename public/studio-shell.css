@@ -1,0 +1,76 @@
+/* Storm Studio — chrome partagé (Studio UI Consistency Pass).
+   Source canonique : studio-homepage.html, retenue comme référence de
+   positionnement du shell/navigation (doctrine du pass). Chaque
+   vertical Studio inclut ce fichier et ne définit plus localement
+   aucune de ces règles — seul son contenu métier reste local.
+
+   Ne touche jamais : modèles de données, API, autosave, publication,
+   contenu métier des verticales, infrastructure identité/police,
+   permissions, Ivory. Ce fichier est strictement visuel/chrome. */
+
+:root{
+  --canvas:#f6f6f3;--ink:#111;--graphite:#353539;--muted:#77777c;--quiet:#a2a2a7;
+  --line:rgba(17,17,17,.08);--danger:#b42318;--glass:rgba(247,247,244,.50);
+  --ease:cubic-bezier(.22,1,.36,1)
+}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html{background:var(--canvas)}
+body{
+  margin:0;min-height:100vh;color:var(--ink);
+  font-family:Roboto,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:
+    radial-gradient(circle at 10% -8%,rgba(255,255,255,.98),transparent 34%),
+    radial-gradient(circle at 88% 3%,rgba(17,17,17,.035),transparent 25%),
+    var(--canvas);
+  -webkit-font-smoothing:antialiased
+}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+.shell{min-height:100vh;padding:22px 28px 154px}
+.topbar,.top{
+  z-index:50;height:62px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 8px 0 20px;border:1px solid rgba(255,255,255,.75);border-radius:20px;
+  background:rgba(255,255,255,.37);backdrop-filter:blur(24px) saturate(175%);
+  box-shadow:0 10px 34px rgba(17,17,17,.07),inset 0 1px 0 rgba(255,255,255,.82)
+}
+.brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:720;letter-spacing:-.035em}
+.brand-project,.brand span{color:var(--muted);font-weight:560}.top-actions,.acts{display:flex;align-items:center;gap:6px}
+.project-link,.home,.project,.shell-link{border:0;background:transparent;padding:9px 12px;border-radius:12px;font-size:13px;font-weight:670}
+.project-link:hover,.home:hover,.project:hover,.shell-link:hover{background:rgba(255,255,255,.55)}
+.avatar,.avatar-btn{width:38px;height:38px;border:0;border-radius:12px;background:#111;color:#fff;font-size:12px;font-weight:760}
+main{width:min(1280px,100%);margin:0 auto;padding-top:84px}
+.studio-grid,.layout,.grid{display:grid;grid-template-columns:190px minmax(0,860px);gap:58px;align-items:start}
+.studio-nav,nav{
+  padding:7px;border:1px solid rgba(255,255,255,.72);border-radius:22px;
+  background:rgba(247,247,244,.44);backdrop-filter:blur(24px) saturate(170%);
+  box-shadow:0 12px 38px rgba(17,17,17,.065),inset 0 1px 0 rgba(255,255,255,.82)
+}
+.nav-item,.nav,nav button{
+  width:100%;min-height:43px;padding:0 13px;border:0;border-radius:15px;background:transparent;text-align:left;
+  color:var(--muted);font-size:13px;font-weight:650
+}
+.nav-item:hover,.nav:hover,nav button:hover{color:var(--ink);background:rgba(255,255,255,.42)}
+.nav-item.active,.nav.active,nav button.active{color:var(--ink);background:rgba(255,255,255,.86);box-shadow:0 7px 18px rgba(17,17,17,.055)}
+.page-head,.head{position:relative;margin-bottom:42px}
+.page-head:after,.head:after{content:"";position:absolute;z-index:-1;width:280px;height:280px;right:-50px;top:-110px;border-radius:50%;background:rgba(17,17,17,.028)}
+.eyebrow{margin:0 0 13px;color:var(--muted);font-size:11px;font-weight:780;letter-spacing:.13em;text-transform:uppercase}
+h1{margin:0;font-size:clamp(54px,6.2vw,88px);line-height:.9;letter-spacing:-.064em;font-weight:630}
+.lead{max-width:650px;margin:19px 0 0;color:var(--muted);font-size:15px;line-height:1.55}
+.command-layer,.command,.cmd{
+  position:fixed;z-index:80;left:50%;bottom:22px;transform:translateX(-50%);
+  width:min(640px,calc(100vw - 28px));min-height:58px;padding:6px;border:1px solid rgba(255,255,255,.74);
+  border-radius:20px;background:var(--glass);backdrop-filter:blur(28px) saturate(190%);
+  box-shadow:0 18px 54px rgba(17,17,17,.16),inset 0 1px 0 rgba(255,255,255,.9)
+}
+.command-state,.command-inner,.cmdin{min-height:46px;display:flex;align-items:center;justify-content:center;gap:6px}
+.command-message,.command-msg{padding:0 12px;text-align:center;color:var(--graphite);font-size:13px}
+.command-message strong,.command-msg strong{color:var(--ink);font-weight:720}
+.command-button,.command-btn,.cb{min-height:42px;padding:0 16px;border:0;border-radius:15px;background:transparent;font-size:13px;font-weight:690}
+.command-button:hover,.command-btn:hover{background:rgba(255,255,255,.44)}.command-button.primary,.command-btn.primary,.cb{background:#111;color:#fff}.state-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:middle}.state-dot-success{background:#1f8a52}.state-dot-warning{background:#b57a12}.state-dot-error{background:#c23a2e}.command-link{display:inline-flex;align-items:center;min-height:42px;padding:0 16px;border-radius:15px;color:#343438;font-size:13px;font-weight:690;text-decoration:none}.command-link:hover{background:rgba(255,255,255,.44)}
+@media(max-width:900px){
+  .shell{padding:14px 14px 146px}.topbar,.top{top:10px}.brand-project,.brand span,.project-link,.home,.project,.shell-link{display:none}
+  main{padding-top:66px}.studio-grid,.layout,.grid{grid-template-columns:1fr;gap:30px}
+  .studio-nav,nav{position:relative;top:auto;display:flex;gap:4px;overflow:auto;scrollbar-width:none}
+  .studio-nav::-webkit-scrollbar,nav::-webkit-scrollbar{display:none}.nav-item,.nav,nav button{width:auto;flex:0 0 auto}
+  .command-layer,.command,.cmd{bottom:12px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}

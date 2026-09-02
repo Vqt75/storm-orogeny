@@ -730,6 +730,28 @@
     .action-slot{left:22px}
   }
 
+  .launch-screen{
+    position:fixed;inset:0;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    background:#000;
+    opacity:1;
+    transition:opacity .6s var(--ease),background-color .6s var(--ease);
+  }
+  .launch-screen.is-dismissing{
+    background:var(--canvas);
+    opacity:0;
+    pointer-events:none;
+  }
+  .launch-wordmark{
+    color:#fff;
+    font-size:28px;
+    font-weight:700;
+    letter-spacing:-.03em;
+    opacity:0;
+    transition:opacity .7s var(--ease);
+  }
+  .launch-wordmark.is-visible{opacity:1}
+
   @media(prefers-reduced-motion:reduce){
     *,*::before,*::after{
       transition:none!important;
@@ -744,10 +766,53 @@
       transform:none!important;
       opacity:1!important;
     }
+
+    /* Le launch screen reste affiché (jamais supprimé), mais son
+       animation se réduit à un simple changement d'opacité rapide --
+       jamais la translation/bounce/scale qu'aucune version de cet
+       écran n'a de toute façon. Rétabli explicitement ici, avec une
+       durée courte, car la règle générale juste au-dessus
+       (transition:none!important sur *) l'aurait sinon totalement
+       supprimée -- le launch screen doit rester visible un court
+       instant avec un fondu simple, jamais un cut instantané qui
+       ferait flasher le noir puis le contenu sans transition. */
+    .launch-screen,.launch-screen.is-dismissing{
+      transition:opacity .15s linear,background-color .15s linear!important;
+    }
+    .launch-wordmark,.launch-wordmark.is-visible{
+      transition:opacity .15s linear!important;
+    }
   }
 </style>
 </head>
 <body>
+<!-- Launch screen — surface de marque, jamais un loader. Insérée en
+     tout premier dans le body pour peindre avant le reste de la page.
+     aria-hidden : jamais lu par les technologies d'assistance, jamais
+     un piège clavier (aucun élément focusable à l'intérieur). Le
+     script inline qui suit décide de l'affichage AVANT le premier
+     paint réel, pour éviter tout flash sur une session déjà jouée. -->
+<div class="launch-screen" id="launchScreen" aria-hidden="true">
+  <span class="launch-wordmark" id="launchWordmark">Storm</span>
+</div>
+<script>
+  // Décision synchrone, avant tout paint -- une session déjà jouée ne
+  // doit jamais laisser apparaître ne serait-ce qu'une image de l'écran
+  // noir. sessionStorage : une seule lecture de marque par session
+  // navigateur, jamais à chaque navigation interne (Project Shell,
+  // Studio, retour Home restent silencieux -- ce sont des navigations
+  // dans la MÊME session, jamais une entrée fraîche).
+  (function(){
+    var el = document.getElementById('launchScreen');
+    if (sessionStorage.getItem('storm_launch_played')) {
+      el.style.display = 'none';
+      window.__stormLaunchAlreadyPlayed = true;
+    } else {
+      sessionStorage.setItem('storm_launch_played', '1');
+      window.__stormLaunchAlreadyPlayed = false;
+    }
+  })();
+</script>
 <div class="shell">
   <header class="topbar" id="topbar">
     <div class="brand" aria-label="Storm Home">Storm</div>
@@ -1146,6 +1211,44 @@
     logoObjectUrls.forEach(url => URL.revokeObjectURL(url));
   });
 
+  // Launch screen — orchestration. Jamais un retard artificiel des
+  // requêtes réelles : hydrate() démarre immédiatement, en parallèle
+  // de l'animation. Le rideau ne se lève que lorsque les DEUX
+  // conditions sont réunies : présence de marque minimale (~2.5s au
+  // total, choréographie + transition incluses) ET données Home
+  // réellement rendues (succès ou erreur -- une erreur ne doit jamais
+  // laisser l'écran de lancement bloqué indéfiniment).
+  const launchScreen = document.getElementById('launchScreen');
+  const launchWordmark = document.getElementById('launchWordmark');
+  if (!window.__stormLaunchAlreadyPlayed) {
+    let resolveDataReady;
+    const dataReadyPromise = new Promise(resolve => { resolveDataReady = resolve; });
+    window.__stormMarkDataReady = () => resolveDataReady();
+
+    requestAnimationFrame(() => {
+      launchWordmark.classList.add('is-visible'); // apparition douce
+      setTimeout(() => {
+        launchWordmark.classList.remove('is-visible'); // disparition du wordmark
+      }, 1400); // maintien calme
+    });
+
+    const minimumPresence = new Promise(resolve => setTimeout(resolve, 2500));
+
+    Promise.all([minimumPresence, dataReadyPromise]).then(() => {
+      launchScreen.classList.add('is-dismissing'); // noir -> canvas + fondu
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        launchScreen.style.display = 'none';
+      };
+      launchScreen.addEventListener('transitionend', finish, { once: true });
+      setTimeout(finish, 900); // filet de sécurité si transitionend ne se déclenche pas
+    });
+  } else {
+    window.__stormMarkDataReady = () => {};
+  }
+
   async function hydrate(){
     clearSelected();
     renderLoading();
@@ -1157,6 +1260,8 @@
     }catch(error){
       console.error('[Storm Home] load failed', error);
       renderError();
+    } finally {
+      window.__stormMarkDataReady();
     }
   }
 

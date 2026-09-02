@@ -97,6 +97,27 @@ export function scoreEntry(question, entry) {
     if (tokens.includes(ns) || (ns.length > 3 && normQ.includes(ns))) score -= 3;
   });
 
+  // Recouvrement avec entry.title -- nécessaire pour tout contenu qui
+  // n'a jamais eu de keywords/phrases/signals curés manuellement
+  // (confirmé par audit : c'est le cas de la totalité des questions
+  // réelles Orogeny, compilées par compileQuestions() en {id,title,
+  // answer} uniquement -- arbitrage documenté du Compiler lui-même de
+  // ne jamais fabriquer de métadonnées de scoring artificielles). Sans
+  // ce bloc, score reste structurellement à 0 pour ce contenu, quelle
+  // que soit la proximité textuelle avec la question posée -- confirmé
+  // par test direct avant ce correctif. Réutilise normalize/tokenize
+  // déjà existants, jamais un nouveau moteur de matching : seule
+  // l'ENTRÉE elle-même (son propre texte publié) sert de signal,
+  // jamais un texte fabriqué.
+  if (entry.title) {
+    const titleTokens = tokenize(entry.title);
+    const sharedTokens = titleTokens.filter(t => t.length > 2 && tokens.includes(t));
+    score += sharedTokens.length * 6;
+
+    const normTitle = normalize(entry.title);
+    if (normTitle && (normQ.includes(normTitle) || normTitle.includes(normQ))) score += 15;
+  }
+
   score += (entry.priority || 0);
   return score;
 }

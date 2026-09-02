@@ -258,7 +258,7 @@ function renderList(){
 
 function photoMarkup(a){
   return a.photoAssetId
-    ? `<div class="photo"><span>Photo</span></div>`
+    ? `<div class="photo"><img src="/api/assets/${esc(a.photoAssetId)}" alt="" loading="lazy"></div>`
     : `<div class="photo"><span>Aucune photo</span></div>`;
 }
 

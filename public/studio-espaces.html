@@ -312,7 +312,7 @@ function mediaMarkup(m,index,total){
   const previewClass=m.kind==="document"?"pdf":m.kind==="plan"?"plan":"";
   const fileLabel=m.label||m.fileName||"Média";
   const meta=[m.fileName,m.sizeLabel].filter(Boolean).join(" · ");
-  const previewInner=(m.kind==="view"&&m.assetId)?`<img src="/api/assets/${esc(m.assetId)}" alt="" loading="lazy">`:(m.kind==="document"?"PDF":kindLabel);
+  const previewInner=(m.kind==="view"&&m.assetId)?`<img data-asset-id="${esc(m.assetId)}" alt="">`:(m.kind==="document"?"PDF":kindLabel);
   return `<div class="media-card" data-media-key="${esc(key)}">
     <div class="preview ${previewClass}">${previewInner}</div>
     <div class="media-copy">
@@ -403,6 +403,7 @@ function renderEditor(){
   `;
 
   wireEditor();
+  loadAssetImages(editor);
 }
 
 function flushDomToState(){
@@ -815,6 +816,20 @@ async function hydrate(){
 }
 
 function renderAll(){renderList();renderEditor();renderCommand()}
+async function loadAssetImages(root){
+  const imgs=root.querySelectorAll("img[data-asset-id]:not([src])");
+  for(const img of imgs){
+    const assetId=img.dataset.assetId;
+    try{
+      const res=await fetch(`/api/assets/${encodeURIComponent(assetId)}`,{headers:devHeaders(),credentials:"same-origin"});
+      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      const blob=await res.blob();
+      img.src=URL.createObjectURL(blob);
+    }catch(e){
+      img.replaceWith(document.createTextNode("Image indisponible"));
+    }
+  }
+}
 
 document.getElementById("projectLink").onclick=()=>location.assign(preserveDev(`/projects/${encodeURIComponent(projectId)}`));
 document.getElementById("cancelDelete").onclick=closeDelete;

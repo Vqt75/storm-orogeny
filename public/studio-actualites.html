@@ -89,13 +89,27 @@ function list(){
 function block(b,i){
  const tools=`<div class="tools"><button class="tool" data-up>↑</button><button class="tool" data-down>↓</button><button class="tool" data-remove>×</button></div>`;
  if(b.blockType==='heading')return `<div class="block" data-index="${i}">${tools}<div class="heading editable" contenteditable="true" data-placeholder="Intertitre">${runsHtml(b.runs||[])}</div></div>`;
- if(b.blockType==='image')return `<div class="block image" data-index="${i}">${tools}<img src="/api/assets/${esc(b.imageAssetId)}" alt="" loading="lazy"><div class="image-actions"><button class="upload-retry" data-replace>Remplacer l’image</button></div></div>`;
+ if(b.blockType==='image')return `<div class="block image" data-index="${i}">${tools}<img data-asset-id="${esc(b.imageAssetId)}" alt=""><div class="image-actions"><button class="upload-retry" data-replace>Remplacer l’image</button></div></div>`;
  return `<div class="block" data-index="${i}">${tools}<div class="text editable" contenteditable="true" data-placeholder="Écrivez ici…">${runsHtml(b.runs||[])}</div></div>`;
 }
 function editor(){
  const a=article(state.activeId);if(!a)return list();pageHead.hidden=true;
  root.innerHTML=`<div class="editor-header"><button class="back" id="back">← Actualités</button><button class="article-menu" aria-label="Actions" id="articleMenu">•••</button><div class="article-popover" id="articlePopover" hidden><button class="danger" data-action="delete">Supprimer</button></div></div><div class="article-title editable" id="title" contenteditable="true" role="textbox" aria-multiline="false" aria-label="Titre de l’actualité" data-placeholder="Titre de l’actualité">${esc(a.title||'')}</div><div class="chapeau editable" id="chapeau" contenteditable="true" data-placeholder="Ajoutez un chapeau…">${runsHtml(a.chapeauRuns||[])}</div><div class="article-meta"><input class="pill-input" id="tag" value="${esc(a.tag||'')}" placeholder="Tag"><input class="pill-input" id="date" value="${esc(a.publicationDate||'')}" placeholder="Date"></div><div class="body" id="body">${insert(0)}${(a.blocks||[]).map((b,i)=>block(b,i)+insert(i+1)).join('')}</div>`;
- wireEditor();renderCommand();
+ wireEditor();renderCommand();loadAssetImages(root);
+}
+async function loadAssetImages(rootEl){
+ const imgs=rootEl.querySelectorAll("img[data-asset-id]:not([src])");
+ for(const img of imgs){
+  const assetId=img.dataset.assetId;
+  try{
+   const res=await fetch(`/api/assets/${encodeURIComponent(assetId)}`,{headers:devHeaders(),credentials:"same-origin"});
+   if(!res.ok)throw new Error(`HTTP ${res.status}`);
+   const blob=await res.blob();
+   img.src=URL.createObjectURL(blob);
+  }catch(e){
+   img.replaceWith(document.createTextNode("Image indisponible"));
+  }
+ }
 }
 function insert(i){
  if(state.upload.at===i&&state.upload.status==='uploading')return `<div class="insert" data-at="${i}"><span class="upload-progress">Import de l’image…</span></div>`;

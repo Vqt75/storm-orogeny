@@ -68,7 +68,7 @@ function render(){
       <div class="panel-head"><h2>Logo</h2></div>
       <div class="panel-body">
         <div class="logo-row">
-          <div class="logo-box" id="logoBox">${id.logoAssetId?`<img src="/api/assets/${esc(id.logoAssetId)}" alt="">`:esc(initials(projectName))}</div>
+          <div class="logo-box" id="logoBox">${id.logoAssetId?`<img data-asset-id="${esc(id.logoAssetId)}" alt="">`:esc(initials(projectName))}</div>
           <div class="actions">
             <button class="action" id="replaceLogo" type="button">Remplacer</button>
             ${id.logoAssetId?'<button class="action danger" id="removeLogo" type="button">Retirer</button>':""}
@@ -149,6 +149,37 @@ function render(){
   sp.addEventListener("input",()=>{sh.value=sp.value.toUpperCase();queueColorSave(pp.value,sp.value)});
   ph.addEventListener("change",onColorChange);
   sh.addEventListener("change",onColorChange);
+
+  loadAssetImages(stack);
+}
+
+// Charge les <img data-asset-id> via un fetch authentifié (en-tête
+// X-Storm-Dev-User) puis un blob local -- jamais un simple src direct.
+// Bug trouvé et corrigé : /api/assets/:id est derrière le middleware
+// authenticated, qui résout l'identité UNIQUEMENT via l'en-tête
+// X-Storm-Dev-User (devAuth.js) -- jamais une query string, jamais un
+// cookie. Un <img src="..."> classique ne peut structurellement
+// jamais envoyer cet en-tête, donc échoue toujours en 401 (icône
+// d'image cassée), quelle que soit l'identité déjà connue de la page.
+// Confirmé par test direct avant ce correctif : 401 sans l'en-tête,
+// 200 avec. Même mécanisme déjà éprouvé ailleurs dans ce repo
+// (project-shell.html, getBlob()) -- jamais un nouveau mécanisme.
+const assetObjectUrls=new Set();
+async function loadAssetImages(root){
+  const imgs=root.querySelectorAll("img[data-asset-id]:not([src])");
+  for(const img of imgs){
+    const assetId=img.dataset.assetId;
+    try{
+      const res=await fetch(`/api/assets/${encodeURIComponent(assetId)}`,{headers:devHeaders(),credentials:"same-origin"});
+      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      const blob=await res.blob();
+      const objectUrl=URL.createObjectURL(blob);
+      assetObjectUrls.add(objectUrl);
+      img.src=objectUrl;
+    }catch(e){
+      img.replaceWith(document.createTextNode("Image indisponible"));
+    }
+  }
 }
 
 function queueColorSave(primaryColor,secondaryColor){

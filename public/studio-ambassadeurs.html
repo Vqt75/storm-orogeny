@@ -258,7 +258,7 @@ function renderList(){
 
 function photoMarkup(a){
   return a.photoAssetId
-    ? `<div class="photo"><img src="/api/assets/${esc(a.photoAssetId)}" alt="" loading="lazy"></div>`
+    ? `<div class="photo"><img data-asset-id="${esc(a.photoAssetId)}" alt=""></div>`
     : `<div class="photo"><span>Aucune photo</span></div>`;
 }
 
@@ -348,6 +348,26 @@ function renderEditor(){
   `;
 
   wireEditor();
+  loadAssetImages(editor);
+}
+
+// Charge les <img data-asset-id> via un fetch authentifié -- jamais un
+// src direct. /api/assets/:id exige l'en-tête X-Storm-Dev-User
+// (devAuth.js), qu'un <img src="..."> classique ne peut structurellement
+// jamais envoyer -- confirmé 401 sans, 200 avec, par test direct.
+async function loadAssetImages(root){
+  const imgs=root.querySelectorAll("img[data-asset-id]:not([src])");
+  for(const img of imgs){
+    const assetId=img.dataset.assetId;
+    try{
+      const res=await fetch(`/api/assets/${encodeURIComponent(assetId)}`,{headers:devHeaders(),credentials:"same-origin"});
+      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      const blob=await res.blob();
+      img.src=URL.createObjectURL(blob);
+    }catch(e){
+      img.replaceWith(document.createTextNode("Image indisponible"));
+    }
+  }
 }
 
 function wirePlainText(el,{singleLine=false}={}){

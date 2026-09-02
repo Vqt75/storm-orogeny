@@ -170,7 +170,7 @@ function renderMatch(d){
   if(!d.match.top.length){tbody.innerHTML="";empty.hidden=d.match.total>0?true:false;if(!d.match.total)empty.hidden=false;return}
   empty.hidden=true;
   const confidenceLabel={high:"Élevée",medium:"Moyenne",low:"Faible"};
-  tbody.innerHTML=d.match.top.map(m=>`<tr><td>${esc(m.matchedEntryId)}</td><td class="num">${m.count}</td><td class="num">${m.share}%</td><td class="num">${esc(confidenceLabel[m.confidenceBucket]||"—")}</td></tr>`).join("");
+  tbody.innerHTML=d.match.top.map(m=>`<tr><td>${esc(m.title||m.matchedEntryId)}</td><td class="num">${m.count}</td><td class="num">${m.share}%</td><td class="num">${esc(confidenceLabel[m.confidenceBucket]||"—")}</td></tr>`).join("");
 }
 
 function renderMood(d){

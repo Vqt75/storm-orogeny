@@ -4,7 +4,7 @@ import { requireProjectCapability } from '../middleware/requireProjectCapability
 import { ProjectCapability } from '../../domain/permissions/capabilities.js';
 import {
   countUniqueVisitors, getUsageSeries, getUsageTotals, getContentBreakdown,
-  getMatchSummary, getMoodDistribution, getProjectHeadcount
+  getMatchSummary, getMoodDistribution, getProjectHeadcount, resolveQuestionTitles
 } from '../../domain/pilotage/reporting.js';
 import { Errors } from '../../errors/AppError.js';
 
@@ -52,6 +52,12 @@ async function buildPilotageData(pool, { projectId, periodDays }) {
   const previousPageViewsPerSession = previousTotals.sessions > 0 ? Math.round((previousTotals.pageViews / previousTotals.sessions) * 10) / 10 : null;
   const coverageRate = totalRequests > 0 ? Math.round((matchedTotal / totalRequests) * 1000) / 10 : null;
 
+  const matchTop = match.filter(m => m.outcome === 'matched' && m.matchedEntryId).sort((a, b) => b.count - a.count).slice(0, 10)
+    .map(m => ({ matchedEntryId: m.matchedEntryId, count: m.count, share: matchedTotal > 0 ? Math.round((m.count / matchedTotal) * 1000) / 10 : 0, confidenceBucket: m.confidenceBucket }));
+  // Un UUID brut n'a aucun sens pour qui consulte Storm Match dans
+  // Pilotage -- résolu vers le texte réel de la question publiée.
+  const questionTitles = await resolveQuestionTitles(pool, { projectId, ids: matchTop.map(m => m.matchedEntryId) });
+
   return {
     period: { days: periodDays, from: from.toISOString(), to: to.toISOString() },
     kpis: {
@@ -89,8 +95,7 @@ async function buildPilotageData(pool, { projectId, periodDays }) {
       total: totalRequests,
       abstained: abstainedTotal,
       coverageRate,
-      top: match.filter(m => m.outcome === 'matched' && m.matchedEntryId).sort((a, b) => b.count - a.count).slice(0, 10)
-        .map(m => ({ matchedEntryId: m.matchedEntryId, count: m.count, share: matchedTotal > 0 ? Math.round((m.count / matchedTotal) * 1000) / 10 : 0, confidenceBucket: m.confidenceBucket }))
+      top: matchTop.map(m => ({ ...m, title: questionTitles[m.matchedEntryId] }))
     },
     mood: { total: mood.total, threshold: mood.threshold, meetsThreshold: mood.meetsThreshold, distribution: mood.distribution }
   };
@@ -166,7 +171,7 @@ function buildWorkbook(data, projectName) {
     ['Sans correspondance', data.match.abstained],
     [],
     ['Contenu', 'Requêtes', 'Part', 'Confiance'],
-    ...data.match.top.map(m => [m.matchedEntryId, m.count, `${m.share}%`, m.confidenceBucket || ''])
+    ...data.match.top.map(m => [m.title || m.matchedEntryId, m.count, `${m.share}%`, m.confidenceBucket || ''])
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(matchSheet), 'Storm Match');
 

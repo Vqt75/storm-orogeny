@@ -158,3 +158,20 @@ export async function getMoodDistribution(pool, { projectId, from, to, projectHe
     distribution: rows.map(r => ({ value: r.value, count: Number(r.n) }))
   };
 }
+
+// Résout les matchedEntryId (uuid de project_questions) vers leur
+// texte réel -- jamais affiché tel quel côté Pilotage (un UUID brut
+// n'a aucun sens pour qui consulte Storm Match). Une question
+// supprimée après coup (matchedEntryId ne correspond plus à rien)
+// retourne un libellé explicite plutôt qu'un UUID orphelin ou un
+// champ vide silencieux.
+export async function resolveQuestionTitles(pool, { projectId, ids }) {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  if (uniqueIds.length === 0) return {};
+  const { rows } = await pool.query(
+    `select id, question from project_questions where project_id = $1 and id = any($2::uuid[])`,
+    [projectId, uniqueIds]
+  );
+  const byId = Object.fromEntries(rows.map(r => [r.id, r.question]));
+  return Object.fromEntries(uniqueIds.map(id => [id, byId[id] || 'Question supprimée']));
+}

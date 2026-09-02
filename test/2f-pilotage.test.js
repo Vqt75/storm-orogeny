@@ -8,6 +8,7 @@ import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
 import { recordPageView, recordMatchResult, recordMoodFeedback } from '../src/domain/pilotage/telemetry.js';
+import { insertQuestion } from '../src/domain/studio/repository.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -274,4 +275,45 @@ test('export .xlsx : aucune trace de visitor_ref/session_ref dans le contenu du 
 test('export .xlsx : contributor (sans pilotage.view) -> 403, jamais un contournement', async () => {
   const res = await fetch(`${baseUrl}/api/projects/${ids.projectA}/pilotage/export.xlsx`, withUser(ids.contributor));
   assert.equal(res.status, 403);
+});
+
+// Bug signalé (capture d'écran) : "Contenu le plus sollicité" affichait
+// le matchedEntryId brut (un UUID) au lieu du texte réel de la
+// question -- illisible pour qui consulte Pilotage. Corrigé en
+// résolvant matchedEntryId contre project_questions.question.
+test('Storm Match "contenu le plus sollicité" affiche le texte réel de la question, jamais l\'UUID brut', async () => {
+  const question = await insertQuestion(pool, {
+    tenantId: ids.tenantA, projectId: ids.projectA, position: 0, userId: ids.pilotUser,
+    question: 'Aurai-je un bureau attitré ?', answerRuns: [{ text: 'Non.' }]
+  });
+  await recordMatchResult(pool, {
+    tenantId: ids.tenantA, projectId: ids.projectA, visitorRef: crypto.randomUUID(),
+    outcome: 'matched', matchedEntryId: question.id, confidenceBucket: 'high'
+  });
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.projectA}/pilotage`, withUser(ids.pilotUser));
+  const body = await res.json();
+  const entry = body.match.top.find(m => m.matchedEntryId === question.id);
+  assert.ok(entry, 'l\'entrée doit être présente dans le top');
+  assert.equal(entry.title, 'Aurai-je un bureau attitré ?', 'le titre doit être le texte réel de la question, jamais l\'UUID');
+  assert.notEqual(entry.title, question.id);
+
+  await resetTelemetry();
+  await pool.query('delete from project_questions where id = $1', [question.id]);
+});
+
+test('Storm Match : une question supprimée après coup affiche un libellé explicite, jamais un UUID orphelin', async () => {
+  const deletedId = crypto.randomUUID();
+  await recordMatchResult(pool, {
+    tenantId: ids.tenantA, projectId: ids.projectA, visitorRef: crypto.randomUUID(),
+    outcome: 'matched', matchedEntryId: deletedId, confidenceBucket: 'high'
+  });
+
+  const res = await fetch(`${baseUrl}/api/projects/${ids.projectA}/pilotage`, withUser(ids.pilotUser));
+  const body = await res.json();
+  const entry = body.match.top.find(m => m.matchedEntryId === deletedId);
+  assert.ok(entry);
+  assert.equal(entry.title, 'Question supprimée');
+
+  await resetTelemetry();
 });

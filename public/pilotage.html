@@ -135,7 +135,7 @@ function renderAudience(d){
   const svg=document.getElementById("audienceChart");
   const empty=document.getElementById("audienceEmpty");
   if(!series.length){
-    svg.querySelectorAll("path").forEach(p=>p.remove());
+    svg.querySelectorAll("polyline").forEach(p=>p.remove());
     empty.hidden=false;
     return;
   }
@@ -149,7 +149,7 @@ function renderAudience(d){
   const sessionsPts=series.map((s,i)=>`${i*stepX},${y(s.sessions)}`).join(" ");
   const visitorsPts=series.map((s,i)=>`${i*stepX},${y(s.uniqueVisitors)}`).join(" ");
   const areaPts=`0,${h} ${sessionsPts} ${(series.length-1)*stepX},${h}`;
-  svg.querySelectorAll("path").forEach(p=>p.remove());
+  svg.querySelectorAll("polyline").forEach(p=>p.remove());
   svg.insertAdjacentHTML("beforeend",`<polyline class="area-a" points="${areaPts}" style="fill:rgba(17,17,17,.035);stroke:none"/><polyline class="line-a" points="${sessionsPts}" style="fill:none"/><polyline class="line-b" points="${visitorsPts}" style="fill:none"/>`);
 }
 

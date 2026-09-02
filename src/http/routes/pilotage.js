@@ -52,8 +52,32 @@ async function buildPilotageData(pool, { projectId, periodDays }) {
   const previousPageViewsPerSession = previousTotals.sessions > 0 ? Math.round((previousTotals.pageViews / previousTotals.sessions) * 10) / 10 : null;
   const coverageRate = totalRequests > 0 ? Math.round((matchedTotal / totalRequests) * 1000) / 10 : null;
 
-  const matchTop = match.filter(m => m.outcome === 'matched' && m.matchedEntryId).sort((a, b) => b.count - a.count).slice(0, 10)
-    .map(m => ({ matchedEntryId: m.matchedEntryId, count: m.count, share: matchedTotal > 0 ? Math.round((m.count / matchedTotal) * 1000) / 10 : 0, confidenceBucket: m.confidenceBucket }));
+  // Regroupe d'abord par question (matchedEntryId) -- getMatchSummary()
+  // retourne une ligne par (outcome, matchedEntryId, confidence_bucket),
+  // nécessaire pour d'autres calculs, mais une même question avec
+  // plusieurs niveaux de confiance apparaîtrait sinon comme plusieurs
+  // lignes distinctes dans "Contenu le plus sollicité" (bug signalé :
+  // "Aurai-je un bureau attitré ?" apparaissait deux fois, une par
+  // confiance). La confiance retenue est celle du volume le plus
+  // important pour cette question -- un signal réel, jamais inventé.
+  const matchedByEntry = new Map();
+  for (const m of match) {
+    if (m.outcome !== 'matched' || !m.matchedEntryId) continue;
+    const existing = matchedByEntry.get(m.matchedEntryId);
+    if (!existing) {
+      matchedByEntry.set(m.matchedEntryId, { matchedEntryId: m.matchedEntryId, count: m.count, confidenceCounts: { [m.confidenceBucket]: m.count } });
+    } else {
+      existing.count += m.count;
+      existing.confidenceCounts[m.confidenceBucket] = (existing.confidenceCounts[m.confidenceBucket] || 0) + m.count;
+    }
+  }
+  const matchTop = [...matchedByEntry.values()].sort((a, b) => b.count - a.count).slice(0, 10)
+    .map(m => ({
+      matchedEntryId: m.matchedEntryId,
+      count: m.count,
+      share: matchedTotal > 0 ? Math.round((m.count / matchedTotal) * 1000) / 10 : 0,
+      confidenceBucket: Object.entries(m.confidenceCounts).sort((a, b) => b[1] - a[1])[0][0]
+    }));
   // Un UUID brut n'a aucun sens pour qui consulte Storm Match dans
   // Pilotage -- résolu vers le texte réel de la question publiée.
   const questionTitles = await resolveQuestionTitles(pool, { projectId, ids: matchTop.map(m => m.matchedEntryId) });

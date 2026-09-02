@@ -393,7 +393,7 @@ async function hydrate(){
 }
 
 document.getElementById("projectLink").onclick=()=>location.assign(preserveDev(`/projects/${encodeURIComponent(projectId)}`));
-const STUDIO_DOMAIN_PATHS={homepage:"",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:"",identity:"identity"};
+const STUDIO_DOMAIN_PATHS={homepage:"",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:"questions",identity:"identity"};
 document.querySelectorAll(".nav-item").forEach(btn=>btn.addEventListener("click",()=>{
   if(btn.dataset.domain==="homepage")return;
   const seg=STUDIO_DOMAIN_PATHS[btn.dataset.domain];

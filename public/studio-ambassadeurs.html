@@ -644,7 +644,7 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("click",e=>{
   if(!e.target.closest(".editor-head"))document.querySelectorAll(".popover").forEach(p=>p.hidden=true);
 });
-const STUDIO_DOMAIN_PATHS={homepage:"homepage",project:"project",spaces:"spaces",news:"news",ambassadors:"",questions:"",identity:"identity"};
+const STUDIO_DOMAIN_PATHS={homepage:"homepage",project:"project",spaces:"spaces",news:"news",ambassadors:"",questions:"questions",identity:"identity"};
 document.querySelectorAll(".nav-item").forEach(btn=>btn.addEventListener("click",()=>{
   if(btn.dataset.domain==="ambassadors")return;
   const seg=STUDIO_DOMAIN_PATHS[btn.dataset.domain];

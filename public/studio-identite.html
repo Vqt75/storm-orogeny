@@ -34,28 +34,28 @@ function has(c){return state.context?.membership?.capabilities?.includes(c)}
 async function api(url,opt={}){const h={Accept:"application/json",...devHeaders(),...(opt.headers||{})};if(opt.body&&!(opt.body instanceof FormData))h["Content-Type"]="application/json";const r=await fetch(url,{...opt,credentials:"same-origin",headers:h});const t=r.headers.get("content-type")||"";const b=r.status===204?null:(t.includes("application/json")?await r.json():await r.text());if(!r.ok){const e=new Error(b?.error?.message||b?.message||`HTTP ${r.status}`);e.status=r.status;throw e}return b}
 function cmd(h){commandState.innerHTML=h;commandState.querySelector('[data-reload]')?.addEventListener("click",hydrate);commandState.querySelector('[data-cmd="publish"]')?.addEventListener("click",doPublish);commandState.querySelector('[data-cmd="close"]')?.addEventListener("click",renderCmd)}
 async function doPublish(){
-  cmd("Publication…");
+  cmd('<span class="command-message">Publication…</span>');
   let res,data;
   try{res=await fetch(`/api/projects/${projectId}/publications`,{method:"POST",headers:devHeaders()});data=await res.json().catch(()=>({}))}
-  catch(e){cmd('<span class="state-dot state-dot-error"></span>Connexion impossible. Le brouillon reste enregistré. <button class="cb" data-cmd="close">Fermer</button>');return}
+  catch(e){cmd('<span class="command-message"><span class="state-dot state-dot-error"></span>Connexion impossible. Le brouillon reste enregistré.</span><button class="cb" data-cmd="close" type="button">Fermer</button>');return}
   if(res.status===201){
     state.unpublished=false;
     state.publishedUrl=`/public/projects/${projectId}`;
-    const warn=(data.warnings||[]).map(w=>`<br><span class="state-dot state-dot-warning"></span>${esc(w.message)}`).join("");
-    cmd(`<span class="state-dot state-dot-success"></span><strong>Publication n°${data.revision}</strong> publiée.${warn} <a href="${esc(state.publishedUrl)}" target="_blank" rel="noopener" class="cb" style="text-decoration:none;display:inline-flex;align-items:center">Voir le site publié</a> <button class="cb" data-cmd="close">Fermer</button>`);
+    const warn=(data.warnings||[]).map(w=>`<br><span class="command-message"><span class="state-dot state-dot-warning"></span>${esc(w.message)}</span>`).join("");
+    cmd(`<span class="command-message"><span class="state-dot state-dot-success"></span><strong>Publication n°${data.revision}</strong> publiée.</span>${warn}<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a><button class="cb" data-cmd="close" type="button">Fermer</button>`);
     return;
   }
-  if(res.status===422){cmd(`<span class="state-dot state-dot-error"></span>Compilation impossible : ${esc(data.failureDetail||"erreur inconnue")}. Le brouillon reste enregistré. <button class="cb" data-cmd="close">Fermer</button>`);return}
-  if(res.status===403){cmd(`<span class="state-dot state-dot-error"></span>${esc(data.error?.message||"Cette action nécessite une capability que vous n'avez pas.")} <button class="cb" data-cmd="close">Fermer</button>`);return}
-  cmd('<span class="state-dot state-dot-error"></span>Publication impossible pour le moment. Le brouillon reste enregistré. <button class="cb" data-cmd="close">Fermer</button>');
+  if(res.status===422){cmd(`<span class="command-message"><span class="state-dot state-dot-error"></span>Compilation impossible : ${esc(data.failureDetail||"erreur inconnue")}. Le brouillon reste enregistré.</span><button class="cb" data-cmd="close" type="button">Fermer</button>`);return}
+  if(res.status===403){cmd(`<span class="command-message"><span class="state-dot state-dot-error"></span>${esc(data.error?.message||"Cette action nécessite une capability que vous n'avez pas.")}</span><button class="cb" data-cmd="close" type="button">Fermer</button>`);return}
+  cmd('<span class="command-message"><span class="state-dot state-dot-error"></span>Publication impossible pour le moment. Le brouillon reste enregistré.</span><button class="cb" data-cmd="close" type="button">Fermer</button>');
 }
 function renderCmd(){
-  if(state.load==="loading")return cmd("Chargement…");
-  if(state.save==="saving")return cmd("Enregistrement…");
-  if(state.save==="conflict")return cmd('<span class="state-dot state-dot-error"></span><strong>L\u2019identité a changé ailleurs.</strong><button class="cb" data-reload>Recharger</button>');
-  if(state.save==="error")return cmd('<span class="state-dot state-dot-error"></span>Impossible d\u2019enregistrer.');
-  if(state.unpublished&&has("publication.publish"))return cmd('<span class="state-dot state-dot-warning"></span>Tout est enregistré <button class="cb" data-cmd="publish">Publier</button>');
-  cmd(`<span class="state-dot state-dot-success"></span><strong>Identité</strong> · Tout est enregistré${state.publishedUrl?` <a href="${esc(state.publishedUrl)}" target="_blank" rel="noopener" style="margin-left:8px">Voir le site publié</a>`:""}`);
+  if(state.load==="loading")return cmd('<span class="command-message">Chargement…</span>');
+  if(state.save==="saving")return cmd('<span class="command-message">Enregistrement…</span>');
+  if(state.save==="conflict")return cmd('<span class="command-message"><span class="state-dot state-dot-error"></span><strong>L\u2019identité a changé ailleurs.</strong></span><button class="cb" data-reload type="button">Recharger</button>');
+  if(state.save==="error")return cmd('<span class="command-message"><span class="state-dot state-dot-error"></span>Impossible d\u2019enregistrer.</span>');
+  if(state.unpublished&&has("publication.publish"))return cmd('<span class="command-message"><span class="state-dot state-dot-warning"></span>Tout est enregistré</span><button class="cb" data-cmd="publish" type="button">Publier</button>');
+  cmd(`<span class="command-message"><span class="state-dot state-dot-success"></span><strong>Identité</strong> · Tout est enregistré</span>${state.publishedUrl?`<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a>`:""}`);
 }
 
 function initials(name){return String(name||"P").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"P"}
@@ -264,7 +264,7 @@ async function hydrate(){
   }
 }
 document.getElementById("projectLink").onclick=()=>location.assign(preserve(`/projects/${projectId}`));
-const STUDIO_DOMAIN_PATHS={homepage:"homepage",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:"",identity:""};
+const STUDIO_DOMAIN_PATHS={homepage:"homepage",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:"questions",identity:""};
 document.querySelectorAll("nav button[data-domain]").forEach(b=>b.onclick=()=>{
   if(b.dataset.domain==="identity")return;
   const seg=STUDIO_DOMAIN_PATHS[b.dataset.domain];

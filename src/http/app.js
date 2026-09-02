@@ -59,11 +59,25 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'project-shell.html'));
   });
 
-  // Studio — vertical slice Questions (Phase 2B). Même principe que
-  // le reste : page statique publique, les vraies données/écritures
-  // passent par /api/projects/:id/studio/*, protégées par devAuth +
-  // requireProjectCapability côté client.
+  // Studio — route nue = point d'entrée par défaut depuis Project
+  // Shell (ROUTES.studio() ne pointe jamais vers un sous-chemin) --
+  // doit atterrir sur Homepage, jamais sur Questions. Auparavant
+  // Questions occupait cette route (premier domaine construit,
+  // Phase 2B) et n'avait jamais reçu son propre segment explicite --
+  // corrigé : Questions a maintenant SA PROPRE route ci-dessous,
+  // exactement comme les autres domaines, et la route nue sert
+  // désormais studio-homepage.html.
   app.get('/projects/:projectId/studio', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'studio-homepage.html'));
+  });
+
+  // Studio — vertical slice Questions (Phase 2B), désormais sur son
+  // propre segment explicite (/studio/questions), jamais la route nue.
+  app.get('/projects/:projectId/studio/questions', (req, res, next) => {
     if (!UUID_PATTERN.test(req.params.projectId)) {
       next();
       return;

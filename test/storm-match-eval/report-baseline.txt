@@ -1,0 +1,94 @@
+==============================================================================
+STORM MATCH — RAPPORT D'ÉVALUATION (moteur actuel, corpus Équinoxe)
+==============================================================================
+Corpus : 112 questions réelles (Équinoxe) — 30 canoniques testées
+Requêtes d'évaluation : 270 formulations + 30 ambiguës + 20 hors-corpus = 320
+
+--- Tableau de métriques par type de formulation ---
+
+Type                  Requêtes    Top-1    Top-3  Abstention
+nearIdentical               30    86.7%    90.0%       10.0%
+naturalParaphrase           30    36.7%    53.3%       36.7%
+conversational              30    43.3%    60.0%       36.7%
+short                       30    63.3%    70.0%       30.0%
+synonym                     30    33.3%    40.0%       43.3%
+differentVocab              30    16.7%    23.3%       66.7%
+imperfectSyntax             30    80.0%    83.3%       16.7%
+typo                        30    56.7%    60.0%       40.0%
+keywordsOnly                30    46.7%    56.7%       33.3%
+
+Top-1 accuracy globale (hors ambiguës/hors-corpus) : 51.5% (139/270)
+
+Abstention correcte (hors-corpus) : 17/20 (85.0%)
+Faux positifs sur hors-corpus : 3/20 (15.0%)
+
+Ambiguïté (30 requêtes) : 2 correctes / 23 abstentions / 5 incorrectes
+
+--- Faux positifs dangereux (score >= 28, réponse fausse avec forte confiance) ---
+Aucun.
+
+--- Faux positifs sur requêtes hors-corpus (jamais censé matcher) ---
+  "Comment installer Python sur mon ordinateur personnel ?" -> "Quel matériel IT sera fourni sur les nouveaux postes ?"
+  "Comment se muscler efficacement en salle de sport ?" -> "Comment je réserve une salle de réunion ?"
+  "Quelle est la différence entre le Wi-Fi 5 et le Wi-Fi 6 en général ?" -> "C’est quoi la différence entre Focus et Bibliothèque ?"
+
+--- Réussites surprenantes (formulation éloignée, bonne réponse quand même) ---
+  [conversational] "On peut aller jeter un œil à Cobalt avant d’y être ?" -> "Est-ce que je peux visiter Cobalt avant le déménagement ?"
+  [typo] "je peu visiter cobal avant le demenagement" -> "Est-ce que je peux visiter Cobalt avant le déménagement ?"
+  [synonym] "Aurai-je un poste nominatif ?" -> "Aurai-je un bureau attitré ?"
+  [typo] "aurai je un buro attitre" -> "Aurai-je un bureau attitré ?"
+  [typo] "doi je reserver un poste" -> "Dois-je réserver un poste ?"
+  [conversational] "Pour la bibliothèque, faut réserver ou j’y vais direct ?" -> "Faut-il réserver pour aller à la Bibliothèque ?"
+  [typo] "faut il reservé pour la bibliotheque" -> "Faut-il réserver pour aller à la Bibliothèque ?"
+  [typo] "ou travailler o calme" -> "Où travailler au calme ?"
+  [typo] "capacite des sale de reunion" -> "Quelle est la capacité des salles de réunion ?"
+  [synonym] "Aurai-je un rangement individuel ?" -> "J’aurai un casier personnel ?"
+  (45 au total, 10 premières affichées)
+
+--- Échecs (Top-1 incorrect) ---
+  [synonym] "Quand a lieu le transfert vers le nouveau site ?" -> attendu "Quand déménageons-nous ?", obtenu "Quand aura lieu la semaine de préparation ?" (score 12)
+  [differentVocab] "Quand est prévue la bascule vers Cobalt ?" -> attendu "Quand déménageons-nous ?", obtenu "Est-ce que je peux visiter Cobalt avant le déménagement ?" (score 12)
+  [keywordsOnly] "date déménagement Cobalt" -> attendu "Quand déménageons-nous ?", obtenu "Est-ce que je peux visiter Cobalt avant le déménagement ?" (score 12)
+  [synonym] "Puis-je découvrir le futur site avant l’emménagement ?" -> attendu "Est-ce que je peux visiter Cobalt avant le déménagement ?", obtenu "Puis-je passer un entretien RH confidentiel sur site ?" (score 12)
+  [naturalParaphrase] "Vais-je avoir un poste qui m’est réservé ?" -> attendu "Aurai-je un bureau attitré ?", obtenu "Je vais devoir changer de bureau tous les jours ?" (score 12)
+  [conversational] "Du coup j’ai un bureau à moi ou pas ?" -> attendu "Aurai-je un bureau attitré ?", obtenu "Pourquoi ne pas garder un bureau attitré pour tout le monde ?" (score 12)
+  [conversational] "Le flex office là, ça veut dire quoi concrètement ?" -> attendu "C’est quoi le flex office exactement ?", obtenu "Le flex office, ça veut dire moins de postes que de personnes ?" (score 24)
+  [conversational] "Je dois booker un poste avant de venir ou pas ?" -> attendu "Dois-je réserver un poste ?", obtenu "Pourquoi ne pas garder un bureau attitré pour tout le monde ?" (score 12)
+  [naturalParaphrase] "Combien de personnes peuvent tenir dans une salle de réunion ?" -> attendu "Quelle est la capacité des salles de réunion ?", obtenu "Comment je réserve une salle de réunion ?" (score 12)
+  [conversational] "Les salles de réunion font combien de places à peu près ?" -> attendu "Quelle est la capacité des salles de réunion ?", obtenu "Comment je réserve une salle de réunion ?" (score 12)
+  [differentVocab] "Combien de participants dans une salle de réunion classique ?" -> attendu "Quelle est la capacité des salles de réunion ?", obtenu "Comment je réserve une salle de réunion ?" (score 12)
+  [naturalParaphrase] "Quelle est la capacité du local vélos ?" -> attendu "Combien de places vélos ?", obtenu "Le local vélos a des douches à proximité ?" (score 12)
+  [naturalParaphrase] "Vais-je conserver le même ordinateur après le déménagement ?" -> attendu "Puis-je garder mon ordinateur actuel ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
+  [differentVocab] "Mon laptop actuel reste-t-il le même après la bascule ?" -> attendu "Puis-je garder mon ordinateur actuel ?", obtenu "Qui puis-je contacter pour une question d’accessibilité avant même le déménagement ?" (score 12)
+  [naturalParaphrase] "Le wifi est-il disponible dans tous les espaces du bâtiment ?" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
+  [conversational] "Y a du wifi partout ou juste dans certains coins ?" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
+  [synonym] "La couverture réseau sans fil couvre-t-elle tout le site ?" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
+  [typo] "y a t il du wifi partou dans le batiment" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
+  [keywordsOnly] "wifi couverture bâtiment" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
+  [synonym] "Comment assurer la discrétion des échanges en espace partagé ?" -> attendu "Comment garantir la confidentialité dans un open space ?", obtenu "Y a-t-il un espace pour les échanges informels ?" (score 12)
+  (37 au total, 20 premiers affichés)
+
+--- Abstentions excessives (aucune réponse alors qu'une existe) ---
+  [nearIdentical] "Quand est-ce qu’on déménage ?" -> attendu "Quand déménageons-nous ?"
+  [naturalParaphrase] "À quelle date est prévu le déménagement ?" -> attendu "Quand déménageons-nous ?"
+  [conversational] "Du coup on part quand pour Cobalt ?" -> attendu "Quand déménageons-nous ?"
+  [short] "date déménagement ?" -> attendu "Quand déménageons-nous ?"
+  [typo] "quand est-ce qu on demenage svp" -> attendu "Quand déménageons-nous ?"
+  [differentVocab] "Des visites du nouveau site sont-elles prévues au préalable ?" -> attendu "Est-ce que je peux visiter Cobalt avant le déménagement ?"
+  [differentVocab] "Est-ce que j’ai un desk qui m’est dédié ?" -> attendu "Aurai-je un bureau attitré ?"
+  [keywordsOnly] "bureau attribué" -> attendu "Aurai-je un bureau attitré ?"
+  [synonym] "C’est quoi le principe du poste non attribué ?" -> attendu "C’est quoi le flex office exactement ?"
+  [differentVocab] "Comment fonctionne le desk sharing chez nous ?" -> attendu "C’est quoi le flex office exactement ?"
+  [typo] "c est quoi le flexe office" -> attendu "C’est quoi le flex office exactement ?"
+  [synonym] "La réservation d’un desk est-elle obligatoire ?" -> attendu "Dois-je réserver un poste ?"
+  [differentVocab] "Y a-t-il une réservation à faire pour avoir une place ?" -> attendu "Dois-je réserver un poste ?"
+  [keywordsOnly] "réservation poste obligatoire" -> attendu "Dois-je réserver un poste ?"
+  [naturalParaphrase] "La Bibliothèque nécessite-t-elle une réservation ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
+  [short] "réservation bibliothèque ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
+  [synonym] "L’accès à la Bibliothèque est-il libre ou sur réservation ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
+  [differentVocab] "Le silence room nécessite-t-il une inscription préalable ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
+  [keywordsOnly] "bibliothèque réservation" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
+  [conversational] "Y a un coin tranquille pour bosser sans bruit ?" -> attendu "Où travailler au calme ?"
+  (94 au total, 20 premières affichées)
+
+==============================================================================

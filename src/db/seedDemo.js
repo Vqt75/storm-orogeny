@@ -583,7 +583,7 @@ async function generateDemoTelemetry(pool, { tenantId, projectId, questionIdByTe
   logger.info({ inserted }, 'Télémétrie démo générée');
 }
 
-export { seedDemo, generateDemoTelemetry, DEMO_TENANT_NAME, DEMO_PROJECT_NAME, CONTENT_AUTHOR_EMAIL, findOrCreateDemoTenant, grantPlatformDemoIdentityAccess, PLATFORM_DEMO_IDENTITY_EMAIL };
+export { seedDemo, generateDemoTelemetry, DEMO_TENANT_NAME, DEMO_PROJECT_NAME, CONTENT_AUTHOR_EMAIL, findOrCreateDemoTenant, grantPlatformDemoIdentityAccess, PLATFORM_DEMO_IDENTITY_EMAIL, QUESTIONS };
 
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';

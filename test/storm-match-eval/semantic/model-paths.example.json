@@ -1,0 +1,7 @@
+{
+  "models": {
+    "e5-small": "C:/models/intfloat--multilingual-e5-small",
+    "multilingual-minilm": "C:/models/sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2",
+    "distiluse-cased-v2": "C:/models/sentence-transformers--distiluse-base-multilingual-cased-v2"
+  }
+}

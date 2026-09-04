@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "key": "e5-small",
+      "modelId": "intfloat/multilingual-e5-small",
+      "dimension": 384,
+      "maxSequenceLength": 512,
+      "queryPrefix": "query: ",
+      "passagePrefix": "passage: ",
+      "pooling": "mean",
+      "poolingInputDimension": 384,
+      "normalization": "l2",
+      "nativeNormalizeModule": true,
+      "doLowerCase": false,
+      "moduleTypes": [
+        "sentence_transformers.models.Transformer",
+        "sentence_transformers.models.Pooling",
+        "sentence_transformers.models.Normalize"
+      ],
+      "sources": [
+        "https://huggingface.co/intfloat/multilingual-e5-small",
+        "https://huggingface.co/intfloat/multilingual-e5-small/blob/main/modules.json",
+        "https://huggingface.co/intfloat/multilingual-e5-small/blob/main/sentence_bert_config.json",
+        "https://huggingface.co/intfloat/multilingual-e5-small/blob/main/1_Pooling/config.json"
+      ]
+    },
+    {
+      "key": "multilingual-minilm",
+      "modelId": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "dimension": 384,
+      "maxSequenceLength": 128,
+      "queryPrefix": "",
+      "passagePrefix": "",
+      "pooling": "mean",
+      "poolingInputDimension": 384,
+      "normalization": "l2-for-cosine",
+      "nativeNormalizeModule": false,
+      "doLowerCase": false,
+      "moduleTypes": [
+        "sentence_transformers.models.Transformer",
+        "sentence_transformers.models.Pooling"
+      ],
+      "sources": [
+        "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/blob/main/modules.json",
+        "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/blob/main/sentence_bert_config.json",
+        "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/blob/main/1_Pooling/config.json"
+      ]
+    },
+    {
+      "key": "distiluse-cased-v2",
+      "modelId": "sentence-transformers/distiluse-base-multilingual-cased-v2",
+      "dimension": 512,
+      "maxSequenceLength": 128,
+      "queryPrefix": "",
+      "passagePrefix": "",
+      "pooling": "mean",
+      "poolingInputDimension": 768,
+      "postPooling": "dense-768-to-512-tanh",
+      "normalization": "l2-for-cosine",
+      "nativeNormalizeModule": false,
+      "doLowerCase": false,
+      "moduleTypes": [
+        "sentence_transformers.models.Transformer",
+        "sentence_transformers.models.Pooling",
+        "sentence_transformers.models.Dense"
+      ],
+      "sources": [
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased-v2",
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased-v2/blob/main/modules.json",
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased-v2/blob/main/sentence_bert_config.json",
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased-v2/blob/main/1_Pooling/config.json",
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased-v2/blob/main/2_Dense/config.json"
+      ]
+    }
+  ]
+}

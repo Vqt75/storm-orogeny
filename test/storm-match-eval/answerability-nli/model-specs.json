@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "key": "nli-minilm-l6",
+      "modelId": "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli",
+      "revision": "0a71e92a985b6e1ad1828cf67ce9c459639c1dca",
+      "architecture": "XLMRobertaForSequenceClassification",
+      "modelType": "xlm-roberta",
+      "parameters": 106995589,
+      "weightBytes": 427997022,
+      "artifactBytes": 450157449,
+      "artifactFingerprint": "b4d6f349661b525bb13b3c381211db35ea56daca0f6a023121fdb31dbcdf7bec",
+      "weightSha256": "91b323ccf247ec1e3b5925d566230bae7c52de8147e6062b42e250089a3fc80b",
+      "license": "mit",
+      "contextLength": 514,
+      "benchmarkMaxLength": 512,
+      "files": [
+        "README.md",
+        "config.json",
+        "model.safetensors",
+        "sentencepiece.bpe.model",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json"
+      ],
+      "labelIds": { "entailment": 0, "neutral": 1, "contradiction": 2 }
+    },
+    {
+      "key": "nli-mdeberta-base",
+      "modelId": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+      "revision": "8adb042d524ecd5c26d3e3ba0e3fbcf7e2d0864c",
+      "architecture": "DebertaV2ForSequenceClassification",
+      "modelType": "deberta-v2",
+      "parameters": 278812163,
+      "weightBytes": 557652046,
+      "artifactBytes": 578297589,
+      "artifactFingerprint": "055e72a84c906209af56807cd8d4bf19d1ff200de2995772ad9126829e4b2d6d",
+      "weightSha256": "65af59b1ff4450b09ecbf13ca35c840dbf038b26ff8e10e5ea89ca724828ed1e",
+      "license": "mit",
+      "contextLength": 512,
+      "benchmarkMaxLength": 512,
+      "files": [
+        "README.md",
+        "config.json",
+        "model.safetensors",
+        "spm.model",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json"
+      ],
+      "labelIds": { "entailment": 0, "neutral": 1, "contradiction": 2 }
+    }
+  ],
+  "deferred": [
+    {
+      "modelId": "deepset/xlm-roberta-base-squad2",
+      "reason": "Extractive QA with an explicit no-answer head is a distinct third path; it is not executed in this NLI-only spike."
+    }
+  ]
+}

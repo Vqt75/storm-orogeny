@@ -32,16 +32,21 @@ Le pipeline à mesurer reste volontairement simple :
 
 1. un retriever existant, gelé et versionné, fournit un Top-K ;
 2. le même classifieur évalue chaque paire `query × Q+A` indépendamment ;
-3. une règle d’agrégation préenregistrée produit la décision requête :
-   - aucun candidat `covered` : `notCovered` ;
-   - exactement un candidat `covered` : `covered(entryId)` ;
-   - plusieurs candidats `covered` concurrents : `ambiguous`.
+3. les candidats `covered` sont regroupés par `answerEquivalenceGroupId` ;
+4. une règle d’agrégation préenregistrée produit la décision requête :
+   - aucun groupe couvert : `notCovered` ;
+   - exactement un groupe couvert :
+     `covered(answerEquivalenceGroup.preferredEntryId)` ;
+   - plusieurs groupes de réponses substantiellement différents couverts et
+     concurrents : `ambiguous`.
 
 Il n’existe pas de label candidate-level `ambiguous`. L’ambiguïté est une
 propriété de l’ensemble des candidats compatibles avec la requête, pas d’une
 paire isolée. Le classifieur estime seulement si une Q+A constitue une réponse
 valide et complète sous au moins une interprétation raisonnable de la requête ;
-il ne décide jamais seul que cette interprétation est unique.
+il ne décide jamais seul que cette interprétation est unique. Plusieurs
+`entryId` couverts dans un même groupe d’équivalence comptent comme un seul
+groupe et ne produisent jamais `ambiguous`.
 
 Le score du retriever ne devient pas une condition lexicale ni une vérité. Il
 sert uniquement à construire l’ensemble candidat. Les métriques séparent
@@ -72,18 +77,58 @@ Les labels binaires portent sur une paire et sur la totalité de la demande :
   annexe, contredit la demande, ou exige une information absente/non publiée.
 
 La clause « au moins une interprétation raisonnable » permet d’annoter plusieurs
-candidats `covered` pour une requête réellement sous-spécifiée. Leur concurrence
-est détectée ensuite par l’agrégateur. Elle ne permet pas de marquer `covered`
-une réponse seulement partielle à une demande explicite.
+candidats `covered`. Leur concurrence n’existe au niveau système que si ces
+candidats appartiennent à plusieurs groupes de réponses substantiellement
+différents. Elle ne permet pas de marquer `covered` une réponse seulement
+partielle à une demande explicite.
+
+### Groupes d’équivalence de réponse
+
+Chaque `entryId` utilisé par le dataset appartient à exactement un
+`answerEquivalenceGroupId`, y compris lorsqu’il constitue un groupe singleton.
+Deux entrées appartiennent au même groupe uniquement si leurs réponses sont
+interchangeables pour la demande couverte du point de vue métier : substituer
+l’une à l’autre ne doit changer ni condition, ni exception, ni portée, ni
+public, ni quantité, ni date, ni procédure, ni action recommandée. Une proximité
+thématique, un vocabulaire commun, une relation parent/enfant ou deux réponses
+complémentaires ne suffisent jamais.
+
+Le manifeste d’équivalence est construit et revu avant les formulations. Chaque
+groupe contient au minimum :
+
+- `answerEquivalenceGroupId` stable ;
+- la liste exhaustive et non vide de ses `entryIds` ;
+- un unique `preferredEntryId`, obligatoirement membre du groupe ;
+- une justification métier explicite de l’équivalence ou du singleton ;
+- le statut et les auteurs des deux revues indépendantes ;
+- son fingerprint et la version du snapshot canonique de référence.
+
+Le `preferredEntryId` est choisi avant dataset et entraînement selon la règle
+déterministe suivante : retenir l’entrée dont la question et la réponse forment
+la formulation canonique la plus explicite et autonome sans élargir la portée
+métier ; si plusieurs entrées restent strictement équivalentes selon ce critère,
+retenir l’identifiant de fixture ordinal le plus faible. Le choix ne dépend
+jamais d’un score de retrieval, d’un output modèle ou d’un résultat expérimental.
+Toute modification ultérieure du groupe ou de son `preferredEntryId` crée une
+nouvelle version du manifeste et invalide les datasets et holdouts dérivés.
 
 ### Gold system-level
 
 Chaque requête possède un `goldCoveredCandidateIds` exhaustif dans le snapshot
-autorisé :
+autorisé et un `goldCoveredAnswerEquivalenceGroupIds` dérivé comme l’ensemble
+dédupliqué de leurs groupes :
 
-- ensemble vide : `notCovered` ;
-- un seul identifiant : `covered(expectedEntryId)` ;
-- au moins deux identifiants incompatibles comme réponse unique : `ambiguous`.
+- ensemble de groupes vide : `notCovered` ;
+- exactement un groupe :
+  `covered(answerEquivalenceGroup.preferredEntryId)` ;
+- au moins deux groupes substantiellement différents, chacun constituant une
+  réponse complète sous une interprétation concurrente : `ambiguous`.
+
+La cardinalité brute de `goldCoveredCandidateIds` ne détermine donc plus le
+gold system-level. Deux ou plusieurs candidats couverts appartenant au même
+groupe restent un cas `covered`, avec le `preferredEntryId` du groupe comme
+`expectedEntryId`. Un cas ne peut être `ambiguous` si tous ses candidats
+couverts appartiennent au même groupe.
 
 Une ambiguïté exige donc deux interprétations raisonnables ou plus, chacune
 soutenue par une Q+A différente. Une simple incertitude d’annotation, une faible
@@ -108,13 +153,15 @@ La source versionnée est un cas requête, avec au minimum :
 - `caseId`, `query`, `expectedSystemOutcome`, `primaryQueryType`, tags secondaires,
   `language` ;
 - `expectedEntryId` ou `null`, `intentId: null` ;
-- `goldCoveredCandidateIds`, dont la cardinalité détermine le gold system-level ;
+- `goldCoveredCandidateIds` exhaustif et
+  `goldCoveredAnswerEquivalenceGroupIds` dérivé, dont la cardinalité détermine
+  le gold system-level ;
 - `sourceKnowledgeClusterIds`, `scenarioFamilyId` et liste exhaustive des
   intentions impliquées ;
 - `risk: weak | medium | dangerous | null`, catégorie et justification du risque ;
 - `provenance`, `authorBatch`, `split`, statut et auteurs de la double revue ;
 - pour chaque paire dérivée : `candidateEntryId`, stratégie de négatif et label
-  binaire de paire.
+  binaire de paire, avec l’`answerEquivalenceGroupId` issu du manifeste.
 
 Les textes Q+A restent référencés par le snapshot canonique et son fingerprint,
 sans les dupliquer arbitrairement. Les identifiants sont des fixtures
@@ -216,8 +263,13 @@ Un `dangerousFalsePositive` survient si le système retourne
 `covered(entryId)` sur un cas `dangerous` alors que :
 
 - le gold system-level est `notCovered` ou `ambiguous` ; ou
-- le gold est `covered(expectedEntryId)` mais l’identifiant retourné est un
-  autre candidat dont la réponse déclenche le risque annoté.
+- le gold est `covered(expectedEntryId)` mais le système retourne un candidat
+  d’un autre groupe d’équivalence dont la réponse déclenche le risque annoté.
+
+Retourner un membre non préféré du bon groupe reste une erreur système par
+rapport au contrat déterministe, mais n’est pas un `dangerousFalsePositive` si
+l’équivalence métier du groupe est valide : le contenu de réponse est alors
+substantiellement interchangeable. Cette erreur est publiée séparément.
 
 Le futur holdout de 300 cas contient au minimum 60 opportunités dangereuses :
 au moins 30 `notCovered`, 20 `ambiguous` et 10 `covered` présentant un risque de
@@ -244,7 +296,10 @@ Règles :
   `notCovered`, notamment le candidat qui pourrait provoquer le faux positif ;
 - pour les ambiguïtés, au moins deux candidats concurrents sont annotés
   `covered` parce que chacun est une réponse complète sous une interprétation
-  raisonnable différente ; les autres candidats restent `notCovered` ;
+  raisonnable différente, et ils appartiennent à des groupes d’équivalence
+  différents ;
+  plusieurs candidats couverts du même groupe ne suffisent jamais à créer une
+  ambiguïté ; les autres candidats restent `notCovered` ;
 - les négatifs aléatoires faciles ne dépassent pas 20 % des paires négatives ;
 - aucun candidat appartenant à un cluster réservé au holdout ne peut être utilisé
   dans train, development ou calibration.
@@ -254,8 +309,8 @@ Règles :
 ### Partition par familles de connaissance
 
 Une séparation par formulation seule serait contaminée : plusieurs Q&A
-Équinoxe sont voisines. La partition est donc terminée et scellée **avant toute
-génération de requête**.
+Équinoxe sont voisines. Le manifeste d’équivalence, puis la partition, sont donc
+terminés et scellés **avant toute génération de requête**.
 
 Les 112 entrées deviennent les nœuds d’un graphe de connaissances. Une arête
 relie deux entrées qui partagent le même fait publié, une réponse quasi dupliquée,
@@ -272,10 +327,16 @@ train/development/calibration/holdout, mais l’intégrité des clusters prévau
 ces nombres. Le manifeste entrée → cluster → split et son SHA-256 sont gelés
 avant que les auteurs reçoivent les connaissances de leur split.
 
+Tous les membres d’un même `answerEquivalenceGroupId` appartiennent au même
+`knowledgeClusterId` et au même split. Le manifeste de partition référence le
+fingerprint du manifeste d’équivalence ; il est invalide si un groupe traverse
+deux clusters ou deux splits.
+
 Les contraintes de répartition sont :
 
 - aucun `knowledgeClusterId`, `scenarioFamilyId`, `entryId`, patron de requête
   ou lot d’auteur ne traverse deux splits ;
+- aucun `answerEquivalenceGroupId` ne traverse deux clusters ou deux splits ;
 - aucune quasi-duplication de connaissance, famille sémantique proche,
   relation parent/enfant ou variante d’une même règle ne traverse deux splits ;
 - les thèmes, types et difficultés restent stratifiés ;
@@ -324,12 +385,15 @@ L’ordre suivant est obligatoire et auditable :
 
 1. approbation et scellement du présent protocole, incluant définitions, quotas,
    métriques, seuils de succès et budgets de portabilité ;
-2. construction puis scellement des clusters et de leur partition ;
-3. seulement ensuite, rédaction des jeux train/development/calibration ;
-4. choix d’une short-list conforme aux contraintes déjà gelées ;
-5. entraînement, sélection sur development et calibration selon le budget fixé ;
-6. rédaction indépendante du holdout avec le manifeste déjà gelé ;
-7. gel de la configuration gagnante, puis unique ouverture du holdout.
+2. construction, double revue puis scellement du manifeste
+   `entryId → answerEquivalenceGroupId → preferredEntryId` ;
+3. construction puis scellement des clusters et de leur partition, sans couper
+   un groupe d’équivalence ;
+4. seulement ensuite, rédaction des jeux train/development/calibration ;
+5. choix d’une short-list conforme aux contraintes déjà gelées ;
+6. entraînement, sélection sur development et calibration selon le budget fixé ;
+7. rédaction indépendante du holdout avec les manifestes déjà gelés ;
+8. gel de la configuration gagnante, puis unique ouverture du holdout.
 
 Toute modification d’un critère, quota, poids, règle d’agrégation, budget ou
 définition après l’étape 1 crée une nouvelle version du protocole. Elle exige un
@@ -356,6 +420,17 @@ minima par catégorie, les 60 opportunités dangereuses minimales, la méthode d
 pondération secondaire et tous les dénominateurs attendus. Les textes ne sont
 créés qu’ensuite par le curateur indépendant à partir des seuls clusters holdout.
 
+Le holdout peut recevoir un premier scellement technique — fingerprint du
+plaintext, chiffrement authentifié, checksum du ciphertext et isolation hors du
+working tree — avant les revues humaines. Son état obligatoire reste alors
+`PENDING_HUMAN_REVIEW`; il ne peut être ouvert par le training, la sélection de
+modèle ou la calibration. Les paquets de revue sont dérivés de cette version
+sans output modèle. Après adjudication, toute correction produit une nouvelle
+version scellée avec filiation explicite vers la précédente ; aucune version
+antérieure ni aucun jugement initial n’est écrasé. Seul l’état
+`SEALED_READY_FOR_ONE_TIME_EVALUATION`, obtenu après les deux revues et
+l’adjudication, autorise l’unique passage final.
+
 Un échec clôt l’expérience. Toute nouvelle architecture ou modification après
 lecture des erreurs exige un nouveau holdout vierge ; l’ancien devient un corpus
 observé de développement.
@@ -363,9 +438,48 @@ observé de développement.
 ## Annotation et Quality Gate
 
 Chaque cas calibration/holdout est écrit par une personne et revu à l’aveugle
-par deux autres. L’accord requis est total sur le label et sur le niveau
-`dangerous`; les désaccords sont arbitrés avant scellement par une quatrième
-revue ou le cas est retiré.
+par deux humains indépendants :
+
+- Reviewer A : Vivien ;
+- Reviewer B : humain désigné ultérieurement, de préférence familier du domaine
+  workplace/change et n’ayant vu ni les labels ni les décisions de Reviewer A.
+
+Deux paquets de revue séparés sont produits à partir du même fingerprint de
+dataset. Ils emploient deux ordres randomisés différents, enregistrés dans leurs
+manifestes respectifs. La randomisation ne change jamais le contenu et reste
+reproductible à partir d’un seed conservé par le curateur ; seul le hash du seed
+figure dans le paquet. Aucun paquet ne contient output modèle, score,
+probabilité, suggestion automatique, gold proposé, décision de l’autre reviewer
+ou information sur son avancement.
+
+Chaque paquet fournit uniquement les informations métier nécessaires : texte de
+la requête, Q+A candidates, identifiants de revue aveugles, contexte publié
+strictement requis et définitions de la grille. Les identifiants de split, les
+labels préremplis et l’ordre du dataset source sont masqués. La grille est
+strictement identique pour les deux reviewers et leur demande, sans valeur par
+défaut, de statuer sur :
+
+1. `covered | notCovered` pour chaque paire candidate-level ;
+2. l’équivalence métier entre entrées et les groupes qui en résultent ;
+3. le `preferredEntryId` de chaque groupe selon la règle préenregistrée ;
+4. le gold système `notCovered | covered(preferredEntryId) | ambiguous` ;
+5. le statut `dangerousFalsePositiveOpportunity: true | false` et sa catégorie
+   de conséquence.
+
+Les réponses A et B sont enregistrées dans deux artefacts append-only distincts,
+fingerprintés et horodatés. Un reviewer n’accède jamais à l’autre paquet rempli.
+L’accord requis est total sur les labels de paire, la partition en groupes, le
+`preferredEntryId`, le gold système et le marquage dangereux. Après réception
+des deux réponses, une phase d’adjudication produit un registre de désaccords
+contenant : jugement A immuable, jugement B immuable, décision arbitrée, auteur
+de l’arbitrage et justification. Aucun jugement initial n’est réécrit
+silencieusement. Un cas non résolu est retiré et remplacé avant scellement final,
+avec reprise des deux revues pour son remplaçant.
+
+Le Quality Gate humain reste `PENDING_HUMAN_REVIEW` tant que Reviewer A et
+Reviewer B n’ont pas terminé et que tous les désaccords ne sont pas adjudiqués.
+Il est interdit de le déclarer accompli sur la base de contrôles automatiques ou
+d’une revue par un agent.
 
 Contrôles automatiques avant scellement :
 
@@ -374,12 +488,26 @@ Contrôles automatiques avant scellement :
   voisin sémantique suspect entre splits, suivie d’une revue humaine ;
 - absence de traduction ou de paraphrase d’un cas observé ;
 - existence de tous les `expectedEntryId` dans le snapshot autorisé ;
+- chaque `entryId` du snapshot apparaît dans exactement un groupe d’équivalence
+  et aucun `entryId` n’apparaît dans plusieurs groupes ;
+- chaque groupe est non vide et possède un unique `preferredEntryId` valide,
+  membre du groupe ;
 - aucune formulation qui contient involontairement la réponse ;
 - cohérence `expectedSystemOutcome`, `expectedEntryId`,
-  `goldCoveredCandidateIds`, `sourceKnowledgeClusterIds`, `scenarioFamilyId`,
-  intentions et labels binaires de paire ;
+  `goldCoveredCandidateIds`, `goldCoveredAnswerEquivalenceGroupIds`,
+  `sourceKnowledgeClusterIds`, `scenarioFamilyId`, intentions et labels binaires
+  de paire ;
+- égalité stricte entre `goldCoveredAnswerEquivalenceGroupIds` déclaré et
+  l’ensemble dédupliqué des groupes des `goldCoveredCandidateIds` ;
+- `notCovered` si cet ensemble est vide, `covered(preferredEntryId)` s’il
+  contient un groupe, et `ambiguous` uniquement s’il contient au moins deux
+  groupes substantiellement différents ;
+- absence de faux `ambiguous` lorsque tous les candidats couverts appartiennent
+  au même `answerEquivalenceGroupId` ;
+- cohérence du groupe déclaré pour chaque paire avec le manifeste d’équivalence ;
 - quotas par classe, type, risque, langue, cluster et lot d’auteur ;
-- fingerprint stable du corpus et du manifeste de partition.
+- fingerprint stable du corpus, du manifeste d’équivalence et du manifeste de
+  partition.
 
 Le corpus principal français est complété par des cas anglais, néerlandais et
 espagnols distribués dans chaque split et annotés nativement. Les traductions
@@ -410,6 +538,16 @@ risque de surapprentissage au development set.
 
 ## Mesures obligatoires
 
+Le rapport conserve trois niveaux sans les fusionner :
+
+1. **candidate-level** : matrice de confusion binaire, précision/recall/F1 de
+   `covered`, Brier score, ECE et courbes sur les paires effectivement fournies ;
+2. **group-level** : précision/recall des
+   `answerEquivalenceGroupId` couverts, nombre de groupes gold/prédits et taux de
+   collapse correct des multiples `entryId` équivalents ;
+3. **system-level** : décision exacte
+   `notCovered | covered(preferredEntryId) | ambiguous` après agrégation.
+
 Les métriques end-to-end principales sont calculées au niveau requête, en lecture
 macro et selon la pondération secondaire préenregistrée :
 
@@ -420,7 +558,8 @@ macro et selon la pondération secondaire préenregistrée :
 - faux positifs faibles/moyens/dangereux, avec numérateur, dénominateur et
   exemples audités ;
 - sur-abstention : gold `covered(entryId)` rendu `notCovered` ou `ambiguous` ;
-- match vers le mauvais `entryId` ;
+- match vers le mauvais groupe ou vers un `entryId` différent du
+  `preferredEntryId` préenregistré ;
 - diagnostic de calibration candidate-level : Brier score, ECE et courbes ;
 - latence CPU bout-en-bout mean/p50/p95 pour Top-3 et Top-5 ;
 - cold start processus et cold start disque documentés séparément ;
@@ -434,19 +573,22 @@ des seules paires récupérées. Une erreur end-to-end reçoit exactement une ca
 dans cet ordre :
 
 1. `retrievalMiss` : l’agrégateur oracle ne peut pas produire le gold system-level
-   avec le Top-K fourni. Pour `covered`, l’unique candidat gold manque ; pour
-   `ambiguous`, moins de deux candidats gold concurrents sont présents. Un cas
-   `notCovered`, dont l’ensemble gold est vide, n’est jamais un retrieval miss ;
+   avec le Top-K fourni. Pour `covered`, aucun candidat du groupe gold unique
+   n’est présent ; pour `ambiguous`, au moins un groupe gold concurrent n’est
+   représenté par aucun candidat. Un cas `notCovered`, dont l’ensemble de groupes
+   gold est vide, n’est jamais un retrieval miss ;
 2. `candidatePresentButClassifierError` : le Top-K est suffisant selon l’oracle,
    mais au moins une prédiction binaire erronée change la décision finale ;
 3. `aggregationError` : le Top-K est suffisant et les labels binaires prédits
-   correspondent aux labels gold des paires, mais l’implémentation de la règle
-   0/1/plusieurs produit tout de même un mauvais outcome.
+   correspondent aux labels gold des paires et les groupes sont corrects, mais
+   l’implémentation de la règle zéro/un/plusieurs groupes produit tout de même un
+   mauvais outcome ou un autre `entryId` que le `preferredEntryId`.
 
 La troisième catégorie devrait être nulle ; elle détecte un défaut de règle,
 d’annotation ou d’implémentation. Le rapport publie Recall@3/Recall@5 du
 retriever, métriques pairwise conditionnelles sur les candidats effectivement
-présents, exactitude de l’agrégateur oracle et résultat end-to-end. Une requête
+présents, métriques group-level, exactitude de l’agrégateur oracle et résultat
+end-to-end. Une requête
 classée `retrievalMiss` est exclue des dénominateurs d’erreur du classifieur ; une
 erreur du classifieur n’est pas comptée comme échec du retriever.
 
@@ -510,12 +652,16 @@ approuvée avant l’entraînement, sur ces critères et non sur le futur holdou
 
 | risque | safeguard |
 |---|---|
+| proximité thématique prise à tort pour une équivalence métier | critère d’interchangeabilité stricte, justification par groupe et double revue humaine avant formulation |
+| entrées équivalentes comptées comme ambiguïté | agrégation sur les groupes dédupliqués et Quality Gate `FALSE_AMBIGUOUS_SINGLE_GROUP` |
 | connaissance, quasi-duplication ou famille sémantique répartie entre splits | graphe métier et partition des clusters avant toute formulation ; intégrité du cluster prioritaire |
 | négatif hors corpus ou mixed intent décliné dans plusieurs splits | `scenarioFamilyId` unique et liste exhaustive des clusters sources avant rédaction |
 | ancien holdout réutilisé comme preuve | provenance `priorSpike`, usage limité aux splits observés |
 | hard negative issu d’un cluster holdout | index et générateur de candidats physiquement séparés par split |
 | traduction ou paraphrase transversale | déduplication multilingue automatique puis revue humaine |
 | tuning indirect sur le holdout | artefact chiffré, évaluateur séparé, export impossible depuis le runner de training |
+| contamination entre reviewers | paquets sans gold ni output modèle, ordres distincts, sorties append-only séparées et absence d’accès aux décisions de l’autre reviewer |
+| adjudication effaçant les désaccords | registre conservant les deux jugements initiaux, la décision arbitrée, son auteur et sa justification |
 | multiplication silencieuse des essais | budget d’essais et registre des runs préenregistrés |
 | label appris via artefact ou ID | IDs neutralisés à l’entrée ; seul le texte query/Q+A est encodé |
 | réponse partielle confondue avec couverture | règle « totalité de la demande » et double annotation des mixed intents |

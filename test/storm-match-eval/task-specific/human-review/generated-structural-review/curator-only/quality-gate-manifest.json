@@ -1,0 +1,44 @@
+{
+  "automaticQualityGateStatus": "STRUCTURAL_OK",
+  "compositionFingerprint": "2951ff970fe1e274e9ed250e25dfef95a6d9425a900b8f8b09e086d2cef5a652",
+  "finalDatasetGenerated": false,
+  "generationAuthorized": false,
+  "holdoutOpened": false,
+  "languageStratum": "fr",
+  "manifestFingerprint": "5b3c551963abdb6a52b3e1b64a47f879b16922d0a134f636d74ce7b373c1779e",
+  "packageSummary": {
+    "ambiguityFamilies": {
+      "knowledgeItemCount": 82,
+      "responsesStarted": false,
+      "reviewItemCount": 34,
+      "reviewerAPacketFingerprint": "cc1442bd1262061e9159ff273a3389d5bb377f0e33da064044f5e60b5887982c",
+      "reviewerBPacketFingerprint": "4ac68973bc7ec4646c246246b9e3f5c5c033fc7c8cb9f50d381186e6eb861aa5"
+    },
+    "equivalencePreferred": {
+      "knowledgeItemCount": 11,
+      "responsesStarted": false,
+      "reviewItemCount": 5,
+      "reviewerAPacketFingerprint": "0c9db08b70360d9ec942208bae0856809e304014513fc800a21d11a98102a6a0",
+      "reviewerBPacketFingerprint": "64e165bfe4d96f07df59fcfb8cc7bab9297532a32a27a35f498ce2ebb8ae6a3c"
+    },
+    "knowledgeBoundaries": {
+      "knowledgeItemCount": 51,
+      "responsesStarted": false,
+      "reviewItemCount": 4,
+      "reviewerAPacketFingerprint": "e56af278f61e6876755b607a281b31a3d6bde517d377fc4f3b406eab9b8d79d0",
+      "reviewerBPacketFingerprint": "406ff2fed512b6f9cd7b0d9de80a66f31eb79c31b7ee933b2e3e77d8c118ae8a"
+    },
+    "scenarioFamilyPreflight": {
+      "knowledgeItemCount": 82,
+      "responsesStarted": false,
+      "reviewItemCount": 34,
+      "reviewerAPacketFingerprint": "247973df424adea4d41e48fa32cad7d7bfc0cbc9be73bf6376477b5671a9ccbd",
+      "reviewerBPacketFingerprint": "fc8e6a3623c43709c97e023ee6c93e45d1a57189842a85e94bbcbdd7c9c7d372"
+    }
+  },
+  "reviewPacketsMaterialised": true,
+  "schemaVersion": 1,
+  "sourcePlanFingerprint": "c432d4b1726ca841a0515917d3caee9133d8d36c5f503730ad42f521b4d0df3f",
+  "status": "PENDING_HUMAN_REVIEW",
+  "structureFingerprint": "7645715532702ea42599151243126e63abcfcb6015ad711673d9e12111da361e"
+}

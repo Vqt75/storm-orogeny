@@ -1,0 +1,10 @@
+{
+  "appendOnly": true,
+  "events": [],
+  "languageStratum": "fr",
+  "packetFingerprint": "4ac68973bc7ec4646c246246b9e3f5c5c033fc7c8cb9f50d381186e6eb861aa5",
+  "packetId": "storm-03-b-ambiguityFamilies-fr",
+  "reviewerSlot": "B",
+  "schemaVersion": 1,
+  "status": "NOT_STARTED"
+}

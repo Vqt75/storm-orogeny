@@ -1,0 +1,10 @@
+{
+  "appendOnly": true,
+  "events": [],
+  "languageStratum": "fr",
+  "packetFingerprint": "fc8e6a3623c43709c97e023ee6c93e45d1a57189842a85e94bbcbdd7c9c7d372",
+  "packetId": "storm-04-b-scenarioFamilyPreflight-fr",
+  "reviewerSlot": "B",
+  "schemaVersion": 1,
+  "status": "NOT_STARTED"
+}

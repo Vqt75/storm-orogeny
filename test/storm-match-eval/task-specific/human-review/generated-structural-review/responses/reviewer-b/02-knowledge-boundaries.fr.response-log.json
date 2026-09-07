@@ -1,0 +1,10 @@
+{
+  "appendOnly": true,
+  "events": [],
+  "languageStratum": "fr",
+  "packetFingerprint": "406ff2fed512b6f9cd7b0d9de80a66f31eb79c31b7ee933b2e3e77d8c118ae8a",
+  "packetId": "storm-02-b-knowledgeBoundaries-fr",
+  "reviewerSlot": "B",
+  "schemaVersion": 1,
+  "status": "NOT_STARTED"
+}

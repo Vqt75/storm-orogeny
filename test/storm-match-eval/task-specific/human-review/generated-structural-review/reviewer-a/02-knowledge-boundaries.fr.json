@@ -1,0 +1,421 @@
+{
+  "decisionsRequired": [
+    {
+      "allowedValues": [
+        "sameConnectedComponent",
+        "separateComponents",
+        "partitionRequired",
+        "insufficientEvidence"
+      ],
+      "decisionType": "knowledgeComponentBoundary",
+      "rationaleRequired": true
+    },
+    {
+      "allowedValues": [
+        "rulesDocumented",
+        "insufficientEvidence"
+      ],
+      "decisionType": "futureCoverageBoundaryRules",
+      "rationaleRequired": true
+    }
+  ],
+  "generationAuthorized": false,
+  "humanQualityGateStatus": "PENDING_HUMAN_REVIEW",
+  "instructions": [
+    "Décider si les connaissances appartiennent à une même composante métier ou à des composantes séparées.",
+    "Décrire les conditions métier qui rendraient une future demande couverte, non couverte ou réellement ambiguë.",
+    "Ne créer aucun gold de cas : aucune formulation utilisateur n’existe à cette étape."
+  ],
+  "isolation": {
+    "curatorMappingIncluded": false,
+    "modelOutputsIncluded": false,
+    "otherReviewerResponsesIncluded": false,
+    "predictionsIncluded": false,
+    "prefilledJudgmentsIncluded": false,
+    "proposedEquivalenceGroupsIncluded": false,
+    "proposedKnowledgeClustersIncluded": false,
+    "proposedPreferredEntriesIncluded": false,
+    "scoresIncluded": false,
+    "semanticNeighbourRanksIncluded": false
+  },
+  "knowledgeItems": [
+    {
+      "canonicalAnswer": "Ce sont des postes individuels isolés, pensés pour limiter les distractions sans être totalement cloisonnés.",
+      "canonicalQuestion": "Les espaces Focus sont-ils fermés ou ouverts ?",
+      "knowledgeRef": "storm-02-a-knowledge-001"
+    },
+    {
+      "canonicalAnswer": "Oui, utilisez une salle de réunion ou une bulle pour ce type d’échange.",
+      "canonicalQuestion": "Puis-je passer un entretien RH confidentiel sur site ?",
+      "knowledgeRef": "storm-02-a-knowledge-002"
+    },
+    {
+      "canonicalAnswer": "Oui, des actualités et jalons sont publiés régulièrement dans Storm au fil de l’avancement.",
+      "canonicalQuestion": "Est-ce qu’il y aura des points d’étape réguliers ?",
+      "knowledgeRef": "storm-02-a-knowledge-003"
+    },
+    {
+      "canonicalAnswer": "Oui, des visites et une semaine de préparation sont prévues avant l’emménagement.",
+      "canonicalQuestion": "Le projet prévoit-il d’autres ateliers après le choix des quartiers ?",
+      "knowledgeRef": "storm-02-a-knowledge-004"
+    },
+    {
+      "canonicalAnswer": "Oui, les Project Rooms se réservent à la demi-journée ou à la journée.",
+      "canonicalQuestion": "Peut-on réserver une Project Room à l’avance ?",
+      "knowledgeRef": "storm-02-a-knowledge-005"
+    },
+    {
+      "canonicalAnswer": "Oui, les actualités et les jalons du projet sont mis à jour régulièrement dans Storm.",
+      "canonicalQuestion": "On peut suivre l’avancement du projet quelque part ?",
+      "knowledgeRef": "storm-02-a-knowledge-006"
+    },
+    {
+      "canonicalAnswer": "Les règles de télétravail restent celles en vigueur dans votre équipe, inchangées par le projet.",
+      "canonicalQuestion": "Mon manager peut-il m’imposer des jours fixes au bureau ?",
+      "knowledgeRef": "storm-02-a-knowledge-007"
+    },
+    {
+      "canonicalAnswer": "Le Forum est plutôt réservé aux grands événements et prises de parole, jusqu’à 120 personnes.",
+      "canonicalQuestion": "Le Forum sera-t-il utilisé pour les réunions d’équipe classiques ?",
+      "knowledgeRef": "storm-02-a-knowledge-008"
+    },
+    {
+      "canonicalAnswer": "Les espaces Focus sont des postes individuels isolés ; la Bibliothèque est un espace collectif à silence renforcé, 24 places.",
+      "canonicalQuestion": "C’est quoi la différence entre Focus et Bibliothèque ?",
+      "knowledgeRef": "storm-02-a-knowledge-009"
+    },
+    {
+      "canonicalAnswer": "Non, le projet Cobalt porte sur les espaces, pas sur les règles de présence.",
+      "canonicalQuestion": "Cobalt va-t-il imposer une présence minimale ?",
+      "knowledgeRef": "storm-02-a-knowledge-010"
+    },
+    {
+      "canonicalAnswer": "Le guide des nouveaux usages sera disponible début octobre, plusieurs mois avant le déménagement.",
+      "canonicalQuestion": "On aura combien de temps pour préparer notre déménagement personnel ?",
+      "knowledgeRef": "storm-02-a-knowledge-011"
+    },
+    {
+      "canonicalAnswer": "Les ambassadeurs sont désignés au sein de chaque service comme relais de proximité pour le projet.",
+      "canonicalQuestion": "Comment sont choisis les ambassadeurs ?",
+      "knowledgeRef": "storm-02-a-knowledge-012"
+    },
+    {
+      "canonicalAnswer": "Oui, le Forum peut être réservé pour des événements, sur demande auprès de l’équipe projet.",
+      "canonicalQuestion": "Le Forum est-il réservable pour un événement d’équipe ?",
+      "knowledgeRef": "storm-02-a-knowledge-013"
+    },
+    {
+      "canonicalAnswer": "Non, vous aurez un quartier d’équipe mais pas de poste nominatif.",
+      "canonicalQuestion": "Aurai-je un bureau attitré ?",
+      "knowledgeRef": "storm-02-a-knowledge-014"
+    },
+    {
+      "canonicalAnswer": "Le Forum est un espace pour les événements et prises de parole, jusqu’à 120 personnes.",
+      "canonicalQuestion": "Le Forum, c’est pour quoi ?",
+      "knowledgeRef": "storm-02-a-knowledge-015"
+    },
+    {
+      "canonicalAnswer": "Aucune obligation de déclarer sa présence n’est prévue pour le moment.",
+      "canonicalQuestion": "Je dois prévenir si je viens un jour précis ?",
+      "knowledgeRef": "storm-02-a-knowledge-016"
+    },
+    {
+      "canonicalAnswer": "Non, les bulles sont pensées pour un usage court et spontané, sans réservation.",
+      "canonicalQuestion": "Et les bulles, on les réserve aussi ?",
+      "knowledgeRef": "storm-02-a-knowledge-017"
+    },
+    {
+      "canonicalAnswer": "Oui, des visites sont prévues fin novembre 2026 -- les créneaux seront communiqués par les ambassadeurs.",
+      "canonicalQuestion": "Est-ce que je peux visiter Cobalt avant le déménagement ?",
+      "knowledgeRef": "storm-02-a-knowledge-018"
+    },
+    {
+      "canonicalAnswer": "Les salles de réunion et bulles sont prévues pour les échanges nécessitant de la confidentialité.",
+      "canonicalQuestion": "Comment garantir la confidentialité dans un open space ?",
+      "knowledgeRef": "storm-02-a-knowledge-019"
+    },
+    {
+      "canonicalAnswer": "Non, vous pouvez poser vos questions à tout moment via Storm.",
+      "canonicalQuestion": "Y a-t-il une date limite pour poser des questions sur le projet ?",
+      "knowledgeRef": "storm-02-a-knowledge-020"
+    },
+    {
+      "canonicalAnswer": "Le plateau témoin a ouvert ses portes le 27 juillet 2026.",
+      "canonicalQuestion": "Quand le plateau témoin a-t-il ouvert ?",
+      "knowledgeRef": "storm-02-a-knowledge-021"
+    },
+    {
+      "canonicalAnswer": "Le projet ne modifie pas les règles de télétravail actuelles.",
+      "canonicalQuestion": "Est-ce que je vais devoir venir plus souvent au bureau ?",
+      "knowledgeRef": "storm-02-a-knowledge-022"
+    },
+    {
+      "canonicalAnswer": "Le 18 janvier 2027.",
+      "canonicalQuestion": "Quand déménageons-nous ?",
+      "knowledgeRef": "storm-02-a-knowledge-023"
+    },
+    {
+      "canonicalAnswer": "Les modalités précises seront communiquées dans le guide des nouveaux usages, début octobre.",
+      "canonicalQuestion": "Le déménagement se fera-t-il en une fois ou par étapes ?",
+      "knowledgeRef": "storm-02-a-knowledge-024"
+    },
+    {
+      "canonicalAnswer": "Non.",
+      "canonicalQuestion": "Le projet change-t-il le télétravail ?",
+      "knowledgeRef": "storm-02-a-knowledge-025"
+    },
+    {
+      "canonicalAnswer": "Via l’outil de réservation habituel, qui reste inchangé pour les salles de réunion.",
+      "canonicalQuestion": "Comment je réserve une salle de réunion ?",
+      "knowledgeRef": "storm-02-a-knowledge-026"
+    },
+    {
+      "canonicalAnswer": "Le calendrier est stabilisé, mais certaines dates intermédiaires (ateliers, visites) peuvent être ajustées en fonction de l’avancement.",
+      "canonicalQuestion": "Le calendrier peut-il encore changer ?",
+      "knowledgeRef": "storm-02-a-knowledge-027"
+    },
+    {
+      "canonicalAnswer": "Oui, chaque équipe se voit attribuer un quartier de référence stable.",
+      "canonicalQuestion": "Mon équipe aura-t-elle toujours la même zone ?",
+      "knowledgeRef": "storm-02-a-knowledge-028"
+    },
+    {
+      "canonicalAnswer": "Vous resterez principalement dans le quartier d’équipe qui vous est associé, avec la liberté de varier selon vos besoins.",
+      "canonicalQuestion": "Je vais devoir changer de bureau tous les jours ?",
+      "knowledgeRef": "storm-02-a-knowledge-029"
+    },
+    {
+      "canonicalAnswer": "Le projet reste ajustable : les usages seront observés après l’emménagement et des ajustements resteront possibles.",
+      "canonicalQuestion": "Le projet est-il définitif ou peut-il encore évoluer ?",
+      "knowledgeRef": "storm-02-a-knowledge-030"
+    },
+    {
+      "canonicalAnswer": "Les Project Rooms sont conçues pour le travail de projet en petit groupe, avec une bonne isolation sonore.",
+      "canonicalQuestion": "Les Project Rooms sont-elles insonorisées ?",
+      "knowledgeRef": "storm-02-a-knowledge-031"
+    },
+    {
+      "canonicalAnswer": "La semaine de préparation est prévue le 11 janvier 2027, juste avant l’emménagement.",
+      "canonicalQuestion": "Quand aura lieu la semaine de préparation ?",
+      "knowledgeRef": "storm-02-a-knowledge-032"
+    },
+    {
+      "canonicalAnswer": "Non, la Bibliothèque fonctionne en accès libre.",
+      "canonicalQuestion": "Faut-il réserver pour aller à la Bibliothèque ?",
+      "knowledgeRef": "storm-02-a-knowledge-033"
+    },
+    {
+      "canonicalAnswer": "Oui, les salles de réunion et bulles conviennent à ce type d’échange.",
+      "canonicalQuestion": "Puis-je réserver une salle pour un appel client confidentiel ?",
+      "knowledgeRef": "storm-02-a-knowledge-034"
+    },
+    {
+      "canonicalAnswer": "Le projet vise surtout à améliorer la qualité des espaces disponibles sur site, sans changer les règles de télétravail.",
+      "canonicalQuestion": "Cobalt va-t-il encourager plus de présence sur site ?",
+      "knowledgeRef": "storm-02-a-knowledge-035"
+    },
+    {
+      "canonicalAnswer": "Utilisez une bulle, pensée pour les appels et visioconférences courtes.",
+      "canonicalQuestion": "Où puis-je passer un appel rapide sans déranger personne ?",
+      "knowledgeRef": "storm-02-a-knowledge-036"
+    },
+    {
+      "canonicalAnswer": "Via l’outil de réservation habituel des salles de réunion.",
+      "canonicalQuestion": "Comment réserver une salle pour un entretien annuel ?",
+      "knowledgeRef": "storm-02-a-knowledge-037"
+    },
+    {
+      "canonicalAnswer": "Les ambassadeurs sont des relais de proximité dans chaque service, pour répondre à vos questions au quotidien.",
+      "canonicalQuestion": "Qui sont les ambassadeurs, ils servent à quoi ?",
+      "knowledgeRef": "storm-02-a-knowledge-038"
+    },
+    {
+      "canonicalAnswer": "À la Bibliothèque ou dans les espaces Focus.",
+      "canonicalQuestion": "Où travailler au calme ?",
+      "knowledgeRef": "storm-02-a-knowledge-039"
+    },
+    {
+      "canonicalAnswer": "L’emménagement à Cobalt est prévu le 18 janvier 2027.",
+      "canonicalQuestion": "C’est prévu pour quand exactement, l’emménagement ?",
+      "knowledgeRef": "storm-02-a-knowledge-040"
+    },
+    {
+      "canonicalAnswer": "Oui, chaque service dispose d’un ambassadeur qui sert de relais de proximité.",
+      "canonicalQuestion": "Les ambassadeurs sont-ils dans mon service ?",
+      "knowledgeRef": "storm-02-a-knowledge-041"
+    },
+    {
+      "canonicalAnswer": "L’outil de réservation habituel indique la disponibilité des salles en temps réel.",
+      "canonicalQuestion": "Comment savoir si une salle est libre ?",
+      "knowledgeRef": "storm-02-a-knowledge-042"
+    },
+    {
+      "canonicalAnswer": "L’équipe projet recueille les retours pour ajuster les choix avant le déménagement définitif.",
+      "canonicalQuestion": "Qui gère les premiers retours après l’ouverture du plateau témoin ?",
+      "knowledgeRef": "storm-02-a-knowledge-043"
+    },
+    {
+      "canonicalAnswer": "Pas systématiquement en V1.",
+      "canonicalQuestion": "Dois-je réserver un poste ?",
+      "knowledgeRef": "storm-02-a-knowledge-044"
+    },
+    {
+      "canonicalAnswer": "Oui, les réservations peuvent être annulées via l’outil de réservation.",
+      "canonicalQuestion": "Peut-on annuler une réservation de Project Room ?",
+      "knowledgeRef": "storm-02-a-knowledge-045"
+    },
+    {
+      "canonicalAnswer": "Les salles de réunion accueillent de 4 à 16 personnes, en présentiel ou hybride.",
+      "canonicalQuestion": "Quelle est la capacité des salles de réunion ?",
+      "knowledgeRef": "storm-02-a-knowledge-046"
+    },
+    {
+      "canonicalAnswer": "Les Project Rooms accueillent de 6 à 10 personnes.",
+      "canonicalQuestion": "Combien de personnes dans une Project Room ?",
+      "knowledgeRef": "storm-02-a-knowledge-047"
+    },
+    {
+      "canonicalAnswer": "Oui, vous pouvez transmettre vos idées à votre ambassadeur ou à l’équipe projet.",
+      "canonicalQuestion": "Puis-je proposer une idée d’amélioration ?",
+      "knowledgeRef": "storm-02-a-knowledge-048"
+    },
+    {
+      "canonicalAnswer": "Le plateau témoin permet de tester les mobiliers et futurs usages envisagés pour Cobalt.",
+      "canonicalQuestion": "Le mobilier du plateau témoin, c’est celui qu’on aura à Cobalt ?",
+      "knowledgeRef": "storm-02-a-knowledge-049"
+    },
+    {
+      "canonicalAnswer": "Vous pouvez contacter un ambassadeur de votre service ou l’équipe projet directement.",
+      "canonicalQuestion": "Y a-t-il un contact si j’ai une question qui n’est pas dans Storm ?",
+      "knowledgeRef": "storm-02-a-knowledge-050"
+    },
+    {
+      "canonicalAnswer": "Oui, aucun changement n’est prévu sur l’organisation du télétravail.",
+      "canonicalQuestion": "Les jours de télétravail restent-ils les mêmes ?",
+      "knowledgeRef": "storm-02-a-knowledge-051"
+    }
+  ],
+  "languageStratum": "fr",
+  "limitations": [
+    "No query-level covered/notCovered/ambiguous gold can be assigned before user formulations exist."
+  ],
+  "packetFingerprint": "e56af278f61e6876755b607a281b31a3d6bde517d377fc4f3b406eab9b8d79d0",
+  "packetId": "storm-02-a-knowledgeBoundaries-fr",
+  "packetKind": "KNOWLEDGE_BOUNDARIES",
+  "randomization": {
+    "algorithm": "sha256-rank-v1",
+    "knowledgeOrderByItemSha256": "8e17f1ffce3426ac6ad8c6c7313604808811dcc2c7d6c7a2a2dd4d3bcfa7ad1a",
+    "knowledgeOrderSha256": "f268bc237bd312fead26fdf0969d37d16249cd62bd8bb44438675211fe3fdba0",
+    "reviewItemOrderSha256": "7a479ebd4920bcd52ed70ac229fc568cd6b01df02a3bf0ccce8f2bc062cb0d47",
+    "seedCommitmentSha256": "5eb4359abd22a116b3054ff4d4a9f13ceef6a117b6590f7202d77d064d247066"
+  },
+  "responseContract": {
+    "appendOnly": true,
+    "correctionPolicy": "Append a superseding event; never edit or delete an earlier event.",
+    "decisionPhaseOrderEnforced": false,
+    "emptyAtGeneration": true,
+    "peerResponsesAllowedBeforeSeal": false,
+    "requiredEventFields": [
+      "eventId",
+      "sequence",
+      "reviewItemRef",
+      "decisionType",
+      "decisionValue",
+      "rationale",
+      "reviewerIdentity",
+      "languageCompetenceAttested",
+      "recordedAt",
+      "previousEventHash",
+      "eventHash"
+    ]
+  },
+  "reviewItems": [
+    {
+      "businessContext": "Évaluer si les connaissances sur la date d’arrivée et la préparation constituent une même composante métier ou deux composantes séparées.",
+      "knowledgeRefs": [
+        "storm-02-a-knowledge-027",
+        "storm-02-a-knowledge-032",
+        "storm-02-a-knowledge-024",
+        "storm-02-a-knowledge-004",
+        "storm-02-a-knowledge-040",
+        "storm-02-a-knowledge-018",
+        "storm-02-a-knowledge-011",
+        "storm-02-a-knowledge-023"
+      ],
+      "reviewItemRef": "storm-02-a-item-001",
+      "title": "Arrivée / préparation"
+    },
+    {
+      "businessContext": "Évaluer la frontière entre information projet, questions, ambassadeurs, expérimentation pilote et collecte de feedback.",
+      "knowledgeRefs": [
+        "storm-02-a-knowledge-012",
+        "storm-02-a-knowledge-038",
+        "storm-02-a-knowledge-049",
+        "storm-02-a-knowledge-048",
+        "storm-02-a-knowledge-043",
+        "storm-02-a-knowledge-030",
+        "storm-02-a-knowledge-050",
+        "storm-02-a-knowledge-041",
+        "storm-02-a-knowledge-021",
+        "storm-02-a-knowledge-003",
+        "storm-02-a-knowledge-006",
+        "storm-02-a-knowledge-020"
+      ],
+      "reviewItemRef": "storm-02-a-item-002",
+      "title": "Communication / pilote"
+    },
+    {
+      "businessContext": "Évaluer si les espaces de collaboration et les espaces Focus ou Bibliothèque relèvent d’une même composante métier et préciser leurs frontières de couverture.",
+      "knowledgeRefs": [
+        "storm-02-a-knowledge-026",
+        "storm-02-a-knowledge-037",
+        "storm-02-a-knowledge-046",
+        "storm-02-a-knowledge-008",
+        "storm-02-a-knowledge-042",
+        "storm-02-a-knowledge-036",
+        "storm-02-a-knowledge-033",
+        "storm-02-a-knowledge-002",
+        "storm-02-a-knowledge-017",
+        "storm-02-a-knowledge-047",
+        "storm-02-a-knowledge-005",
+        "storm-02-a-knowledge-001",
+        "storm-02-a-knowledge-039",
+        "storm-02-a-knowledge-009",
+        "storm-02-a-knowledge-034",
+        "storm-02-a-knowledge-015",
+        "storm-02-a-knowledge-019",
+        "storm-02-a-knowledge-045",
+        "storm-02-a-knowledge-031",
+        "storm-02-a-knowledge-013"
+      ],
+      "reviewItemRef": "storm-02-a-item-003",
+      "title": "Salles / Focus"
+    },
+    {
+      "businessContext": "Évaluer la frontière entre organisation en flex office, quartier d’équipe et règles de présence ou télétravail.",
+      "knowledgeRefs": [
+        "storm-02-a-knowledge-007",
+        "storm-02-a-knowledge-044",
+        "storm-02-a-knowledge-016",
+        "storm-02-a-knowledge-014",
+        "storm-02-a-knowledge-051",
+        "storm-02-a-knowledge-025",
+        "storm-02-a-knowledge-022",
+        "storm-02-a-knowledge-035",
+        "storm-02-a-knowledge-010",
+        "storm-02-a-knowledge-029",
+        "storm-02-a-knowledge-028"
+      ],
+      "reviewItemRef": "storm-02-a-item-004",
+      "title": "Flex / télétravail"
+    }
+  ],
+  "reviewStatus": "NOT_STARTED",
+  "reviewerSlot": "A",
+  "schemaVersion": 1,
+  "traceability": {
+    "canonicalSnapshotSha256": "4b8a64a58d44b8f81cbf861e9daefc594a9095b6c8516ef205ecefde82984d4b",
+    "compositionFingerprint": "2951ff970fe1e274e9ed250e25dfef95a6d9425a900b8f8b09e086d2cef5a652",
+    "structureFingerprint": "7645715532702ea42599151243126e63abcfcb6015ad711673d9e12111da361e"
+  }
+}

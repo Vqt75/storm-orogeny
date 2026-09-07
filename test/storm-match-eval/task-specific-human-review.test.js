@@ -6,6 +6,7 @@ import {
   fingerprint,
   HUMAN_REVIEW_STATUS,
   REVIEW_DECISION_GRID,
+  STRUCTURAL_REVIEW_PACKET_SCHEMA,
   validateIndependentReviewPackets
 } from './task-specific/human-review/review-packets.js';
 import {
@@ -58,17 +59,17 @@ const neutralSource = {
     },
     {
       caseId: 'fixture-case-002',
-      query: 'Synthetic request two?',
+      query: 'Demande synthétique deux ?',
       candidateEntryIds: ['fixture-q002', 'fixture-q003'],
       businessContext: null,
-      language: 'en'
+      language: 'fr'
     },
     {
       caseId: 'fixture-case-003',
-      query: 'Solicitud sintética tres?',
+      query: 'Demande synthétique trois ?',
       candidateEntryIds: ['fixture-q003', 'fixture-q004'],
       businessContext: null,
-      language: 'es'
+      language: 'fr'
     }
   ]
 };
@@ -154,7 +155,9 @@ function buildSealedSyntheticSubmission(packet, reviewerId, prefix, { coveredPai
     sealedAt: '2026-09-06T01:00:00.000Z',
     attestation: {
       reviewerId,
-      statement: 'Fixture technique : complétude et scellement vérifiés manuellement pour ce test.'
+      statement: 'Fixture technique : complétude et scellement vérifiés manuellement pour ce test.',
+      languageStratum: packet.reviewerIdentity.languageStratum,
+      languageCompetenceAttested: true
     }
   });
 }
@@ -174,8 +177,20 @@ test('review packets are deterministic, independent, blind and reproducible', ()
   assert.notEqual(a.blindNamespace, b.blindNamespace);
   assert.deepEqual(a.decisionGrid, REVIEW_DECISION_GRID);
   assert.deepEqual(b.decisionGrid, REVIEW_DECISION_GRID);
-  assert.equal(a.reviewerIdentity.reviewerId, 'vivien');
-  assert.equal(b.reviewerIdentity.assignmentStatus, 'UNASSIGNED');
+  assert.deepEqual(a.reviewerIdentity, {
+    reviewerRole: 'A',
+    assignmentScope: 'PER_LANGUAGE_STRATUM',
+    languageStratum: 'fr',
+    physicalReviewerPreassigned: false,
+    languageCompetenceRequired: true
+  });
+  assert.deepEqual(b.reviewerIdentity, {
+    reviewerRole: 'B',
+    assignmentScope: 'PER_LANGUAGE_STRATUM',
+    languageStratum: 'fr',
+    physicalReviewerPreassigned: false,
+    languageCompetenceRequired: true
+  });
   assert.equal(a.isolation.prefilledJudgmentsIncluded, false);
   assert.equal(b.isolation.otherReviewerResponsesIncluded, false);
   assert.equal(JSON.stringify(a).includes(seeds.reviewerASeed), false);
@@ -232,6 +247,46 @@ test('review packet builder requires independent seeds', () => {
   );
 });
 
+test('review packet builder enforces one supported language stratum per bundle', () => {
+  assert.throws(
+    () => createIndependentReviewPackets({
+      ...neutralSource,
+      queryItems: [neutralSource.queryItems[0], { ...neutralSource.queryItems[1], language: 'en' }]
+    }, seeds),
+    /exactly one language stratum/
+  );
+  assert.throws(
+    () => createIndependentReviewPackets({
+      ...neutralSource,
+      queryItems: neutralSource.queryItems.map(item => ({ ...item, language: 'xx' }))
+    }, seeds),
+    /language must be one of/
+  );
+});
+
+test('structure-review schema supports blind monolingual equivalence, preferred and cluster decisions', () => {
+  const schema = STRUCTURAL_REVIEW_PACKET_SCHEMA;
+  assert.equal(schema.reviewStatus, HUMAN_REVIEW_STATUS);
+  assert.equal(schema.languageMode, 'EXACTLY_ONE_LANGUAGE_PER_PACKET');
+  assert.deepEqual(schema.supportedLanguageStrata, ['fr', 'en', 'de', 'es', 'it', 'nl']);
+  assert.deepEqual(schema.reviewerRoles, ['A', 'B']);
+  assert.equal(schema.independentDecisionSections.equivalencePartition.preferredEntryIncluded, false);
+  assert.equal(schema.independentDecisionSections.preferredEntrySelection.separateFromEquivalenceDecision, true);
+  assert.deepEqual(schema.independentDecisionSections.knowledgeBoundaryDecision.allowedValues, [
+    'sameConnectedComponent',
+    'separateComponents'
+  ]);
+  assert.equal(schema.responsePolicy.twoIndependentHumanSubmissionsRequired, true);
+  assert.equal(schema.responsePolicy.appendOnlyAdjudicationRequired, true);
+  assert.equal(schema.responsePolicy.originalReviewerDecisionsPreserved, true);
+  assert.equal(schema.finalPacketGenerationAuthorized, false);
+  for (const value of Object.values(schema.isolation)) assert.equal(value, false);
+  const serialised = JSON.stringify(schema);
+  for (const forbidden of ['DistilUSE', 'cosineSimilarity']) {
+    assert.equal(serialised.includes(forbidden), false);
+  }
+});
+
 test('static gate detects injected output and forged packet order', () => {
   const original = createIndependentReviewPackets(neutralSource, seeds);
   const contaminated = structuredClone(original);
@@ -263,10 +318,6 @@ test('static gate detects injected output and forged packet order', () => {
 
 test('review response logs are distinct, empty by default and independently sealable', () => {
   const packets = createIndependentReviewPackets(neutralSource, seeds);
-  assert.throws(
-    () => createEmptyReviewerResponseLog(packets.reviewerB.packet, { reviewerId: 'Vivien' }),
-    /independent from Reviewer A/
-  );
   const emptyA = createEmptyReviewerResponseLog(packets.reviewerA.packet, { reviewerId: 'vivien' });
   const emptyB = createEmptyReviewerResponseLog(packets.reviewerB.packet, { reviewerId: 'independent-human-b' });
   assert.deepEqual(emptyA.records, []);
@@ -305,6 +356,21 @@ test('adjudication is blocked until two sealed submissions and remains append-on
     'independent-human-b',
     'b',
     { coveredPair: { reviewItemRef: sourceQuery.reviewerB, knowledgeRef: sourceKnowledge.reviewerB } }
+  );
+  const samePhysicalReviewerB = buildSealedSyntheticSubmission(
+    packets.reviewerB.packet,
+    'vivien',
+    'same-human-b'
+  );
+  assert.throws(
+    () => createEmptyAdjudicationLog({
+      reviewerASubmission: sealedA,
+      reviewerBSubmission: samePhysicalReviewerB,
+      reviewerAPacket: packets.reviewerA.packet,
+      reviewerBPacket: packets.reviewerB.packet,
+      curatorLinkage: packets.curatorLinkage
+    }),
+    /independent human reviewers/
   );
   const candidateEventA = sealedA.records.find(record => record.eventType === 'candidateDecision'
     && record.payload.reviewItemRef === sourceQuery.reviewerA

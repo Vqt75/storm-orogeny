@@ -1,0 +1,201 @@
+{
+  "decisionsRequired": [
+    {
+      "allowedValues": [
+        "oneEquivalentGroup",
+        "multipleNonEquivalentGroups",
+        "insufficientEvidence"
+      ],
+      "decisionType": "substantiveEquivalencePartition",
+      "phase": 1,
+      "rationaleRequired": true
+    },
+    {
+      "allowedValues": [
+        "chooseOneDisplayedKnowledgeRef",
+        "insufficientEvidence"
+      ],
+      "automaticSelectionAllowed": false,
+      "condition": "required only for each reviewer-confirmed multi-entry equivalent group",
+      "decisionType": "preferredEntrySelection",
+      "phase": 2,
+      "prerequisiteDecisionType": "substantiveEquivalencePartition",
+      "rationaleRequired": true
+    }
+  ],
+  "generationAuthorized": false,
+  "humanQualityGateStatus": "PENDING_HUMAN_REVIEW",
+  "instructions": [
+    "Décider d’abord si les réponses sont substantiellement interchangeables, sans consulter ni supposer le regroupement curator-side.",
+    "Former une partition explicite si plusieurs groupes de réponses sont nécessaires.",
+    "Seulement après cette décision, choisir un préféré dans chaque groupe multi-entry selon la règle préenregistrée et justifier le choix."
+  ],
+  "isolation": {
+    "curatorMappingIncluded": false,
+    "modelOutputsIncluded": false,
+    "otherReviewerResponsesIncluded": false,
+    "predictionsIncluded": false,
+    "prefilledJudgmentsIncluded": false,
+    "proposedEquivalenceGroupsIncluded": false,
+    "proposedKnowledgeClustersIncluded": false,
+    "proposedPreferredEntriesIncluded": false,
+    "scoresIncluded": false,
+    "semanticNeighbourRanksIncluded": false
+  },
+  "knowledgeItems": [
+    {
+      "canonicalAnswer": "Oui, les salles de réunion et bulles conviennent à ce type d’échange.",
+      "canonicalQuestion": "Puis-je réserver une salle pour un appel client confidentiel ?",
+      "knowledgeRef": "storm-01-b-knowledge-001",
+      "preRegisteredTieBreakRank": 99
+    },
+    {
+      "canonicalAnswer": "Via l’outil de réservation habituel, qui reste inchangé pour les salles de réunion.",
+      "canonicalQuestion": "Comment je réserve une salle de réunion ?",
+      "knowledgeRef": "storm-01-b-knowledge-002",
+      "preRegisteredTieBreakRank": 19
+    },
+    {
+      "canonicalAnswer": "L’emménagement à Cobalt est prévu le 18 janvier 2027.",
+      "canonicalQuestion": "C’est prévu pour quand exactement, l’emménagement ?",
+      "knowledgeRef": "storm-01-b-knowledge-003",
+      "preRegisteredTieBreakRank": 2
+    },
+    {
+      "canonicalAnswer": "Oui, utilisez une salle de réunion ou une bulle pour ce type d’échange.",
+      "canonicalQuestion": "Puis-je passer un entretien RH confidentiel sur site ?",
+      "knowledgeRef": "storm-01-b-knowledge-004",
+      "preRegisteredTieBreakRank": 51
+    },
+    {
+      "canonicalAnswer": "Via les circuits RH/santé habituels.",
+      "canonicalQuestion": "Comment demander un poste adapté ?",
+      "knowledgeRef": "storm-01-b-knowledge-005",
+      "preRegisteredTieBreakRank": 66
+    },
+    {
+      "canonicalAnswer": "Via l’outil de réservation habituel des salles de réunion.",
+      "canonicalQuestion": "Comment réserver une salle pour un entretien annuel ?",
+      "knowledgeRef": "storm-01-b-knowledge-006",
+      "preRegisteredTieBreakRank": 53
+    },
+    {
+      "canonicalAnswer": "Oui, des actualités et jalons sont publiés régulièrement dans Storm au fil de l’avancement.",
+      "canonicalQuestion": "Est-ce qu’il y aura des points d’étape réguliers ?",
+      "knowledgeRef": "storm-01-b-knowledge-007",
+      "preRegisteredTieBreakRank": 85
+    },
+    {
+      "canonicalAnswer": "Les circuits RH/santé habituels restent le point d’entrée pour toute demande d’adaptation de poste.",
+      "canonicalQuestion": "Qui contacter pour un besoin spécifique d’ergonomie ?",
+      "knowledgeRef": "storm-01-b-knowledge-008",
+      "preRegisteredTieBreakRank": 69
+    },
+    {
+      "canonicalAnswer": "Le 18 janvier 2027.",
+      "canonicalQuestion": "Quand déménageons-nous ?",
+      "knowledgeRef": "storm-01-b-knowledge-009",
+      "preRegisteredTieBreakRank": 1
+    },
+    {
+      "canonicalAnswer": "Les salles de réunion et bulles sont prévues pour les échanges nécessitant de la confidentialité.",
+      "canonicalQuestion": "Comment garantir la confidentialité dans un open space ?",
+      "knowledgeRef": "storm-01-b-knowledge-010",
+      "preRegisteredTieBreakRank": 50
+    },
+    {
+      "canonicalAnswer": "Oui, les actualités et les jalons du projet sont mis à jour régulièrement dans Storm.",
+      "canonicalQuestion": "On peut suivre l’avancement du projet quelque part ?",
+      "knowledgeRef": "storm-01-b-knowledge-011",
+      "preRegisteredTieBreakRank": 78
+    }
+  ],
+  "languageStratum": "fr",
+  "limitations": [],
+  "packetFingerprint": "64e165bfe4d96f07df59fcfb8cc7bab9297532a32a27a35f498ce2ebb8ae6a3c",
+  "packetId": "storm-01-b-equivalencePreferred-fr",
+  "packetKind": "EQUIVALENCE_AND_PREFERRED",
+  "randomization": {
+    "algorithm": "sha256-rank-v1",
+    "knowledgeOrderByItemSha256": "6a5fb75c799229ae02f03bfa225d3877a45b2482ff8687205464eef936435bf6",
+    "knowledgeOrderSha256": "94ce9661ab02486484bd2cbc0032c70332e7674b7387c9a81c80b23bb1b109d1",
+    "reviewItemOrderSha256": "1c0908ad70f48dd382e319c7afede0f58d80ea52542e30defd3b61270cb27e27",
+    "seedCommitmentSha256": "7a35b4f65ad93f0bc602d95ff49435e14c5f33aea25bd6906622b5d5f64b07b1"
+  },
+  "responseContract": {
+    "appendOnly": true,
+    "correctionPolicy": "Append a superseding event; never edit or delete an earlier event.",
+    "decisionPhaseOrderEnforced": true,
+    "emptyAtGeneration": true,
+    "peerResponsesAllowedBeforeSeal": false,
+    "requiredEventFields": [
+      "eventId",
+      "sequence",
+      "reviewItemRef",
+      "decisionType",
+      "decisionValue",
+      "rationale",
+      "reviewerIdentity",
+      "languageCompetenceAttested",
+      "recordedAt",
+      "previousEventHash",
+      "eventHash"
+    ]
+  },
+  "reviewItems": [
+    {
+      "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+      "knowledgeRefs": [
+        "storm-01-b-knowledge-002",
+        "storm-01-b-knowledge-006"
+      ],
+      "reviewItemRef": "storm-01-b-item-001",
+      "title": "Comparaison d’équivalence 02"
+    },
+    {
+      "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+      "knowledgeRefs": [
+        "storm-01-b-knowledge-009",
+        "storm-01-b-knowledge-003"
+      ],
+      "reviewItemRef": "storm-01-b-item-002",
+      "title": "Comparaison d’équivalence 01"
+    },
+    {
+      "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+      "knowledgeRefs": [
+        "storm-01-b-knowledge-011",
+        "storm-01-b-knowledge-007"
+      ],
+      "reviewItemRef": "storm-01-b-item-003",
+      "title": "Comparaison d’équivalence 05"
+    },
+    {
+      "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+      "knowledgeRefs": [
+        "storm-01-b-knowledge-008",
+        "storm-01-b-knowledge-005"
+      ],
+      "reviewItemRef": "storm-01-b-item-004",
+      "title": "Comparaison d’équivalence 04"
+    },
+    {
+      "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+      "knowledgeRefs": [
+        "storm-01-b-knowledge-010",
+        "storm-01-b-knowledge-001",
+        "storm-01-b-knowledge-004"
+      ],
+      "reviewItemRef": "storm-01-b-item-005",
+      "title": "Comparaison d’équivalence 03"
+    }
+  ],
+  "reviewStatus": "NOT_STARTED",
+  "reviewerSlot": "B",
+  "schemaVersion": 1,
+  "traceability": {
+    "canonicalSnapshotSha256": "4b8a64a58d44b8f81cbf861e9daefc594a9095b6c8516ef205ecefde82984d4b",
+    "compositionFingerprint": "2951ff970fe1e274e9ed250e25dfef95a6d9425a900b8f8b09e086d2cef5a652",
+    "structureFingerprint": "7645715532702ea42599151243126e63abcfcb6015ad711673d9e12111da361e"
+  }
+}

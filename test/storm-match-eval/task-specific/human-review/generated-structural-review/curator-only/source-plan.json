@@ -1,0 +1,884 @@
+{
+  "compositionFingerprint": "2951ff970fe1e274e9ed250e25dfef95a6d9425a900b8f8b09e086d2cef5a652",
+  "formulationsIncluded": false,
+  "generationAuthorized": false,
+  "goldsIncluded": false,
+  "modelOutputsIncluded": false,
+  "schemaVersion": 1,
+  "sections": {
+    "ambiguityFamilies": {
+      "packetKind": "AMBIGUITY_CAPACITY_FAMILIES",
+      "reviewItemCount": 34,
+      "sourceItems": [
+        {
+          "businessContext": "Permanence du poste, position quotidienne et quartier stable",
+          "entryIds": [
+            "equinoxe-q010",
+            "equinoxe-q012",
+            "equinoxe-q014",
+            "equinoxe-q015"
+          ],
+          "sourceItemId": "ambiguity-capacity-01",
+          "title": "Famille candidate 01"
+        },
+        {
+          "businessContext": "Réservation du poste et déclaration de présence",
+          "entryIds": [
+            "equinoxe-q018",
+            "equinoxe-q021"
+          ],
+          "sourceItemId": "ambiguity-capacity-02",
+          "title": "Famille candidate 02"
+        },
+        {
+          "businessContext": "Connexion réseau sans fil et branchement physique du poste",
+          "entryIds": [
+            "equinoxe-q047",
+            "equinoxe-q048"
+          ],
+          "sourceItemId": "ambiguity-capacity-03",
+          "title": "Famille candidate 03"
+        },
+        {
+          "businessContext": "Accessibilité PMR et accessibilité géographique ou transport",
+          "entryIds": [
+            "equinoxe-q067",
+            "equinoxe-q054",
+            "equinoxe-q055",
+            "equinoxe-q059",
+            "equinoxe-q074",
+            "equinoxe-q101"
+          ],
+          "sourceItemId": "ambiguity-capacity-04",
+          "title": "Famille candidate 04"
+        },
+        {
+          "businessContext": "Recharge électrique pour vélo ou automobile",
+          "entryIds": [
+            "equinoxe-q038",
+            "equinoxe-q100"
+          ],
+          "sourceItemId": "ambiguity-capacity-05",
+          "title": "Famille candidate 05"
+        },
+        {
+          "businessContext": "Casier personnel et équipement de rangement du local vélos",
+          "entryIds": [
+            "equinoxe-q035",
+            "equinoxe-q036",
+            "equinoxe-q094",
+            "equinoxe-q095",
+            "equinoxe-q037",
+            "equinoxe-q073"
+          ],
+          "sourceItemId": "ambiguity-capacity-06",
+          "title": "Famille candidate 06"
+        },
+        {
+          "businessContext": "Portée des jalons de préparation au déménagement",
+          "entryIds": [
+            "equinoxe-q003",
+            "equinoxe-q004",
+            "equinoxe-q005",
+            "equinoxe-q007",
+            "equinoxe-q108"
+          ],
+          "sourceItemId": "ambiguity-capacity-07",
+          "title": "Famille candidate 07"
+        },
+        {
+          "businessContext": "Adaptation du poste, accessibilité et équipement spécifique",
+          "entryIds": [
+            "equinoxe-q066",
+            "equinoxe-q069",
+            "equinoxe-q067",
+            "equinoxe-q104"
+          ],
+          "sourceItemId": "ambiguity-capacity-08",
+          "title": "Famille candidate 08"
+        },
+        {
+          "businessContext": "Capacité du restaurant et capacité de la terrasse",
+          "entryIds": [
+            "equinoxe-q061",
+            "equinoxe-q064"
+          ],
+          "sourceItemId": "ambiguity-capacity-09",
+          "title": "Famille candidate 09"
+        },
+        {
+          "businessContext": "Finalité, offre et accès du Café",
+          "entryIds": [
+            "equinoxe-q032",
+            "equinoxe-q063",
+            "equinoxe-q093"
+          ],
+          "sourceItemId": "ambiguity-capacity-10",
+          "title": "Famille candidate 10"
+        },
+        {
+          "businessContext": "Usages possibles de la terrasse",
+          "entryIds": [
+            "equinoxe-q032",
+            "equinoxe-q064"
+          ],
+          "sourceItemId": "ambiguity-capacity-11",
+          "title": "Famille candidate 11"
+        },
+        {
+          "businessContext": "Existence du restaurant et date de son ouverture",
+          "entryIds": [
+            "equinoxe-q060",
+            "equinoxe-q065"
+          ],
+          "sourceItemId": "ambiguity-capacity-12",
+          "title": "Famille candidate 12"
+        },
+        {
+          "businessContext": "Portée de l’offre alimentaire, snacks et menu",
+          "entryIds": [
+            "equinoxe-q062",
+            "equinoxe-q102",
+            "equinoxe-q103"
+          ],
+          "sourceItemId": "ambiguity-capacity-13",
+          "title": "Famille candidate 13"
+        },
+        {
+          "businessContext": "Lieux de restauration et permission d’usage",
+          "entryIds": [
+            "equinoxe-q064",
+            "equinoxe-q072",
+            "equinoxe-q092"
+          ],
+          "sourceItemId": "ambiguity-capacity-14",
+          "title": "Famille candidate 14"
+        },
+        {
+          "businessContext": "Fréquence, minimum et encouragement de présence",
+          "entryIds": [
+            "equinoxe-q041",
+            "equinoxe-q043",
+            "equinoxe-q096"
+          ],
+          "sourceItemId": "ambiguity-capacity-15",
+          "title": "Famille candidate 15"
+        },
+        {
+          "businessContext": "Règle projet, calendrier et autorité managériale de présence",
+          "entryIds": [
+            "equinoxe-q040",
+            "equinoxe-q042",
+            "equinoxe-q043",
+            "equinoxe-q044"
+          ],
+          "sourceItemId": "ambiguity-capacity-16",
+          "title": "Famille candidate 16"
+        },
+        {
+          "businessContext": "Ouverture, rôle expérimental et collecte de retours du pilote",
+          "entryIds": [
+            "equinoxe-q006",
+            "equinoxe-q079",
+            "equinoxe-q110"
+          ],
+          "sourceItemId": "ambiguity-capacity-17",
+          "title": "Famille candidate 17"
+        },
+        {
+          "businessContext": "Essai, feedback avant déménagement et évolution ultérieure",
+          "entryIds": [
+            "equinoxe-q079",
+            "equinoxe-q110",
+            "equinoxe-q111"
+          ],
+          "sourceItemId": "ambiguity-capacity-18",
+          "title": "Famille candidate 18"
+        },
+        {
+          "businessContext": "Poser une question et recevoir les actualités projet",
+          "entryIds": [
+            "equinoxe-q008",
+            "equinoxe-q078",
+            "equinoxe-q085"
+          ],
+          "sourceItemId": "ambiguity-capacity-19",
+          "title": "Famille candidate 19"
+        },
+        {
+          "businessContext": "Rôle, présence locale et désignation des ambassadeurs",
+          "entryIds": [
+            "equinoxe-q077",
+            "equinoxe-q106",
+            "equinoxe-q107"
+          ],
+          "sourceItemId": "ambiguity-capacity-20",
+          "title": "Famille candidate 20"
+        },
+        {
+          "businessContext": "Canal de question et canal de proposition d’amélioration",
+          "entryIds": [
+            "equinoxe-q083",
+            "equinoxe-q112"
+          ],
+          "sourceItemId": "ambiguity-capacity-21",
+          "title": "Famille candidate 21"
+        },
+        {
+          "businessContext": "Actualités, feedback, évolution et contribution au projet",
+          "entryIds": [
+            "equinoxe-q078",
+            "equinoxe-q085",
+            "equinoxe-q110",
+            "equinoxe-q111",
+            "equinoxe-q112"
+          ],
+          "sourceItemId": "ambiguity-capacity-22",
+          "title": "Famille candidate 22"
+        },
+        {
+          "businessContext": "Règle de réservation lorsque l’espace n’est pas précisé",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q053",
+            "equinoxe-q020",
+            "equinoxe-q022",
+            "equinoxe-q023",
+            "equinoxe-q024"
+          ],
+          "sourceItemId": "ambiguity-capacity-23",
+          "title": "Famille candidate 23"
+        },
+        {
+          "businessContext": "Capacité lorsque le lieu n’est pas précisé",
+          "entryIds": [
+            "equinoxe-q026",
+            "equinoxe-q028",
+            "equinoxe-q029",
+            "equinoxe-q031",
+            "equinoxe-q076"
+          ],
+          "sourceItemId": "ambiguity-capacity-24",
+          "title": "Famille candidate 24"
+        },
+        {
+          "businessContext": "Choix d’espace pour un groupe de six à dix personnes",
+          "entryIds": [
+            "equinoxe-q028",
+            "equinoxe-q029",
+            "equinoxe-q031"
+          ],
+          "sourceItemId": "ambiguity-capacity-25",
+          "title": "Famille candidate 25"
+        },
+        {
+          "businessContext": "Événement au Forum et réunion ordinaire",
+          "entryIds": [
+            "equinoxe-q024",
+            "equinoxe-q029",
+            "equinoxe-q105"
+          ],
+          "sourceItemId": "ambiguity-capacity-26",
+          "title": "Famille candidate 26"
+        },
+        {
+          "businessContext": "Travail calme, appel rapide et confidentialité",
+          "entryIds": [
+            "equinoxe-q025",
+            "equinoxe-q027",
+            "equinoxe-q050",
+            "equinoxe-q051",
+            "equinoxe-q099"
+          ],
+          "sourceItemId": "ambiguity-capacity-27",
+          "title": "Famille candidate 27"
+        },
+        {
+          "businessContext": "Isolation acoustique et fermeture physique",
+          "entryIds": [
+            "equinoxe-q050",
+            "equinoxe-q051",
+            "equinoxe-q099",
+            "equinoxe-q052",
+            "equinoxe-q091"
+          ],
+          "sourceItemId": "ambiguity-capacity-28",
+          "title": "Famille candidate 28"
+        },
+        {
+          "businessContext": "Accès libre, disponibilité et espace ouvert",
+          "entryIds": [
+            "equinoxe-q020",
+            "equinoxe-q089",
+            "equinoxe-q091"
+          ],
+          "sourceItemId": "ambiguity-capacity-29",
+          "title": "Famille candidate 29"
+        },
+        {
+          "businessContext": "Créer, vérifier ou annuler une réservation",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q053",
+            "equinoxe-q022",
+            "equinoxe-q089",
+            "equinoxe-q090"
+          ],
+          "sourceItemId": "ambiguity-capacity-30",
+          "title": "Famille candidate 30"
+        },
+        {
+          "businessContext": "Salle projet générique et espaces nommés Project Room",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q053",
+            "equinoxe-q022",
+            "equinoxe-q028",
+            "equinoxe-q031",
+            "equinoxe-q052"
+          ],
+          "sourceItemId": "ambiguity-capacity-31",
+          "title": "Famille candidate 31"
+        },
+        {
+          "businessContext": "Usage d’un espace non précisé",
+          "entryIds": [
+            "equinoxe-q025",
+            "equinoxe-q027",
+            "equinoxe-q029",
+            "equinoxe-q052"
+          ],
+          "sourceItemId": "ambiguity-capacity-32",
+          "title": "Famille candidate 32"
+        },
+        {
+          "businessContext": "Nombre de niveaux du bâtiment et population accueillie",
+          "entryIds": [
+            "equinoxe-q075",
+            "equinoxe-q076"
+          ],
+          "sourceItemId": "ambiguity-capacity-33",
+          "title": "Famille candidate 33"
+        },
+        {
+          "businessContext": "Capacité du site et capacité d’une salle",
+          "entryIds": [
+            "equinoxe-q028",
+            "equinoxe-q029",
+            "equinoxe-q031",
+            "equinoxe-q076"
+          ],
+          "sourceItemId": "ambiguity-capacity-34",
+          "title": "Famille candidate 34"
+        }
+      ]
+    },
+    "equivalencePreferred": {
+      "packetKind": "EQUIVALENCE_AND_PREFERRED",
+      "reviewItemCount": 5,
+      "sourceItems": [
+        {
+          "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+          "entryIds": [
+            "equinoxe-q001",
+            "equinoxe-q002"
+          ],
+          "sourceItemId": "equivalence-comparison-01",
+          "title": "Comparaison d’équivalence 01"
+        },
+        {
+          "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q053"
+          ],
+          "sourceItemId": "equivalence-comparison-02",
+          "title": "Comparaison d’équivalence 02"
+        },
+        {
+          "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+          "entryIds": [
+            "equinoxe-q050",
+            "equinoxe-q051",
+            "equinoxe-q099"
+          ],
+          "sourceItemId": "equivalence-comparison-03",
+          "title": "Comparaison d’équivalence 03"
+        },
+        {
+          "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+          "entryIds": [
+            "equinoxe-q066",
+            "equinoxe-q069"
+          ],
+          "sourceItemId": "equivalence-comparison-04",
+          "title": "Comparaison d’équivalence 04"
+        },
+        {
+          "businessContext": "Comparer les réponses métier complètes. La proximité thématique ou lexicale ne suffit pas à établir une équivalence.",
+          "entryIds": [
+            "equinoxe-q078",
+            "equinoxe-q085"
+          ],
+          "sourceItemId": "equivalence-comparison-05",
+          "title": "Comparaison d’équivalence 05"
+        }
+      ]
+    },
+    "knowledgeBoundaries": {
+      "packetKind": "KNOWLEDGE_BOUNDARIES",
+      "reviewItemCount": 4,
+      "sourceItems": [
+        {
+          "businessContext": "Évaluer si les connaissances sur la date d’arrivée et la préparation constituent une même composante métier ou deux composantes séparées.",
+          "entryIds": [
+            "equinoxe-q001",
+            "equinoxe-q002",
+            "equinoxe-q003",
+            "equinoxe-q004",
+            "equinoxe-q005",
+            "equinoxe-q007",
+            "equinoxe-q009",
+            "equinoxe-q108"
+          ],
+          "sourceItemId": "boundary-arrival-preparation",
+          "title": "Arrivée / préparation"
+        },
+        {
+          "businessContext": "Évaluer la frontière entre organisation en flex office, quartier d’équipe et règles de présence ou télétravail.",
+          "entryIds": [
+            "equinoxe-q010",
+            "equinoxe-q012",
+            "equinoxe-q014",
+            "equinoxe-q018",
+            "equinoxe-q021",
+            "equinoxe-q040",
+            "equinoxe-q041",
+            "equinoxe-q042",
+            "equinoxe-q043",
+            "equinoxe-q044",
+            "equinoxe-q096"
+          ],
+          "sourceItemId": "boundary-flex-telework",
+          "title": "Flex / télétravail"
+        },
+        {
+          "businessContext": "Évaluer la frontière entre information projet, questions, ambassadeurs, expérimentation pilote et collecte de feedback.",
+          "entryIds": [
+            "equinoxe-q006",
+            "equinoxe-q008",
+            "equinoxe-q077",
+            "equinoxe-q078",
+            "equinoxe-q079",
+            "equinoxe-q083",
+            "equinoxe-q085",
+            "equinoxe-q106",
+            "equinoxe-q107",
+            "equinoxe-q110",
+            "equinoxe-q111",
+            "equinoxe-q112"
+          ],
+          "sourceItemId": "boundary-communication-pilot",
+          "title": "Communication / pilote"
+        },
+        {
+          "businessContext": "Évaluer si les espaces de collaboration et les espaces Focus ou Bibliothèque relèvent d’une même composante métier et préciser leurs frontières de couverture.",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q020",
+            "equinoxe-q022",
+            "equinoxe-q023",
+            "equinoxe-q024",
+            "equinoxe-q025",
+            "equinoxe-q026",
+            "equinoxe-q027",
+            "equinoxe-q028",
+            "equinoxe-q029",
+            "equinoxe-q031",
+            "equinoxe-q050",
+            "equinoxe-q051",
+            "equinoxe-q052",
+            "equinoxe-q053",
+            "equinoxe-q089",
+            "equinoxe-q090",
+            "equinoxe-q091",
+            "equinoxe-q099",
+            "equinoxe-q105"
+          ],
+          "sourceItemId": "boundary-rooms-focus",
+          "title": "Salles / Focus"
+        }
+      ]
+    },
+    "scenarioFamilyPreflight": {
+      "packetKind": "SCENARIO_FAMILY_PREFLIGHT",
+      "reviewItemCount": 34,
+      "sourceItems": [
+        {
+          "businessContext": "Permanence du poste, position quotidienne et quartier stable",
+          "entryIds": [
+            "equinoxe-q010",
+            "equinoxe-q012",
+            "equinoxe-q014",
+            "equinoxe-q015"
+          ],
+          "sourceItemId": "scenario-family-preflight-01",
+          "title": "Brief de famille 01"
+        },
+        {
+          "businessContext": "Réservation du poste et déclaration de présence",
+          "entryIds": [
+            "equinoxe-q018",
+            "equinoxe-q021"
+          ],
+          "sourceItemId": "scenario-family-preflight-02",
+          "title": "Brief de famille 02"
+        },
+        {
+          "businessContext": "Connexion réseau sans fil et branchement physique du poste",
+          "entryIds": [
+            "equinoxe-q047",
+            "equinoxe-q048"
+          ],
+          "sourceItemId": "scenario-family-preflight-03",
+          "title": "Brief de famille 03"
+        },
+        {
+          "businessContext": "Accessibilité PMR et accessibilité géographique ou transport",
+          "entryIds": [
+            "equinoxe-q067",
+            "equinoxe-q054",
+            "equinoxe-q055",
+            "equinoxe-q059",
+            "equinoxe-q074",
+            "equinoxe-q101"
+          ],
+          "sourceItemId": "scenario-family-preflight-04",
+          "title": "Brief de famille 04"
+        },
+        {
+          "businessContext": "Recharge électrique pour vélo ou automobile",
+          "entryIds": [
+            "equinoxe-q038",
+            "equinoxe-q100"
+          ],
+          "sourceItemId": "scenario-family-preflight-05",
+          "title": "Brief de famille 05"
+        },
+        {
+          "businessContext": "Casier personnel et équipement de rangement du local vélos",
+          "entryIds": [
+            "equinoxe-q035",
+            "equinoxe-q036",
+            "equinoxe-q094",
+            "equinoxe-q095",
+            "equinoxe-q037",
+            "equinoxe-q073"
+          ],
+          "sourceItemId": "scenario-family-preflight-06",
+          "title": "Brief de famille 06"
+        },
+        {
+          "businessContext": "Portée des jalons de préparation au déménagement",
+          "entryIds": [
+            "equinoxe-q003",
+            "equinoxe-q004",
+            "equinoxe-q005",
+            "equinoxe-q007",
+            "equinoxe-q108"
+          ],
+          "sourceItemId": "scenario-family-preflight-07",
+          "title": "Brief de famille 07"
+        },
+        {
+          "businessContext": "Adaptation du poste, accessibilité et équipement spécifique",
+          "entryIds": [
+            "equinoxe-q066",
+            "equinoxe-q069",
+            "equinoxe-q067",
+            "equinoxe-q104"
+          ],
+          "sourceItemId": "scenario-family-preflight-08",
+          "title": "Brief de famille 08"
+        },
+        {
+          "businessContext": "Capacité du restaurant et capacité de la terrasse",
+          "entryIds": [
+            "equinoxe-q061",
+            "equinoxe-q064"
+          ],
+          "sourceItemId": "scenario-family-preflight-09",
+          "title": "Brief de famille 09"
+        },
+        {
+          "businessContext": "Finalité, offre et accès du Café",
+          "entryIds": [
+            "equinoxe-q032",
+            "equinoxe-q063",
+            "equinoxe-q093"
+          ],
+          "sourceItemId": "scenario-family-preflight-10",
+          "title": "Brief de famille 10"
+        },
+        {
+          "businessContext": "Usages possibles de la terrasse",
+          "entryIds": [
+            "equinoxe-q032",
+            "equinoxe-q064"
+          ],
+          "sourceItemId": "scenario-family-preflight-11",
+          "title": "Brief de famille 11"
+        },
+        {
+          "businessContext": "Existence du restaurant et date de son ouverture",
+          "entryIds": [
+            "equinoxe-q060",
+            "equinoxe-q065"
+          ],
+          "sourceItemId": "scenario-family-preflight-12",
+          "title": "Brief de famille 12"
+        },
+        {
+          "businessContext": "Portée de l’offre alimentaire, snacks et menu",
+          "entryIds": [
+            "equinoxe-q062",
+            "equinoxe-q102",
+            "equinoxe-q103"
+          ],
+          "sourceItemId": "scenario-family-preflight-13",
+          "title": "Brief de famille 13"
+        },
+        {
+          "businessContext": "Lieux de restauration et permission d’usage",
+          "entryIds": [
+            "equinoxe-q064",
+            "equinoxe-q072",
+            "equinoxe-q092"
+          ],
+          "sourceItemId": "scenario-family-preflight-14",
+          "title": "Brief de famille 14"
+        },
+        {
+          "businessContext": "Fréquence, minimum et encouragement de présence",
+          "entryIds": [
+            "equinoxe-q041",
+            "equinoxe-q043",
+            "equinoxe-q096"
+          ],
+          "sourceItemId": "scenario-family-preflight-15",
+          "title": "Brief de famille 15"
+        },
+        {
+          "businessContext": "Règle projet, calendrier et autorité managériale de présence",
+          "entryIds": [
+            "equinoxe-q040",
+            "equinoxe-q042",
+            "equinoxe-q043",
+            "equinoxe-q044"
+          ],
+          "sourceItemId": "scenario-family-preflight-16",
+          "title": "Brief de famille 16"
+        },
+        {
+          "businessContext": "Ouverture, rôle expérimental et collecte de retours du pilote",
+          "entryIds": [
+            "equinoxe-q006",
+            "equinoxe-q079",
+            "equinoxe-q110"
+          ],
+          "sourceItemId": "scenario-family-preflight-17",
+          "title": "Brief de famille 17"
+        },
+        {
+          "businessContext": "Essai, feedback avant déménagement et évolution ultérieure",
+          "entryIds": [
+            "equinoxe-q079",
+            "equinoxe-q110",
+            "equinoxe-q111"
+          ],
+          "sourceItemId": "scenario-family-preflight-18",
+          "title": "Brief de famille 18"
+        },
+        {
+          "businessContext": "Poser une question et recevoir les actualités projet",
+          "entryIds": [
+            "equinoxe-q008",
+            "equinoxe-q078",
+            "equinoxe-q085"
+          ],
+          "sourceItemId": "scenario-family-preflight-19",
+          "title": "Brief de famille 19"
+        },
+        {
+          "businessContext": "Rôle, présence locale et désignation des ambassadeurs",
+          "entryIds": [
+            "equinoxe-q077",
+            "equinoxe-q106",
+            "equinoxe-q107"
+          ],
+          "sourceItemId": "scenario-family-preflight-20",
+          "title": "Brief de famille 20"
+        },
+        {
+          "businessContext": "Canal de question et canal de proposition d’amélioration",
+          "entryIds": [
+            "equinoxe-q083",
+            "equinoxe-q112"
+          ],
+          "sourceItemId": "scenario-family-preflight-21",
+          "title": "Brief de famille 21"
+        },
+        {
+          "businessContext": "Actualités, feedback, évolution et contribution au projet",
+          "entryIds": [
+            "equinoxe-q078",
+            "equinoxe-q085",
+            "equinoxe-q110",
+            "equinoxe-q111",
+            "equinoxe-q112"
+          ],
+          "sourceItemId": "scenario-family-preflight-22",
+          "title": "Brief de famille 22"
+        },
+        {
+          "businessContext": "Règle de réservation lorsque l’espace n’est pas précisé",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q053",
+            "equinoxe-q020",
+            "equinoxe-q022",
+            "equinoxe-q023",
+            "equinoxe-q024"
+          ],
+          "sourceItemId": "scenario-family-preflight-23",
+          "title": "Brief de famille 23"
+        },
+        {
+          "businessContext": "Capacité lorsque le lieu n’est pas précisé",
+          "entryIds": [
+            "equinoxe-q026",
+            "equinoxe-q028",
+            "equinoxe-q029",
+            "equinoxe-q031",
+            "equinoxe-q076"
+          ],
+          "sourceItemId": "scenario-family-preflight-24",
+          "title": "Brief de famille 24"
+        },
+        {
+          "businessContext": "Choix d’espace pour un groupe de six à dix personnes",
+          "entryIds": [
+            "equinoxe-q028",
+            "equinoxe-q029",
+            "equinoxe-q031"
+          ],
+          "sourceItemId": "scenario-family-preflight-25",
+          "title": "Brief de famille 25"
+        },
+        {
+          "businessContext": "Événement au Forum et réunion ordinaire",
+          "entryIds": [
+            "equinoxe-q024",
+            "equinoxe-q029",
+            "equinoxe-q105"
+          ],
+          "sourceItemId": "scenario-family-preflight-26",
+          "title": "Brief de famille 26"
+        },
+        {
+          "businessContext": "Travail calme, appel rapide et confidentialité",
+          "entryIds": [
+            "equinoxe-q025",
+            "equinoxe-q027",
+            "equinoxe-q050",
+            "equinoxe-q051",
+            "equinoxe-q099"
+          ],
+          "sourceItemId": "scenario-family-preflight-27",
+          "title": "Brief de famille 27"
+        },
+        {
+          "businessContext": "Isolation acoustique et fermeture physique",
+          "entryIds": [
+            "equinoxe-q050",
+            "equinoxe-q051",
+            "equinoxe-q099",
+            "equinoxe-q052",
+            "equinoxe-q091"
+          ],
+          "sourceItemId": "scenario-family-preflight-28",
+          "title": "Brief de famille 28"
+        },
+        {
+          "businessContext": "Accès libre, disponibilité et espace ouvert",
+          "entryIds": [
+            "equinoxe-q020",
+            "equinoxe-q089",
+            "equinoxe-q091"
+          ],
+          "sourceItemId": "scenario-family-preflight-29",
+          "title": "Brief de famille 29"
+        },
+        {
+          "businessContext": "Créer, vérifier ou annuler une réservation",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q053",
+            "equinoxe-q022",
+            "equinoxe-q089",
+            "equinoxe-q090"
+          ],
+          "sourceItemId": "scenario-family-preflight-30",
+          "title": "Brief de famille 30"
+        },
+        {
+          "businessContext": "Salle projet générique et espaces nommés Project Room",
+          "entryIds": [
+            "equinoxe-q019",
+            "equinoxe-q053",
+            "equinoxe-q022",
+            "equinoxe-q028",
+            "equinoxe-q031",
+            "equinoxe-q052"
+          ],
+          "sourceItemId": "scenario-family-preflight-31",
+          "title": "Brief de famille 31"
+        },
+        {
+          "businessContext": "Usage d’un espace non précisé",
+          "entryIds": [
+            "equinoxe-q025",
+            "equinoxe-q027",
+            "equinoxe-q029",
+            "equinoxe-q052"
+          ],
+          "sourceItemId": "scenario-family-preflight-32",
+          "title": "Brief de famille 32"
+        },
+        {
+          "businessContext": "Nombre de niveaux du bâtiment et population accueillie",
+          "entryIds": [
+            "equinoxe-q075",
+            "equinoxe-q076"
+          ],
+          "sourceItemId": "scenario-family-preflight-33",
+          "title": "Brief de famille 33"
+        },
+        {
+          "businessContext": "Capacité du site et capacité d’une salle",
+          "entryIds": [
+            "equinoxe-q028",
+            "equinoxe-q029",
+            "equinoxe-q031",
+            "equinoxe-q076"
+          ],
+          "sourceItemId": "scenario-family-preflight-34",
+          "title": "Brief de famille 34"
+        }
+      ]
+    }
+  },
+  "sourcePlanFingerprint": "c432d4b1726ca841a0515917d3caee9133d8d36c5f503730ad42f521b4d0df3f",
+  "status": "PENDING_HUMAN_REVIEW",
+  "structureFingerprint": "7645715532702ea42599151243126e63abcfcb6015ad711673d9e12111da361e"
+}

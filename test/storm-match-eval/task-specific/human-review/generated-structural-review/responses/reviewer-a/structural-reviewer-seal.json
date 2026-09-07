@@ -1,0 +1,42 @@
+{
+  "packetSeals": [
+    {
+      "eventCount": 10,
+      "finalEventHash": "b5c7ec268a0bfb53401b726614d5a6529cb8a52009cd3f819683c5f497ecb007",
+      "journalCanonicalSha256": "3a6115c8bd4a7b601110696acea6441cbe2a83adb61a2e57eebb8b72708aa62f",
+      "journalPath": "01-equivalence-preferred.fr.response-log.json",
+      "packetFingerprint": "0c9db08b70360d9ec942208bae0856809e304014513fc800a21d11a98102a6a0",
+      "packetId": "storm-01-a-equivalencePreferred-fr"
+    },
+    {
+      "eventCount": 8,
+      "finalEventHash": "8b0d8863aa8c63aef0e9417a7648e9d5a260f0bde6e162d43b5ef37564baa462",
+      "journalCanonicalSha256": "19b5bbfe39669974b26ae28c09609518e83032f84b1b64ce2bbca9f226ab7b4d",
+      "journalPath": "02-knowledge-boundaries.fr.response-log.json",
+      "packetFingerprint": "e56af278f61e6876755b607a281b31a3d6bde517d377fc4f3b406eab9b8d79d0",
+      "packetId": "storm-02-a-knowledgeBoundaries-fr"
+    },
+    {
+      "eventCount": 96,
+      "finalEventHash": "7c086608dfd87fb2cecca28c3cc81139780f78e8280b25010af77cb51290a77a",
+      "journalCanonicalSha256": "d061981af255dca7e2f3db2f1fd81c9bfa2e1749a888d531b3bf645767f92e1c",
+      "journalPath": "03-ambiguity-families.fr.response-log.json",
+      "packetFingerprint": "cc1442bd1262061e9159ff273a3389d5bb377f0e33da064044f5e60b5887982c",
+      "packetId": "storm-03-a-ambiguityFamilies-fr"
+    },
+    {
+      "eventCount": 68,
+      "finalEventHash": "e00dc3b3292a2d5b36e568aa18922f15611d2e701f14fa1b74689486ab852a1d",
+      "journalCanonicalSha256": "afb7b4dea47a5febdb221fa59adbede6e6458d067c89057cc42aee59a672c7b7",
+      "journalPath": "04-scenario-family-preflight.fr.response-log.json",
+      "packetFingerprint": "247973df424adea4d41e48fa32cad7d7bfc0cbc9be73bf6376477b5671a9ccbd",
+      "packetId": "storm-04-a-scenarioFamilyPreflight-fr"
+    }
+  ],
+  "reviewerIdentity": "reviewer-a",
+  "reviewerSlot": "A",
+  "schemaVersion": 1,
+  "sealHash": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+  "sealType": "STRUCTURAL_REVIEWER_SEAL",
+  "sealedAt": "2026-09-07T12:34:22.149Z"
+}

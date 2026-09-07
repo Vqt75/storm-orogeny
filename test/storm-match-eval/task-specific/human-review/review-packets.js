@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 export const HUMAN_REVIEW_STATUS = 'PENDING_HUMAN_REVIEW';
 export const PROTOCOL_COMMIT = '1e1a08d17f9e387b0ea62e9bfd46ed2d02e49131';
+export const SUPPORTED_REVIEW_LANGUAGES = Object.freeze(['fr', 'en', 'de', 'es', 'it', 'nl']);
 
 function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -72,6 +73,62 @@ export const REVIEW_RESPONSE_CONTRACT = deepFreeze({
     requiredFields: ['reviewItemRef', 'isOpportunity', 'consequenceCategory', 'rationale']
   },
   noDefaultJudgments: true
+});
+
+// Schema-only contract for the future business-structure packets. No final
+// packet is built at this stage because the reviewed comparison sets and
+// cluster boundaries are not yet frozen. The contract deliberately separates
+// equivalence, preferred-entry and graph decisions.
+export const STRUCTURAL_REVIEW_PACKET_SCHEMA = deepFreeze({
+  schemaVersion: 1,
+  packetKind: 'KNOWLEDGE_STRUCTURE',
+  reviewStatus: HUMAN_REVIEW_STATUS,
+  supportedLanguageStrata: [...SUPPORTED_REVIEW_LANGUAGES],
+  languageMode: 'EXACTLY_ONE_LANGUAGE_PER_PACKET',
+  reviewerRoles: ['A', 'B'],
+  physicalReviewerAssignmentScope: 'PER_LANGUAGE_STRATUM',
+  input: {
+    canonicalKnowledgeItemFields: ['knowledgeRef', 'canonicalQuestion', 'canonicalAnswer', 'preRegisteredTieBreakRank'],
+    equivalenceComparisonFields: ['comparisonRef', 'knowledgeRefs'],
+    knowledgeBoundaryFields: ['boundaryRef', 'knowledgeRefs'],
+    currentEquivalenceGroupIncluded: false,
+    proposedPreferredEntryIncluded: false,
+    currentKnowledgeClusterIncluded: false
+  },
+  independentDecisionSections: {
+    equivalencePartition: {
+      requiredFields: ['comparisonRef', 'reviewerGroupRefs', 'rationale'],
+      preferredEntryIncluded: false
+    },
+    preferredEntrySelection: {
+      requiredFields: ['reviewerGroupRef', 'preferredKnowledgeRef', 'rationale'],
+      separateFromEquivalenceDecision: true
+    },
+    knowledgeClusterPartition: {
+      requiredFields: ['reviewerClusterRef', 'memberKnowledgeRefs', 'rationale'],
+      connectedComponentRuleRequired: true
+    },
+    knowledgeBoundaryDecision: {
+      requiredFields: ['boundaryRef', 'decision', 'rationale'],
+      allowedValues: ['sameConnectedComponent', 'separateComponents']
+    }
+  },
+  isolation: {
+    modelOutputsIncluded: false,
+    scoresIncluded: false,
+    semanticNeighbourRanksIncluded: false,
+    proposedEquivalenceJudgmentsIncluded: false,
+    proposedClusterJudgmentsIncluded: false,
+    otherReviewerResponsesIncluded: false,
+    curatorMappingIncluded: false
+  },
+  responsePolicy: {
+    noDefaultJudgments: true,
+    twoIndependentHumanSubmissionsRequired: true,
+    appendOnlyAdjudicationRequired: true,
+    originalReviewerDecisionsPreserved: true
+  },
+  finalPacketGenerationAuthorized: false
 });
 
 function canonicalise(value) {
@@ -159,8 +216,8 @@ function assertNeutralSource(source) {
     if (item.businessContext !== null && item.businessContext !== undefined && !isNonEmptyString(item.businessContext)) {
       throw new Error(`Query ${item.caseId} businessContext must be a non-empty string or null`);
     }
-    if (item.language !== null && item.language !== undefined && !isNonEmptyString(item.language)) {
-      throw new Error(`Query ${item.caseId} language must be a non-empty string or null`);
+    if (!SUPPORTED_REVIEW_LANGUAGES.includes(item.language)) {
+      throw new Error(`Query ${item.caseId} language must be one of ${SUPPORTED_REVIEW_LANGUAGES.join(', ')}`);
     }
     if (new Set(item.candidateEntryIds).size !== item.candidateEntryIds.length) {
       throw new Error(`Query ${item.caseId} contains duplicate candidate ids`);
@@ -168,6 +225,10 @@ function assertNeutralSource(source) {
     for (const entryId of item.candidateEntryIds) {
       if (!knownEntryIds.has(entryId)) throw new Error(`Unknown candidate entry id: ${entryId}`);
     }
+  }
+  const languageStrata = new Set(source.queryItems.map(item => item.language));
+  if (languageStrata.size !== 1) {
+    throw new Error('Each independent review bundle must contain exactly one language stratum');
   }
   if (new Set(source.queryItems.map(item => item.caseId)).size !== source.queryItems.length) {
     throw new Error('Neutral query item ids must be unique');
@@ -314,8 +375,8 @@ function createQualityGateManifest(sourceFingerprint, contentSetFingerprint) {
     sourceFingerprint,
     contentSetFingerprint,
     holdoutQualityGateStatus: HUMAN_REVIEW_STATUS,
-    reviewerAStatus: 'NOT_STARTED',
-    reviewerBStatus: 'UNASSIGNED',
+    reviewerAStatus: 'ROLE_READY_ASSIGNMENTS_PENDING_BY_LANGUAGE',
+    reviewerBStatus: 'ROLE_READY_ASSIGNMENTS_PENDING_BY_LANGUAGE',
     adjudicationStatus: 'BLOCKED_WAITING_FOR_BOTH',
     automaticCompletionAllowed: false
   };
@@ -349,9 +410,11 @@ export function createIndependentReviewPackets(source, { reviewerASeed, reviewer
     queryOrder: queriesA,
     candidateOrderByCaseId: candidateOrders.reviewerA,
     reviewerIdentity: {
-      reviewerId: 'vivien',
-      displayName: 'Vivien',
-      assignmentStatus: 'ASSIGNED'
+      reviewerRole: 'A',
+      assignmentScope: 'PER_LANGUAGE_STRATUM',
+      languageStratum: source.queryItems[0].language,
+      physicalReviewerPreassigned: false,
+      languageCompetenceRequired: true
     }
   });
   const reviewerB = buildPacket({
@@ -363,9 +426,11 @@ export function createIndependentReviewPackets(source, { reviewerASeed, reviewer
     queryOrder: queriesB,
     candidateOrderByCaseId: candidateOrders.reviewerB,
     reviewerIdentity: {
-      reviewerId: null,
-      displayName: null,
-      assignmentStatus: 'UNASSIGNED'
+      reviewerRole: 'B',
+      assignmentScope: 'PER_LANGUAGE_STRATUM',
+      languageStratum: source.queryItems[0].language,
+      physicalReviewerPreassigned: false,
+      languageCompetenceRequired: true
     }
   });
 
@@ -596,7 +661,13 @@ export function validateIndependentReviewPackets(bundle, seeds) {
     'queryItems',
     'packetFingerprint'
   ];
-  const identityKeys = ['reviewerId', 'displayName', 'assignmentStatus'];
+  const identityKeys = [
+    'reviewerRole',
+    'assignmentScope',
+    'languageStratum',
+    'physicalReviewerPreassigned',
+    'languageCompetenceRequired'
+  ];
   const isolationKeys = [
     'modelOutputsIncluded',
     'scoresIncluded',
@@ -641,7 +712,7 @@ export function validateIndependentReviewPackets(bundle, seeds) {
         'candidateKnowledgeRefs'
       ], 'INVALID_QUERY_ITEM_SCHEMA', { packetId: packet.packetId });
       if (!isNonEmptyString(item.reviewItemRef) || !isNonEmptyString(item.query)
-        || (item.language !== null && !isNonEmptyString(item.language))
+        || !SUPPORTED_REVIEW_LANGUAGES.includes(item.language)
         || (item.businessContext !== null && !isNonEmptyString(item.businessContext))
         || !Array.isArray(item.candidateKnowledgeRefs) || item.candidateKnowledgeRefs.length === 0
         || item.candidateKnowledgeRefs.some(ref => !isNonEmptyString(ref))
@@ -671,8 +742,12 @@ export function validateIndependentReviewPackets(bundle, seeds) {
   if (gate.sourceFingerprint !== a.sourceFingerprint || gate.contentSetFingerprint !== a.contentSetFingerprint) {
     errors.push({ code: 'QUALITY_GATE_SOURCE_MISMATCH' });
   }
-  if (gate.reviewerAStatus !== 'NOT_STARTED') errors.push({ code: 'REVIEWER_A_STATUS_NOT_INITIAL' });
-  if (gate.reviewerBStatus !== 'UNASSIGNED') errors.push({ code: 'REVIEWER_B_STATUS_NOT_INITIAL' });
+  if (gate.reviewerAStatus !== 'ROLE_READY_ASSIGNMENTS_PENDING_BY_LANGUAGE') {
+    errors.push({ code: 'REVIEWER_A_STATUS_NOT_INITIAL' });
+  }
+  if (gate.reviewerBStatus !== 'ROLE_READY_ASSIGNMENTS_PENDING_BY_LANGUAGE') {
+    errors.push({ code: 'REVIEWER_B_STATUS_NOT_INITIAL' });
+  }
   if (gate.adjudicationStatus !== 'BLOCKED_WAITING_FOR_BOTH') errors.push({ code: 'ADJUDICATION_NOT_BLOCKED' });
   if (gate.automaticCompletionAllowed !== false) errors.push({ code: 'AUTOMATIC_GATE_COMPLETION_ALLOWED' });
   if (gate.manifestFingerprint !== fingerprint(withoutField(gate, 'manifestFingerprint'))) {
@@ -733,13 +808,20 @@ export function validateIndependentReviewPackets(bundle, seeds) {
   }
   if (canonicalJson(a.decisionGrid) !== canonicalJson(b.decisionGrid)) errors.push({ code: 'REVIEW_GRIDS_DIFFER' });
   if (canonicalJson(a.responseContract) !== canonicalJson(b.responseContract)) errors.push({ code: 'RESPONSE_CONTRACTS_DIFFER' });
-  if (a.reviewerSlot !== 'A' || a.reviewerIdentity.reviewerId !== 'vivien' || a.reviewerIdentity.assignmentStatus !== 'ASSIGNED') {
-    errors.push({ code: 'REVIEWER_A_NOT_VIVIEN' });
+  for (const [packet, expectedRole] of [[a, 'A'], [b, 'B']]) {
+    if (packet.reviewerSlot !== expectedRole
+      || packet.reviewerIdentity.reviewerRole !== expectedRole
+      || packet.reviewerIdentity.assignmentScope !== 'PER_LANGUAGE_STRATUM'
+      || !SUPPORTED_REVIEW_LANGUAGES.includes(packet.reviewerIdentity.languageStratum)
+      || packet.reviewerIdentity.physicalReviewerPreassigned !== false
+      || packet.reviewerIdentity.languageCompetenceRequired !== true) {
+      errors.push({ code: 'INVALID_LANGUAGE_STRATUM_REVIEWER_ROLE', reviewerSlot: expectedRole });
+    }
   }
-  if (a.reviewerIdentity.displayName !== 'Vivien') errors.push({ code: 'REVIEWER_A_DISPLAY_NAME_MISMATCH' });
-  if (b.reviewerSlot !== 'B' || b.reviewerIdentity.reviewerId !== null || b.reviewerIdentity.displayName !== null
-    || b.reviewerIdentity.assignmentStatus !== 'UNASSIGNED') {
-    errors.push({ code: 'REVIEWER_B_PREMATURELY_DESIGNATED' });
+  if (a.reviewerIdentity.languageStratum !== b.reviewerIdentity.languageStratum
+    || a.queryItems.some(item => item.language !== a.reviewerIdentity.languageStratum)
+    || b.queryItems.some(item => item.language !== b.reviewerIdentity.languageStratum)) {
+    errors.push({ code: 'REVIEW_PACKET_LANGUAGE_STRATUM_MISMATCH' });
   }
 
   if (linkage.protocolCommit !== PROTOCOL_COMMIT) errors.push({ code: 'LINKAGE_PROTOCOL_COMMIT_MISMATCH' });

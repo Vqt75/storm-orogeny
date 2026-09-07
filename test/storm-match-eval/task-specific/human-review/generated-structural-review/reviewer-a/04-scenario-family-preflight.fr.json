@@ -1,0 +1,861 @@
+{
+  "decisionsRequired": [
+    {
+      "allowedValues": [
+        "reviewerDefinedFamilyGroups",
+        "insufficientEvidence"
+      ],
+      "decisionType": "reviewerScenarioFamilyPartition",
+      "rationaleRequired": true
+    },
+    {
+      "allowedValues": [
+        "distinct",
+        "mergeWithAnotherDisplayedBrief",
+        "tooBroad",
+        "artificiallyFragmented",
+        "insufficientEvidence"
+      ],
+      "decisionType": "fragmentationAssessment",
+      "rationaleRequired": true
+    }
+  ],
+  "generationAuthorized": false,
+  "humanQualityGateStatus": "PENDING_HUMAN_REVIEW",
+  "instructions": [
+    "Partitionner les briefs affichés en situations utilisateur ou métier substantiellement distinctes.",
+    "Fusionner les briefs qui décrivent le même besoin malgré un angle, une catégorie ou un vocabulaire différent.",
+    "Signaler les briefs trop larges, artificiellement atomisés ou insuffisamment documentés. Aucun nombre cible ne doit être atteint mécaniquement."
+  ],
+  "isolation": {
+    "curatorMappingIncluded": false,
+    "modelOutputsIncluded": false,
+    "otherReviewerResponsesIncluded": false,
+    "predictionsIncluded": false,
+    "prefilledJudgmentsIncluded": false,
+    "proposedEquivalenceGroupsIncluded": false,
+    "proposedKnowledgeClustersIncluded": false,
+    "proposedPreferredEntriesIncluded": false,
+    "scoresIncluded": false,
+    "semanticNeighbourRanksIncluded": false
+  },
+  "knowledgeItems": [
+    {
+      "canonicalAnswer": "Oui, aucun changement n’est prévu sur l’organisation du télétravail.",
+      "canonicalQuestion": "Les jours de télétravail restent-ils les mêmes ?",
+      "knowledgeRef": "storm-04-a-knowledge-001"
+    },
+    {
+      "canonicalAnswer": "Les salles de réunion accueillent de 4 à 16 personnes, en présentiel ou hybride.",
+      "canonicalQuestion": "Quelle est la capacité des salles de réunion ?",
+      "knowledgeRef": "storm-04-a-knowledge-002"
+    },
+    {
+      "canonicalAnswer": "L’outil de réservation habituel indique la disponibilité des salles en temps réel.",
+      "canonicalQuestion": "Comment savoir si une salle est libre ?",
+      "knowledgeRef": "storm-04-a-knowledge-003"
+    },
+    {
+      "canonicalAnswer": "Utilisez une bulle, pensée pour les appels et visioconférences courtes.",
+      "canonicalQuestion": "Où puis-je passer un appel rapide sans déranger personne ?",
+      "knowledgeRef": "storm-04-a-knowledge-004"
+    },
+    {
+      "canonicalAnswer": "Le projet ne modifie pas les règles de télétravail actuelles.",
+      "canonicalQuestion": "Est-ce que je vais devoir venir plus souvent au bureau ?",
+      "knowledgeRef": "storm-04-a-knowledge-005"
+    },
+    {
+      "canonicalAnswer": "Vous pouvez vous adresser dès maintenant aux circuits RH/santé habituels ou à un ambassadeur.",
+      "canonicalQuestion": "Qui puis-je contacter pour une question d’accessibilité avant même le déménagement ?",
+      "knowledgeRef": "storm-04-a-knowledge-006"
+    },
+    {
+      "canonicalAnswer": "Les salles de réunion et bulles sont prévues pour les échanges nécessitant de la confidentialité.",
+      "canonicalQuestion": "Comment garantir la confidentialité dans un open space ?",
+      "knowledgeRef": "storm-04-a-knowledge-007"
+    },
+    {
+      "canonicalAnswer": "Les espaces Focus sont des postes individuels isolés ; la Bibliothèque est un espace collectif à silence renforcé, 24 places.",
+      "canonicalQuestion": "C’est quoi la différence entre Focus et Bibliothèque ?",
+      "knowledgeRef": "storm-04-a-knowledge-008"
+    },
+    {
+      "canonicalAnswer": "Environ 640 collaborateurs sont concernés par le projet.",
+      "canonicalQuestion": "Combien de personnes vont travailler à Cobalt ?",
+      "knowledgeRef": "storm-04-a-knowledge-009"
+    },
+    {
+      "canonicalAnswer": "Les Project Rooms accueillent de 6 à 10 personnes.",
+      "canonicalQuestion": "Combien de personnes dans une Project Room ?",
+      "knowledgeRef": "storm-04-a-knowledge-010"
+    },
+    {
+      "canonicalAnswer": "Le plateau témoin a ouvert ses portes le 27 juillet 2026.",
+      "canonicalQuestion": "Quand le plateau témoin a-t-il ouvert ?",
+      "knowledgeRef": "storm-04-a-knowledge-011"
+    },
+    {
+      "canonicalAnswer": "Oui, le local vélos prévoit des prises de recharge.",
+      "canonicalQuestion": "Y a-t-il des prises de recharge pour vélos électriques ?",
+      "knowledgeRef": "storm-04-a-knowledge-012"
+    },
+    {
+      "canonicalAnswer": "Les règles de télétravail restent celles en vigueur dans votre équipe, inchangées par le projet.",
+      "canonicalQuestion": "Mon manager peut-il m’imposer des jours fixes au bureau ?",
+      "knowledgeRef": "storm-04-a-knowledge-013"
+    },
+    {
+      "canonicalAnswer": "Oui, le Forum peut être réservé pour des événements, sur demande auprès de l’équipe projet.",
+      "canonicalQuestion": "Le Forum est-il réservable pour un événement d’équipe ?",
+      "knowledgeRef": "storm-04-a-knowledge-014"
+    },
+    {
+      "canonicalAnswer": "Oui, une terrasse d’environ 70 places est prévue.",
+      "canonicalQuestion": "Puis-je déjeuner dehors quand il fait beau ?",
+      "knowledgeRef": "storm-04-a-knowledge-015"
+    },
+    {
+      "canonicalAnswer": "Non, vous aurez un quartier d’équipe mais pas de poste nominatif.",
+      "canonicalQuestion": "Aurai-je un bureau attitré ?",
+      "knowledgeRef": "storm-04-a-knowledge-016"
+    },
+    {
+      "canonicalAnswer": "Oui, chaque équipe se voit attribuer un quartier de référence stable.",
+      "canonicalQuestion": "Mon équipe aura-t-elle toujours la même zone ?",
+      "knowledgeRef": "storm-04-a-knowledge-017"
+    },
+    {
+      "canonicalAnswer": "Non, la Bibliothèque fonctionne en accès libre.",
+      "canonicalQuestion": "Faut-il réserver pour aller à la Bibliothèque ?",
+      "knowledgeRef": "storm-04-a-knowledge-018"
+    },
+    {
+      "canonicalAnswer": "Les espaces prévus pour la restauration sont le Café central, le Restaurant et la Terrasse, plutôt que les postes de travail.",
+      "canonicalQuestion": "Peut-on manger à son poste ?",
+      "knowledgeRef": "storm-04-a-knowledge-019"
+    },
+    {
+      "canonicalAnswer": "Le projet reste ajustable : les usages seront observés après l’emménagement et des ajustements resteront possibles.",
+      "canonicalQuestion": "Le projet est-il définitif ou peut-il encore évoluer ?",
+      "knowledgeRef": "storm-04-a-knowledge-020"
+    },
+    {
+      "canonicalAnswer": "L’ouverture des services (dont le restaurant) est prévue au moment de l’emménagement, le 18 janvier 2027.",
+      "canonicalQuestion": "Le restaurant sera-t-il ouvert dès le premier jour ?",
+      "knowledgeRef": "storm-04-a-knowledge-021"
+    },
+    {
+      "canonicalAnswer": "Oui, des casiers seront disponibles -- la réservation ouvrira début décembre 2026.",
+      "canonicalQuestion": "J’aurai un casier personnel ?",
+      "knowledgeRef": "storm-04-a-knowledge-022"
+    },
+    {
+      "canonicalAnswer": "Le calendrier est stabilisé, mais certaines dates intermédiaires (ateliers, visites) peuvent être ajustées en fonction de l’avancement.",
+      "canonicalQuestion": "Le calendrier peut-il encore changer ?",
+      "knowledgeRef": "storm-04-a-knowledge-023"
+    },
+    {
+      "canonicalAnswer": "Le guide des nouveaux usages sera disponible début octobre, plusieurs mois avant le déménagement.",
+      "canonicalQuestion": "On aura combien de temps pour préparer notre déménagement personnel ?",
+      "knowledgeRef": "storm-04-a-knowledge-024"
+    },
+    {
+      "canonicalAnswer": "Via l’outil de réservation habituel des salles de réunion.",
+      "canonicalQuestion": "Comment réserver une salle pour un entretien annuel ?",
+      "knowledgeRef": "storm-04-a-knowledge-025"
+    },
+    {
+      "canonicalAnswer": "La semaine de préparation est prévue le 11 janvier 2027, juste avant l’emménagement.",
+      "canonicalQuestion": "Quand aura lieu la semaine de préparation ?",
+      "knowledgeRef": "storm-04-a-knowledge-026"
+    },
+    {
+      "canonicalAnswer": "Aucune obligation de déclarer sa présence n’est prévue pour le moment.",
+      "canonicalQuestion": "Je dois prévenir si je viens un jour précis ?",
+      "knowledgeRef": "storm-04-a-knowledge-027"
+    },
+    {
+      "canonicalAnswer": "Le Forum est un espace pour les événements et prises de parole, jusqu’à 120 personnes.",
+      "canonicalQuestion": "Le Forum, c’est pour quoi ?",
+      "knowledgeRef": "storm-04-a-knowledge-028"
+    },
+    {
+      "canonicalAnswer": "Non, les bulles sont pensées pour un usage court et spontané, sans réservation.",
+      "canonicalQuestion": "Et les bulles, on les réserve aussi ?",
+      "knowledgeRef": "storm-04-a-knowledge-029"
+    },
+    {
+      "canonicalAnswer": "Le bâtiment compte 8 niveaux.",
+      "canonicalQuestion": "Il y a combien d’étages ?",
+      "knowledgeRef": "storm-04-a-knowledge-030"
+    },
+    {
+      "canonicalAnswer": "Oui, chaque service dispose d’un ambassadeur qui sert de relais de proximité.",
+      "canonicalQuestion": "Les ambassadeurs sont-ils dans mon service ?",
+      "knowledgeRef": "storm-04-a-knowledge-031"
+    },
+    {
+      "canonicalAnswer": "Cobalt est situé à Saint-Denis Pleyel, avec un accès direct en RER et métro.",
+      "canonicalQuestion": "C’est loin de la gare ?",
+      "knowledgeRef": "storm-04-a-knowledge-032"
+    },
+    {
+      "canonicalAnswer": "Le projet vise surtout à améliorer la qualité des espaces disponibles sur site, sans changer les règles de télétravail.",
+      "canonicalQuestion": "Cobalt va-t-il encourager plus de présence sur site ?",
+      "knowledgeRef": "storm-04-a-knowledge-033"
+    },
+    {
+      "canonicalAnswer": "L’offre précise de restauration rapide sera détaillée avant l’ouverture du site.",
+      "canonicalQuestion": "Y a-t-il des distributeurs si je veux juste un snack ?",
+      "knowledgeRef": "storm-04-a-knowledge-034"
+    },
+    {
+      "canonicalAnswer": "Oui, des actualités et jalons sont publiés régulièrement dans Storm au fil de l’avancement.",
+      "canonicalQuestion": "Est-ce qu’il y aura des points d’étape réguliers ?",
+      "knowledgeRef": "storm-04-a-knowledge-035"
+    },
+    {
+      "canonicalAnswer": "Oui, vous pouvez transmettre vos idées à votre ambassadeur ou à l’équipe projet.",
+      "canonicalQuestion": "Puis-je proposer une idée d’amélioration ?",
+      "knowledgeRef": "storm-04-a-knowledge-036"
+    },
+    {
+      "canonicalAnswer": "Oui, Cobalt bénéficie d’un accès direct en RER et métro.",
+      "canonicalQuestion": "Le site est-il accessible facilement depuis le centre de Paris ?",
+      "knowledgeRef": "storm-04-a-knowledge-037"
+    },
+    {
+      "canonicalAnswer": "Vous resterez principalement dans le quartier d’équipe qui vous est associé, avec la liberté de varier selon vos besoins.",
+      "canonicalQuestion": "Je vais devoir changer de bureau tous les jours ?",
+      "knowledgeRef": "storm-04-a-knowledge-038"
+    },
+    {
+      "canonicalAnswer": "Oui, les Project Rooms se réservent à la demi-journée ou à la journée.",
+      "canonicalQuestion": "Peut-on réserver une Project Room à l’avance ?",
+      "knowledgeRef": "storm-04-a-knowledge-039"
+    },
+    {
+      "canonicalAnswer": "Une assistance IT sera présente lors de la semaine de préparation, début janvier 2027.",
+      "canonicalQuestion": "Comment se passera le branchement de mon poste le premier jour ?",
+      "knowledgeRef": "storm-04-a-knowledge-040"
+    },
+    {
+      "canonicalAnswer": "Les Project Rooms sont conçues pour le travail de projet en petit groupe, avec une bonne isolation sonore.",
+      "canonicalQuestion": "Les Project Rooms sont-elles insonorisées ?",
+      "knowledgeRef": "storm-04-a-knowledge-041"
+    },
+    {
+      "canonicalAnswer": "Oui.",
+      "canonicalQuestion": "Y aura-t-il un restaurant ?",
+      "knowledgeRef": "storm-04-a-knowledge-042"
+    },
+    {
+      "canonicalAnswer": "Le restaurant proposera environ 220 places.",
+      "canonicalQuestion": "Combien de places au restaurant ?",
+      "knowledgeRef": "storm-04-a-knowledge-043"
+    },
+    {
+      "canonicalAnswer": "Oui, au sein de votre quartier d’équipe vous choisissez librement votre poste du jour.",
+      "canonicalQuestion": "Est-ce que je choisis où je m’assois chaque matin ?",
+      "knowledgeRef": "storm-04-a-knowledge-044"
+    },
+    {
+      "canonicalAnswer": "Les circuits RH/santé habituels restent le point d’entrée pour toute demande d’adaptation de poste.",
+      "canonicalQuestion": "Qui contacter pour un besoin spécifique d’ergonomie ?",
+      "knowledgeRef": "storm-04-a-knowledge-045"
+    },
+    {
+      "canonicalAnswer": "Les casiers sont dimensionnés pour les effets personnels et documents courants -- le détail des tailles sera précisé avec l’ouverture des réservations.",
+      "canonicalQuestion": "Le casier est-il suffisant pour un carton de dossiers ?",
+      "knowledgeRef": "storm-04-a-knowledge-046"
+    },
+    {
+      "canonicalAnswer": "Non, un local vélos dédié de 160 places est prévu, avec douches et casiers à proximité.",
+      "canonicalQuestion": "Je peux amener mon vélo à l’intérieur ?",
+      "knowledgeRef": "storm-04-a-knowledge-047"
+    },
+    {
+      "canonicalAnswer": "Le plateau témoin permet de tester les mobiliers et futurs usages envisagés pour Cobalt.",
+      "canonicalQuestion": "Le mobilier du plateau témoin, c’est celui qu’on aura à Cobalt ?",
+      "knowledgeRef": "storm-04-a-knowledge-048"
+    },
+    {
+      "canonicalAnswer": "Les modalités de stationnement et de recharge seront précisées avant l’emménagement.",
+      "canonicalQuestion": "Y a-t-il des bornes de recharge pour voitures électriques ?",
+      "knowledgeRef": "storm-04-a-knowledge-049"
+    },
+    {
+      "canonicalAnswer": "Non.",
+      "canonicalQuestion": "Le projet change-t-il le télétravail ?",
+      "knowledgeRef": "storm-04-a-knowledge-050"
+    },
+    {
+      "canonicalAnswer": "L’équipe projet recueille les retours pour ajuster les choix avant le déménagement définitif.",
+      "canonicalQuestion": "Qui gère les premiers retours après l’ouverture du plateau témoin ?",
+      "knowledgeRef": "storm-04-a-knowledge-051"
+    },
+    {
+      "canonicalAnswer": "Via les circuits RH/santé habituels.",
+      "canonicalQuestion": "Comment demander un poste adapté ?",
+      "knowledgeRef": "storm-04-a-knowledge-052"
+    },
+    {
+      "canonicalAnswer": "Dans votre casier personnel, réservable à partir de début décembre 2026.",
+      "canonicalQuestion": "Où je mets mes affaires si je n’ai pas de bureau fixe ?",
+      "knowledgeRef": "storm-04-a-knowledge-053"
+    },
+    {
+      "canonicalAnswer": "Vous pourrez utiliser le restaurant (environ 220 places), le Café central ou la Terrasse selon vos envies.",
+      "canonicalQuestion": "Et pour manger le midi, on fait comment ?",
+      "knowledgeRef": "storm-04-a-knowledge-054"
+    },
+    {
+      "canonicalAnswer": "Le Forum est plutôt réservé aux grands événements et prises de parole, jusqu’à 120 personnes.",
+      "canonicalQuestion": "Le Forum sera-t-il utilisé pour les réunions d’équipe classiques ?",
+      "knowledgeRef": "storm-04-a-knowledge-055"
+    },
+    {
+      "canonicalAnswer": "Oui, les actualités et les jalons du projet sont mis à jour régulièrement dans Storm.",
+      "canonicalQuestion": "On peut suivre l’avancement du projet quelque part ?",
+      "knowledgeRef": "storm-04-a-knowledge-056"
+    },
+    {
+      "canonicalAnswer": "Pas systématiquement en V1.",
+      "canonicalQuestion": "Dois-je réserver un poste ?",
+      "knowledgeRef": "storm-04-a-knowledge-057"
+    },
+    {
+      "canonicalAnswer": "Les ambassadeurs sont des relais de proximité dans chaque service, pour répondre à vos questions au quotidien.",
+      "canonicalQuestion": "Qui sont les ambassadeurs, ils servent à quoi ?",
+      "knowledgeRef": "storm-04-a-knowledge-058"
+    },
+    {
+      "canonicalAnswer": "Oui, les salles de réunion et bulles conviennent à ce type d’échange.",
+      "canonicalQuestion": "Puis-je réserver une salle pour un appel client confidentiel ?",
+      "knowledgeRef": "storm-04-a-knowledge-059"
+    },
+    {
+      "canonicalAnswer": "Oui, une couverture wifi est prévue sur l’ensemble des espaces de Cobalt.",
+      "canonicalQuestion": "Y aura-t-il du wifi partout dans le bâtiment ?",
+      "knowledgeRef": "storm-04-a-knowledge-060"
+    },
+    {
+      "canonicalAnswer": "Cobalt est desservi par le métro et le RER -- le détail des accès sera communiqué avant l’emménagement.",
+      "canonicalQuestion": "Comment accéder à Cobalt en transport en commun ?",
+      "knowledgeRef": "storm-04-a-knowledge-061"
+    },
+    {
+      "canonicalAnswer": "Oui, le Café central est pensé comme un lieu de convivialité accessible tout au long de la journée.",
+      "canonicalQuestion": "Le café central est-il accessible toute la journée ?",
+      "knowledgeRef": "storm-04-a-knowledge-062"
+    },
+    {
+      "canonicalAnswer": "Le Café central est surtout pensé pour la convivialité -- l’offre précise sera communiquée avant l’ouverture.",
+      "canonicalQuestion": "Le café central sert-il aussi à manger ?",
+      "knowledgeRef": "storm-04-a-knowledge-063"
+    },
+    {
+      "canonicalAnswer": "Ce sont des postes individuels isolés, pensés pour limiter les distractions sans être totalement cloisonnés.",
+      "canonicalQuestion": "Les espaces Focus sont-ils fermés ou ouverts ?",
+      "knowledgeRef": "storm-04-a-knowledge-064"
+    },
+    {
+      "canonicalAnswer": "Via l’outil de réservation habituel, qui reste inchangé pour les salles de réunion.",
+      "canonicalQuestion": "Comment je réserve une salle de réunion ?",
+      "knowledgeRef": "storm-04-a-knowledge-065"
+    },
+    {
+      "canonicalAnswer": "Non, vous pouvez poser vos questions à tout moment via Storm.",
+      "canonicalQuestion": "Y a-t-il une date limite pour poser des questions sur le projet ?",
+      "knowledgeRef": "storm-04-a-knowledge-066"
+    },
+    {
+      "canonicalAnswer": "Oui, utilisez une salle de réunion ou une bulle pour ce type d’échange.",
+      "canonicalQuestion": "Puis-je passer un entretien RH confidentiel sur site ?",
+      "knowledgeRef": "storm-04-a-knowledge-067"
+    },
+    {
+      "canonicalAnswer": "Non, le projet Cobalt porte sur les espaces, pas sur les règles de présence.",
+      "canonicalQuestion": "Cobalt va-t-il imposer une présence minimale ?",
+      "knowledgeRef": "storm-04-a-knowledge-068"
+    },
+    {
+      "canonicalAnswer": "Oui, une offre chaude, végétarienne et rapide est prévue au restaurant.",
+      "canonicalQuestion": "Y aura-t-il une offre végétarienne ?",
+      "knowledgeRef": "storm-04-a-knowledge-069"
+    },
+    {
+      "canonicalAnswer": "Oui, les réservations peuvent être annulées via l’outil de réservation.",
+      "canonicalQuestion": "Peut-on annuler une réservation de Project Room ?",
+      "knowledgeRef": "storm-04-a-knowledge-070"
+    },
+    {
+      "canonicalAnswer": "Les casiers sont individuels, réservables par chaque collaborateur.",
+      "canonicalQuestion": "Y a-t-il un casier par personne ou par équipe ?",
+      "knowledgeRef": "storm-04-a-knowledge-071"
+    },
+    {
+      "canonicalAnswer": "Oui, l’accessibilité fait partie des principes du projet, avec une attention portée à tous.",
+      "canonicalQuestion": "Cobalt est-il accessible aux personnes à mobilité réduite ?",
+      "knowledgeRef": "storm-04-a-knowledge-072"
+    },
+    {
+      "canonicalAnswer": "Oui, Cobalt est situé à proximité d’une gare RER.",
+      "canonicalQuestion": "Y a-t-il un accès facile en RER ?",
+      "knowledgeRef": "storm-04-a-knowledge-073"
+    },
+    {
+      "canonicalAnswer": "Le Restaurant proposera une offre chaude, végétarienne et rapide -- le détail de la carte sera communiqué plus tard.",
+      "canonicalQuestion": "Le restaurant propose-t-il un menu différent chaque jour ?",
+      "knowledgeRef": "storm-04-a-knowledge-074"
+    },
+    {
+      "canonicalAnswer": "Oui, des visites et une semaine de préparation sont prévues avant l’emménagement.",
+      "canonicalQuestion": "Le projet prévoit-il d’autres ateliers après le choix des quartiers ?",
+      "knowledgeRef": "storm-04-a-knowledge-075"
+    },
+    {
+      "canonicalAnswer": "Oui, des visites sont prévues fin novembre 2026 -- les créneaux seront communiqués par les ambassadeurs.",
+      "canonicalQuestion": "Est-ce que je peux visiter Cobalt avant le déménagement ?",
+      "knowledgeRef": "storm-04-a-knowledge-076"
+    },
+    {
+      "canonicalAnswer": "Les ambassadeurs sont désignés au sein de chaque service comme relais de proximité pour le projet.",
+      "canonicalQuestion": "Comment sont choisis les ambassadeurs ?",
+      "knowledgeRef": "storm-04-a-knowledge-077"
+    },
+    {
+      "canonicalAnswer": "Oui, le Café central et la Terrasse sont pensés pour la convivialité et les échanges informels.",
+      "canonicalQuestion": "Y a-t-il un espace pour les échanges informels ?",
+      "knowledgeRef": "storm-04-a-knowledge-078"
+    },
+    {
+      "canonicalAnswer": "Oui, des casiers et des douches sont prévus à proximité du local vélos.",
+      "canonicalQuestion": "Le local vélos a des douches à proximité ?",
+      "knowledgeRef": "storm-04-a-knowledge-079"
+    },
+    {
+      "canonicalAnswer": "Les détails de desserte complète (bus, RER, métro) seront communiqués avant l’emménagement.",
+      "canonicalQuestion": "Le site est-il proche d’un arrêt de bus ?",
+      "knowledgeRef": "storm-04-a-knowledge-080"
+    },
+    {
+      "canonicalAnswer": "Vous pouvez contacter un ambassadeur de votre service ou l’équipe projet directement.",
+      "canonicalQuestion": "Y a-t-il un contact si j’ai une question qui n’est pas dans Storm ?",
+      "knowledgeRef": "storm-04-a-knowledge-081"
+    },
+    {
+      "canonicalAnswer": "À la Bibliothèque ou dans les espaces Focus.",
+      "canonicalQuestion": "Où travailler au calme ?",
+      "knowledgeRef": "storm-04-a-knowledge-082"
+    }
+  ],
+  "languageStratum": "fr",
+  "limitations": [
+    "The sample contains the 34 current ambiguity-family candidates only; it is not the future 250–260-family inventory.",
+    "Paraphrase, translation, hard-negative, lexical-collision and mixed-intent fragmentation cannot be audited empirically until neutral scenario briefs exist.",
+    "No scenarioFamilyId is assigned or semantically bound by this packet."
+  ],
+  "packetFingerprint": "247973df424adea4d41e48fa32cad7d7bfc0cbc9be73bf6376477b5671a9ccbd",
+  "packetId": "storm-04-a-scenarioFamilyPreflight-fr",
+  "packetKind": "SCENARIO_FAMILY_PREFLIGHT",
+  "randomization": {
+    "algorithm": "sha256-rank-v1",
+    "knowledgeOrderByItemSha256": "f42df1c491721880cfbe9b6973d1461b91d15a26ba0896c7b7557fd87d518490",
+    "knowledgeOrderSha256": "c781dd4abf70c0745c72d51fb47f2e29c7a70b96fb1fc020b3fb6a6d173f59a6",
+    "reviewItemOrderSha256": "f3a77a3f4f9df460da00ad9290d61e8e7f2f4dc1225fab2453405289a8889648",
+    "seedCommitmentSha256": "abb64e04cdd5f0f58c8053e91e80dfeaf5d3fd522b29c07ec8866663d77c1714"
+  },
+  "responseContract": {
+    "appendOnly": true,
+    "correctionPolicy": "Append a superseding event; never edit or delete an earlier event.",
+    "decisionPhaseOrderEnforced": false,
+    "emptyAtGeneration": true,
+    "peerResponsesAllowedBeforeSeal": false,
+    "requiredEventFields": [
+      "eventId",
+      "sequence",
+      "reviewItemRef",
+      "decisionType",
+      "decisionValue",
+      "rationale",
+      "reviewerIdentity",
+      "languageCompetenceAttested",
+      "recordedAt",
+      "previousEventHash",
+      "eventHash"
+    ]
+  },
+  "reviewItems": [
+    {
+      "businessContext": "Lieux de restauration et permission d’usage",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-054",
+        "storm-04-a-knowledge-019",
+        "storm-04-a-knowledge-015"
+      ],
+      "reviewItemRef": "storm-04-a-item-001",
+      "title": "Brief de famille 14"
+    },
+    {
+      "businessContext": "Ouverture, rôle expérimental et collecte de retours du pilote",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-048",
+        "storm-04-a-knowledge-011",
+        "storm-04-a-knowledge-051"
+      ],
+      "reviewItemRef": "storm-04-a-item-002",
+      "title": "Brief de famille 17"
+    },
+    {
+      "businessContext": "Casier personnel et équipement de rangement du local vélos",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-046",
+        "storm-04-a-knowledge-079",
+        "storm-04-a-knowledge-053",
+        "storm-04-a-knowledge-071",
+        "storm-04-a-knowledge-022",
+        "storm-04-a-knowledge-047"
+      ],
+      "reviewItemRef": "storm-04-a-item-003",
+      "title": "Brief de famille 06"
+    },
+    {
+      "businessContext": "Réservation du poste et déclaration de présence",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-057",
+        "storm-04-a-knowledge-027"
+      ],
+      "reviewItemRef": "storm-04-a-item-004",
+      "title": "Brief de famille 02"
+    },
+    {
+      "businessContext": "Créer, vérifier ou annuler une réservation",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-065",
+        "storm-04-a-knowledge-025",
+        "storm-04-a-knowledge-070",
+        "storm-04-a-knowledge-003",
+        "storm-04-a-knowledge-039"
+      ],
+      "reviewItemRef": "storm-04-a-item-005",
+      "title": "Brief de famille 30"
+    },
+    {
+      "businessContext": "Travail calme, appel rapide et confidentialité",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-082",
+        "storm-04-a-knowledge-067",
+        "storm-04-a-knowledge-004",
+        "storm-04-a-knowledge-059",
+        "storm-04-a-knowledge-007"
+      ],
+      "reviewItemRef": "storm-04-a-item-006",
+      "title": "Brief de famille 27"
+    },
+    {
+      "businessContext": "Essai, feedback avant déménagement et évolution ultérieure",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-020",
+        "storm-04-a-knowledge-051",
+        "storm-04-a-knowledge-048"
+      ],
+      "reviewItemRef": "storm-04-a-item-007",
+      "title": "Brief de famille 18"
+    },
+    {
+      "businessContext": "Capacité du restaurant et capacité de la terrasse",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-043",
+        "storm-04-a-knowledge-015"
+      ],
+      "reviewItemRef": "storm-04-a-item-008",
+      "title": "Brief de famille 09"
+    },
+    {
+      "businessContext": "Recharge électrique pour vélo ou automobile",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-012",
+        "storm-04-a-knowledge-049"
+      ],
+      "reviewItemRef": "storm-04-a-item-009",
+      "title": "Brief de famille 05"
+    },
+    {
+      "businessContext": "Finalité, offre et accès du Café",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-078",
+        "storm-04-a-knowledge-062",
+        "storm-04-a-knowledge-063"
+      ],
+      "reviewItemRef": "storm-04-a-item-010",
+      "title": "Brief de famille 10"
+    },
+    {
+      "businessContext": "Poser une question et recevoir les actualités projet",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-035",
+        "storm-04-a-knowledge-066",
+        "storm-04-a-knowledge-056"
+      ],
+      "reviewItemRef": "storm-04-a-item-011",
+      "title": "Brief de famille 19"
+    },
+    {
+      "businessContext": "Événement au Forum et réunion ordinaire",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-028",
+        "storm-04-a-knowledge-014",
+        "storm-04-a-knowledge-055"
+      ],
+      "reviewItemRef": "storm-04-a-item-012",
+      "title": "Brief de famille 26"
+    },
+    {
+      "businessContext": "Isolation acoustique et fermeture physique",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-007",
+        "storm-04-a-knowledge-059",
+        "storm-04-a-knowledge-067",
+        "storm-04-a-knowledge-041",
+        "storm-04-a-knowledge-064"
+      ],
+      "reviewItemRef": "storm-04-a-item-013",
+      "title": "Brief de famille 28"
+    },
+    {
+      "businessContext": "Portée de l’offre alimentaire, snacks et menu",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-034",
+        "storm-04-a-knowledge-069",
+        "storm-04-a-knowledge-074"
+      ],
+      "reviewItemRef": "storm-04-a-item-014",
+      "title": "Brief de famille 13"
+    },
+    {
+      "businessContext": "Rôle, présence locale et désignation des ambassadeurs",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-058",
+        "storm-04-a-knowledge-031",
+        "storm-04-a-knowledge-077"
+      ],
+      "reviewItemRef": "storm-04-a-item-015",
+      "title": "Brief de famille 20"
+    },
+    {
+      "businessContext": "Capacité du site et capacité d’une salle",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-010",
+        "storm-04-a-knowledge-002",
+        "storm-04-a-knowledge-028",
+        "storm-04-a-knowledge-009"
+      ],
+      "reviewItemRef": "storm-04-a-item-016",
+      "title": "Brief de famille 34"
+    },
+    {
+      "businessContext": "Canal de question et canal de proposition d’amélioration",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-036",
+        "storm-04-a-knowledge-081"
+      ],
+      "reviewItemRef": "storm-04-a-item-017",
+      "title": "Brief de famille 21"
+    },
+    {
+      "businessContext": "Fréquence, minimum et encouragement de présence",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-068",
+        "storm-04-a-knowledge-033",
+        "storm-04-a-knowledge-005"
+      ],
+      "reviewItemRef": "storm-04-a-item-018",
+      "title": "Brief de famille 15"
+    },
+    {
+      "businessContext": "Accessibilité PMR et accessibilité géographique ou transport",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-037",
+        "storm-04-a-knowledge-032",
+        "storm-04-a-knowledge-080",
+        "storm-04-a-knowledge-073",
+        "storm-04-a-knowledge-072",
+        "storm-04-a-knowledge-061"
+      ],
+      "reviewItemRef": "storm-04-a-item-019",
+      "title": "Brief de famille 04"
+    },
+    {
+      "businessContext": "Règle projet, calendrier et autorité managériale de présence",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-013",
+        "storm-04-a-knowledge-068",
+        "storm-04-a-knowledge-001",
+        "storm-04-a-knowledge-050"
+      ],
+      "reviewItemRef": "storm-04-a-item-020",
+      "title": "Brief de famille 16"
+    },
+    {
+      "businessContext": "Salle projet générique et espaces nommés Project Room",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-010",
+        "storm-04-a-knowledge-041",
+        "storm-04-a-knowledge-039",
+        "storm-04-a-knowledge-065",
+        "storm-04-a-knowledge-002",
+        "storm-04-a-knowledge-025"
+      ],
+      "reviewItemRef": "storm-04-a-item-021",
+      "title": "Brief de famille 31"
+    },
+    {
+      "businessContext": "Nombre de niveaux du bâtiment et population accueillie",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-030",
+        "storm-04-a-knowledge-009"
+      ],
+      "reviewItemRef": "storm-04-a-item-022",
+      "title": "Brief de famille 33"
+    },
+    {
+      "businessContext": "Existence du restaurant et date de son ouverture",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-021",
+        "storm-04-a-knowledge-042"
+      ],
+      "reviewItemRef": "storm-04-a-item-023",
+      "title": "Brief de famille 12"
+    },
+    {
+      "businessContext": "Règle de réservation lorsque l’espace n’est pas précisé",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-065",
+        "storm-04-a-knowledge-018",
+        "storm-04-a-knowledge-039",
+        "storm-04-a-knowledge-014",
+        "storm-04-a-knowledge-029",
+        "storm-04-a-knowledge-025"
+      ],
+      "reviewItemRef": "storm-04-a-item-024",
+      "title": "Brief de famille 23"
+    },
+    {
+      "businessContext": "Portée des jalons de préparation au déménagement",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-023",
+        "storm-04-a-knowledge-075",
+        "storm-04-a-knowledge-024",
+        "storm-04-a-knowledge-026",
+        "storm-04-a-knowledge-076"
+      ],
+      "reviewItemRef": "storm-04-a-item-025",
+      "title": "Brief de famille 07"
+    },
+    {
+      "businessContext": "Capacité lorsque le lieu n’est pas précisé",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-008",
+        "storm-04-a-knowledge-028",
+        "storm-04-a-knowledge-010",
+        "storm-04-a-knowledge-009",
+        "storm-04-a-knowledge-002"
+      ],
+      "reviewItemRef": "storm-04-a-item-026",
+      "title": "Brief de famille 24"
+    },
+    {
+      "businessContext": "Connexion réseau sans fil et branchement physique du poste",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-040",
+        "storm-04-a-knowledge-060"
+      ],
+      "reviewItemRef": "storm-04-a-item-027",
+      "title": "Brief de famille 03"
+    },
+    {
+      "businessContext": "Permanence du poste, position quotidienne et quartier stable",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-038",
+        "storm-04-a-knowledge-017",
+        "storm-04-a-knowledge-016",
+        "storm-04-a-knowledge-044"
+      ],
+      "reviewItemRef": "storm-04-a-item-028",
+      "title": "Brief de famille 01"
+    },
+    {
+      "businessContext": "Usage d’un espace non précisé",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-082",
+        "storm-04-a-knowledge-004",
+        "storm-04-a-knowledge-028",
+        "storm-04-a-knowledge-041"
+      ],
+      "reviewItemRef": "storm-04-a-item-029",
+      "title": "Brief de famille 32"
+    },
+    {
+      "businessContext": "Accès libre, disponibilité et espace ouvert",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-003",
+        "storm-04-a-knowledge-064",
+        "storm-04-a-knowledge-018"
+      ],
+      "reviewItemRef": "storm-04-a-item-030",
+      "title": "Brief de famille 29"
+    },
+    {
+      "businessContext": "Adaptation du poste, accessibilité et équipement spécifique",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-006",
+        "storm-04-a-knowledge-072",
+        "storm-04-a-knowledge-045",
+        "storm-04-a-knowledge-052"
+      ],
+      "reviewItemRef": "storm-04-a-item-031",
+      "title": "Brief de famille 08"
+    },
+    {
+      "businessContext": "Usages possibles de la terrasse",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-078",
+        "storm-04-a-knowledge-015"
+      ],
+      "reviewItemRef": "storm-04-a-item-032",
+      "title": "Brief de famille 11"
+    },
+    {
+      "businessContext": "Actualités, feedback, évolution et contribution au projet",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-056",
+        "storm-04-a-knowledge-036",
+        "storm-04-a-knowledge-035",
+        "storm-04-a-knowledge-051",
+        "storm-04-a-knowledge-020"
+      ],
+      "reviewItemRef": "storm-04-a-item-033",
+      "title": "Brief de famille 22"
+    },
+    {
+      "businessContext": "Choix d’espace pour un groupe de six à dix personnes",
+      "knowledgeRefs": [
+        "storm-04-a-knowledge-002",
+        "storm-04-a-knowledge-010",
+        "storm-04-a-knowledge-028"
+      ],
+      "reviewItemRef": "storm-04-a-item-034",
+      "title": "Brief de famille 25"
+    }
+  ],
+  "reviewStatus": "NOT_STARTED",
+  "reviewerSlot": "A",
+  "schemaVersion": 1,
+  "traceability": {
+    "canonicalSnapshotSha256": "4b8a64a58d44b8f81cbf861e9daefc594a9095b6c8516ef205ecefde82984d4b",
+    "compositionFingerprint": "2951ff970fe1e274e9ed250e25dfef95a6d9425a900b8f8b09e086d2cef5a652",
+    "structureFingerprint": "7645715532702ea42599151243126e63abcfcb6015ad711673d9e12111da361e"
+  }
+}

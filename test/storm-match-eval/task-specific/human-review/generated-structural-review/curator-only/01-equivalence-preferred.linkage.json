@@ -1,0 +1,148 @@
+{
+  "linkageFingerprint": "7157f1230d176b5b92c31c54e88ec8de1f5e448002bfcacdd5d1ffea7a0fdd94",
+  "reviewerA": {
+    "itemRefs": [
+      {
+        "reviewItemRef": "storm-01-a-item-001",
+        "sourceItemId": "equivalence-comparison-04"
+      },
+      {
+        "reviewItemRef": "storm-01-a-item-002",
+        "sourceItemId": "equivalence-comparison-05"
+      },
+      {
+        "reviewItemRef": "storm-01-a-item-003",
+        "sourceItemId": "equivalence-comparison-01"
+      },
+      {
+        "reviewItemRef": "storm-01-a-item-004",
+        "sourceItemId": "equivalence-comparison-03"
+      },
+      {
+        "reviewItemRef": "storm-01-a-item-005",
+        "sourceItemId": "equivalence-comparison-02"
+      }
+    ],
+    "knowledgeRefs": [
+      {
+        "entryId": "equinoxe-q051",
+        "knowledgeRef": "storm-01-a-knowledge-001"
+      },
+      {
+        "entryId": "equinoxe-q001",
+        "knowledgeRef": "storm-01-a-knowledge-002"
+      },
+      {
+        "entryId": "equinoxe-q078",
+        "knowledgeRef": "storm-01-a-knowledge-003"
+      },
+      {
+        "entryId": "equinoxe-q050",
+        "knowledgeRef": "storm-01-a-knowledge-004"
+      },
+      {
+        "entryId": "equinoxe-q085",
+        "knowledgeRef": "storm-01-a-knowledge-005"
+      },
+      {
+        "entryId": "equinoxe-q053",
+        "knowledgeRef": "storm-01-a-knowledge-006"
+      },
+      {
+        "entryId": "equinoxe-q019",
+        "knowledgeRef": "storm-01-a-knowledge-007"
+      },
+      {
+        "entryId": "equinoxe-q099",
+        "knowledgeRef": "storm-01-a-knowledge-008"
+      },
+      {
+        "entryId": "equinoxe-q002",
+        "knowledgeRef": "storm-01-a-knowledge-009"
+      },
+      {
+        "entryId": "equinoxe-q066",
+        "knowledgeRef": "storm-01-a-knowledge-010"
+      },
+      {
+        "entryId": "equinoxe-q069",
+        "knowledgeRef": "storm-01-a-knowledge-011"
+      }
+    ],
+    "packetFingerprint": "0c9db08b70360d9ec942208bae0856809e304014513fc800a21d11a98102a6a0"
+  },
+  "reviewerB": {
+    "itemRefs": [
+      {
+        "reviewItemRef": "storm-01-b-item-001",
+        "sourceItemId": "equivalence-comparison-02"
+      },
+      {
+        "reviewItemRef": "storm-01-b-item-002",
+        "sourceItemId": "equivalence-comparison-01"
+      },
+      {
+        "reviewItemRef": "storm-01-b-item-003",
+        "sourceItemId": "equivalence-comparison-05"
+      },
+      {
+        "reviewItemRef": "storm-01-b-item-004",
+        "sourceItemId": "equivalence-comparison-04"
+      },
+      {
+        "reviewItemRef": "storm-01-b-item-005",
+        "sourceItemId": "equivalence-comparison-03"
+      }
+    ],
+    "knowledgeRefs": [
+      {
+        "entryId": "equinoxe-q099",
+        "knowledgeRef": "storm-01-b-knowledge-001"
+      },
+      {
+        "entryId": "equinoxe-q019",
+        "knowledgeRef": "storm-01-b-knowledge-002"
+      },
+      {
+        "entryId": "equinoxe-q002",
+        "knowledgeRef": "storm-01-b-knowledge-003"
+      },
+      {
+        "entryId": "equinoxe-q051",
+        "knowledgeRef": "storm-01-b-knowledge-004"
+      },
+      {
+        "entryId": "equinoxe-q066",
+        "knowledgeRef": "storm-01-b-knowledge-005"
+      },
+      {
+        "entryId": "equinoxe-q053",
+        "knowledgeRef": "storm-01-b-knowledge-006"
+      },
+      {
+        "entryId": "equinoxe-q085",
+        "knowledgeRef": "storm-01-b-knowledge-007"
+      },
+      {
+        "entryId": "equinoxe-q069",
+        "knowledgeRef": "storm-01-b-knowledge-008"
+      },
+      {
+        "entryId": "equinoxe-q001",
+        "knowledgeRef": "storm-01-b-knowledge-009"
+      },
+      {
+        "entryId": "equinoxe-q050",
+        "knowledgeRef": "storm-01-b-knowledge-010"
+      },
+      {
+        "entryId": "equinoxe-q078",
+        "knowledgeRef": "storm-01-b-knowledge-011"
+      }
+    ],
+    "packetFingerprint": "64e165bfe4d96f07df59fcfb8cc7bab9297532a32a27a35f498ce2ebb8ae6a3c"
+  },
+  "schemaVersion": 1,
+  "sectionKey": "equivalencePreferred",
+  "sourceItemsSha256": "5e8e80bb7754c57e29c4442f36ea72596b81ad425c017bc8c55b3ed7c6c20f08"
+}

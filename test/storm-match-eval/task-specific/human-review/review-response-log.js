@@ -2,7 +2,8 @@ import {
   canonicalJson,
   fingerprint,
   HUMAN_REVIEW_STATUS,
-  REVIEW_DECISION_GRID
+  REVIEW_DECISION_GRID,
+  SUPPORTED_REVIEW_LANGUAGES
 } from './review-packets.js';
 
 export const SEALED_HUMAN_SUBMISSION = 'SEALED_HUMAN_SUBMISSION';
@@ -114,10 +115,6 @@ export function createEmptyReviewerResponseLog(packet, { reviewerId }) {
   if (!packet || !['A', 'B'].includes(packet.reviewerSlot)) throw new Error('A valid review packet is required');
   requiredString(reviewerId, 'reviewerId');
   const normalisedReviewerId = reviewerId.trim().toLocaleLowerCase('fr-FR');
-  if (packet.reviewerSlot === 'A' && normalisedReviewerId !== 'vivien') throw new Error('Reviewer A must be Vivien');
-  if (packet.reviewerSlot === 'B' && normalisedReviewerId === 'vivien') {
-    throw new Error('Reviewer B must be independent from Reviewer A');
-  }
 
   return withLogFingerprint({
     schemaVersion: 1,
@@ -270,8 +267,9 @@ export function validateReviewerResponseLog(log, packet, { requireComplete = fal
     : log.reviewerId;
   if (!['A', 'B'].includes(log.reviewerSlot)) errors.push({ code: 'INVALID_REVIEWER_SLOT' });
   if (typeof log.reviewerId !== 'string' || log.reviewerId.trim() === '') errors.push({ code: 'MISSING_REVIEWER_ID' });
-  if (log.reviewerSlot === 'A' && normalisedReviewerId !== 'vivien') errors.push({ code: 'REVIEWER_A_IDENTITY_MISMATCH' });
-  if (log.reviewerSlot === 'B' && normalisedReviewerId === 'vivien') errors.push({ code: 'REVIEWER_B_NOT_INDEPENDENT' });
+  if (typeof normalisedReviewerId === 'string' && normalisedReviewerId !== log.reviewerId) {
+    errors.push({ code: 'REVIEWER_ID_NOT_NORMALISED' });
+  }
   if (log.logFingerprint !== fingerprint(withoutField(log, 'logFingerprint'))) errors.push({ code: 'RESPONSE_LOG_FINGERPRINT_MISMATCH' });
   if (!Array.isArray(log.records)) return { ok: false, errors: [...errors, { code: 'MISSING_RESPONSE_RECORDS' }] };
 
@@ -319,9 +317,19 @@ export function sealReviewerResponseLog(log, packet, { sealedAt, attestation }) 
   if (!validation.ok) throw new Error(`Cannot seal incomplete response log: ${canonicalJson(validation.errors)}`);
   if (log.responseStatus !== 'IN_PROGRESS') throw new Error('Response log is already sealed');
   requiredString(sealedAt, 'sealedAt');
-  assertExactKeys(attestation, ['reviewerId', 'statement'], 'human attestation');
+  assertExactKeys(
+    attestation,
+    ['reviewerId', 'statement', 'languageStratum', 'languageCompetenceAttested'],
+    'human attestation'
+  );
   if (attestation.reviewerId !== log.reviewerId) throw new Error('Attestation reviewer does not match response log');
   requiredString(attestation.statement, 'attestation.statement');
+  if (attestation.languageStratum !== packet.reviewerIdentity?.languageStratum) {
+    throw new Error('Attestation language stratum does not match review packet');
+  }
+  if (attestation.languageCompetenceAttested !== true) {
+    throw new Error('Human reviewer must attest competence in the reviewed language');
+  }
 
   const submissionWithoutFingerprint = {
     ...withoutField(log, 'logFingerprint'),
@@ -365,10 +373,16 @@ export function validateSealedReviewerSubmission(submission, packet) {
     : submission.reviewerId;
   if (!submission.humanAttestation || attestedReviewerId !== submittedReviewerId
     || typeof submittedReviewerId !== 'string' || submittedReviewerId === ''
-    || typeof submission.humanAttestation.statement !== 'string' || submission.humanAttestation.statement.trim() === '') {
+    || typeof submission.humanAttestation.statement !== 'string' || submission.humanAttestation.statement.trim() === ''
+    || !SUPPORTED_REVIEW_LANGUAGES.includes(submission.humanAttestation.languageStratum)
+    || (packet && submission.humanAttestation.languageStratum !== packet.reviewerIdentity?.languageStratum)
+    || submission.humanAttestation.languageCompetenceAttested !== true) {
     errors.push({ code: 'INVALID_HUMAN_ATTESTATION' });
   }
-  if (!hasExactKeys(submission.humanAttestation, ['reviewerId', 'statement'])) {
+  if (!hasExactKeys(
+    submission.humanAttestation,
+    ['reviewerId', 'statement', 'languageStratum', 'languageCompetenceAttested']
+  )) {
     errors.push({ code: 'INVALID_HUMAN_ATTESTATION_SCHEMA' });
   }
   if (submission?.submissionFingerprint !== fingerprint(withoutField(submission, 'submissionFingerprint'))) {

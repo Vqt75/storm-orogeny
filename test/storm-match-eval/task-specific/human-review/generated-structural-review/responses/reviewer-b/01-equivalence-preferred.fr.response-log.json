@@ -1,0 +1,10 @@
+{
+  "appendOnly": true,
+  "events": [],
+  "languageStratum": "fr",
+  "packetFingerprint": "64e165bfe4d96f07df59fcfb8cc7bab9297532a32a27a35f498ce2ebb8ae6a3c",
+  "packetId": "storm-01-b-equivalencePreferred-fr",
+  "reviewerSlot": "B",
+  "schemaVersion": 1,
+  "status": "NOT_STARTED"
+}

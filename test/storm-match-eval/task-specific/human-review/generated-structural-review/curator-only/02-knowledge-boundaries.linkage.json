@@ -1,0 +1,460 @@
+{
+  "linkageFingerprint": "d466d079d344d41a537facdb7e29e1cb4d77d7ec835da79e759bb24c9727f166",
+  "reviewerA": {
+    "itemRefs": [
+      {
+        "reviewItemRef": "storm-02-a-item-001",
+        "sourceItemId": "boundary-arrival-preparation"
+      },
+      {
+        "reviewItemRef": "storm-02-a-item-002",
+        "sourceItemId": "boundary-communication-pilot"
+      },
+      {
+        "reviewItemRef": "storm-02-a-item-003",
+        "sourceItemId": "boundary-rooms-focus"
+      },
+      {
+        "reviewItemRef": "storm-02-a-item-004",
+        "sourceItemId": "boundary-flex-telework"
+      }
+    ],
+    "knowledgeRefs": [
+      {
+        "entryId": "equinoxe-q091",
+        "knowledgeRef": "storm-02-a-knowledge-001"
+      },
+      {
+        "entryId": "equinoxe-q051",
+        "knowledgeRef": "storm-02-a-knowledge-002"
+      },
+      {
+        "entryId": "equinoxe-q085",
+        "knowledgeRef": "storm-02-a-knowledge-003"
+      },
+      {
+        "entryId": "equinoxe-q108",
+        "knowledgeRef": "storm-02-a-knowledge-004"
+      },
+      {
+        "entryId": "equinoxe-q022",
+        "knowledgeRef": "storm-02-a-knowledge-005"
+      },
+      {
+        "entryId": "equinoxe-q078",
+        "knowledgeRef": "storm-02-a-knowledge-006"
+      },
+      {
+        "entryId": "equinoxe-q044",
+        "knowledgeRef": "storm-02-a-knowledge-007"
+      },
+      {
+        "entryId": "equinoxe-q105",
+        "knowledgeRef": "storm-02-a-knowledge-008"
+      },
+      {
+        "entryId": "equinoxe-q026",
+        "knowledgeRef": "storm-02-a-knowledge-009"
+      },
+      {
+        "entryId": "equinoxe-q043",
+        "knowledgeRef": "storm-02-a-knowledge-010"
+      },
+      {
+        "entryId": "equinoxe-q007",
+        "knowledgeRef": "storm-02-a-knowledge-011"
+      },
+      {
+        "entryId": "equinoxe-q107",
+        "knowledgeRef": "storm-02-a-knowledge-012"
+      },
+      {
+        "entryId": "equinoxe-q024",
+        "knowledgeRef": "storm-02-a-knowledge-013"
+      },
+      {
+        "entryId": "equinoxe-q010",
+        "knowledgeRef": "storm-02-a-knowledge-014"
+      },
+      {
+        "entryId": "equinoxe-q029",
+        "knowledgeRef": "storm-02-a-knowledge-015"
+      },
+      {
+        "entryId": "equinoxe-q021",
+        "knowledgeRef": "storm-02-a-knowledge-016"
+      },
+      {
+        "entryId": "equinoxe-q023",
+        "knowledgeRef": "storm-02-a-knowledge-017"
+      },
+      {
+        "entryId": "equinoxe-q005",
+        "knowledgeRef": "storm-02-a-knowledge-018"
+      },
+      {
+        "entryId": "equinoxe-q050",
+        "knowledgeRef": "storm-02-a-knowledge-019"
+      },
+      {
+        "entryId": "equinoxe-q008",
+        "knowledgeRef": "storm-02-a-knowledge-020"
+      },
+      {
+        "entryId": "equinoxe-q006",
+        "knowledgeRef": "storm-02-a-knowledge-021"
+      },
+      {
+        "entryId": "equinoxe-q041",
+        "knowledgeRef": "storm-02-a-knowledge-022"
+      },
+      {
+        "entryId": "equinoxe-q001",
+        "knowledgeRef": "storm-02-a-knowledge-023"
+      },
+      {
+        "entryId": "equinoxe-q009",
+        "knowledgeRef": "storm-02-a-knowledge-024"
+      },
+      {
+        "entryId": "equinoxe-q040",
+        "knowledgeRef": "storm-02-a-knowledge-025"
+      },
+      {
+        "entryId": "equinoxe-q019",
+        "knowledgeRef": "storm-02-a-knowledge-026"
+      },
+      {
+        "entryId": "equinoxe-q003",
+        "knowledgeRef": "storm-02-a-knowledge-027"
+      },
+      {
+        "entryId": "equinoxe-q014",
+        "knowledgeRef": "storm-02-a-knowledge-028"
+      },
+      {
+        "entryId": "equinoxe-q012",
+        "knowledgeRef": "storm-02-a-knowledge-029"
+      },
+      {
+        "entryId": "equinoxe-q111",
+        "knowledgeRef": "storm-02-a-knowledge-030"
+      },
+      {
+        "entryId": "equinoxe-q052",
+        "knowledgeRef": "storm-02-a-knowledge-031"
+      },
+      {
+        "entryId": "equinoxe-q004",
+        "knowledgeRef": "storm-02-a-knowledge-032"
+      },
+      {
+        "entryId": "equinoxe-q020",
+        "knowledgeRef": "storm-02-a-knowledge-033"
+      },
+      {
+        "entryId": "equinoxe-q099",
+        "knowledgeRef": "storm-02-a-knowledge-034"
+      },
+      {
+        "entryId": "equinoxe-q096",
+        "knowledgeRef": "storm-02-a-knowledge-035"
+      },
+      {
+        "entryId": "equinoxe-q027",
+        "knowledgeRef": "storm-02-a-knowledge-036"
+      },
+      {
+        "entryId": "equinoxe-q053",
+        "knowledgeRef": "storm-02-a-knowledge-037"
+      },
+      {
+        "entryId": "equinoxe-q077",
+        "knowledgeRef": "storm-02-a-knowledge-038"
+      },
+      {
+        "entryId": "equinoxe-q025",
+        "knowledgeRef": "storm-02-a-knowledge-039"
+      },
+      {
+        "entryId": "equinoxe-q002",
+        "knowledgeRef": "storm-02-a-knowledge-040"
+      },
+      {
+        "entryId": "equinoxe-q106",
+        "knowledgeRef": "storm-02-a-knowledge-041"
+      },
+      {
+        "entryId": "equinoxe-q089",
+        "knowledgeRef": "storm-02-a-knowledge-042"
+      },
+      {
+        "entryId": "equinoxe-q110",
+        "knowledgeRef": "storm-02-a-knowledge-043"
+      },
+      {
+        "entryId": "equinoxe-q018",
+        "knowledgeRef": "storm-02-a-knowledge-044"
+      },
+      {
+        "entryId": "equinoxe-q090",
+        "knowledgeRef": "storm-02-a-knowledge-045"
+      },
+      {
+        "entryId": "equinoxe-q028",
+        "knowledgeRef": "storm-02-a-knowledge-046"
+      },
+      {
+        "entryId": "equinoxe-q031",
+        "knowledgeRef": "storm-02-a-knowledge-047"
+      },
+      {
+        "entryId": "equinoxe-q112",
+        "knowledgeRef": "storm-02-a-knowledge-048"
+      },
+      {
+        "entryId": "equinoxe-q079",
+        "knowledgeRef": "storm-02-a-knowledge-049"
+      },
+      {
+        "entryId": "equinoxe-q083",
+        "knowledgeRef": "storm-02-a-knowledge-050"
+      },
+      {
+        "entryId": "equinoxe-q042",
+        "knowledgeRef": "storm-02-a-knowledge-051"
+      }
+    ],
+    "packetFingerprint": "e56af278f61e6876755b607a281b31a3d6bde517d377fc4f3b406eab9b8d79d0"
+  },
+  "reviewerB": {
+    "itemRefs": [
+      {
+        "reviewItemRef": "storm-02-b-item-001",
+        "sourceItemId": "boundary-arrival-preparation"
+      },
+      {
+        "reviewItemRef": "storm-02-b-item-002",
+        "sourceItemId": "boundary-rooms-focus"
+      },
+      {
+        "reviewItemRef": "storm-02-b-item-003",
+        "sourceItemId": "boundary-flex-telework"
+      },
+      {
+        "reviewItemRef": "storm-02-b-item-004",
+        "sourceItemId": "boundary-communication-pilot"
+      }
+    ],
+    "knowledgeRefs": [
+      {
+        "entryId": "equinoxe-q041",
+        "knowledgeRef": "storm-02-b-knowledge-001"
+      },
+      {
+        "entryId": "equinoxe-q027",
+        "knowledgeRef": "storm-02-b-knowledge-002"
+      },
+      {
+        "entryId": "equinoxe-q077",
+        "knowledgeRef": "storm-02-b-knowledge-003"
+      },
+      {
+        "entryId": "equinoxe-q004",
+        "knowledgeRef": "storm-02-b-knowledge-004"
+      },
+      {
+        "entryId": "equinoxe-q090",
+        "knowledgeRef": "storm-02-b-knowledge-005"
+      },
+      {
+        "entryId": "equinoxe-q106",
+        "knowledgeRef": "storm-02-b-knowledge-006"
+      },
+      {
+        "entryId": "equinoxe-q001",
+        "knowledgeRef": "storm-02-b-knowledge-007"
+      },
+      {
+        "entryId": "equinoxe-q023",
+        "knowledgeRef": "storm-02-b-knowledge-008"
+      },
+      {
+        "entryId": "equinoxe-q005",
+        "knowledgeRef": "storm-02-b-knowledge-009"
+      },
+      {
+        "entryId": "equinoxe-q031",
+        "knowledgeRef": "storm-02-b-knowledge-010"
+      },
+      {
+        "entryId": "equinoxe-q024",
+        "knowledgeRef": "storm-02-b-knowledge-011"
+      },
+      {
+        "entryId": "equinoxe-q040",
+        "knowledgeRef": "storm-02-b-knowledge-012"
+      },
+      {
+        "entryId": "equinoxe-q029",
+        "knowledgeRef": "storm-02-b-knowledge-013"
+      },
+      {
+        "entryId": "equinoxe-q007",
+        "knowledgeRef": "storm-02-b-knowledge-014"
+      },
+      {
+        "entryId": "equinoxe-q014",
+        "knowledgeRef": "storm-02-b-knowledge-015"
+      },
+      {
+        "entryId": "equinoxe-q052",
+        "knowledgeRef": "storm-02-b-knowledge-016"
+      },
+      {
+        "entryId": "equinoxe-q079",
+        "knowledgeRef": "storm-02-b-knowledge-017"
+      },
+      {
+        "entryId": "equinoxe-q112",
+        "knowledgeRef": "storm-02-b-knowledge-018"
+      },
+      {
+        "entryId": "equinoxe-q111",
+        "knowledgeRef": "storm-02-b-knowledge-019"
+      },
+      {
+        "entryId": "equinoxe-q026",
+        "knowledgeRef": "storm-02-b-knowledge-020"
+      },
+      {
+        "entryId": "equinoxe-q009",
+        "knowledgeRef": "storm-02-b-knowledge-021"
+      },
+      {
+        "entryId": "equinoxe-q010",
+        "knowledgeRef": "storm-02-b-knowledge-022"
+      },
+      {
+        "entryId": "equinoxe-q051",
+        "knowledgeRef": "storm-02-b-knowledge-023"
+      },
+      {
+        "entryId": "equinoxe-q043",
+        "knowledgeRef": "storm-02-b-knowledge-024"
+      },
+      {
+        "entryId": "equinoxe-q078",
+        "knowledgeRef": "storm-02-b-knowledge-025"
+      },
+      {
+        "entryId": "equinoxe-q006",
+        "knowledgeRef": "storm-02-b-knowledge-026"
+      },
+      {
+        "entryId": "equinoxe-q099",
+        "knowledgeRef": "storm-02-b-knowledge-027"
+      },
+      {
+        "entryId": "equinoxe-q028",
+        "knowledgeRef": "storm-02-b-knowledge-028"
+      },
+      {
+        "entryId": "equinoxe-q042",
+        "knowledgeRef": "storm-02-b-knowledge-029"
+      },
+      {
+        "entryId": "equinoxe-q096",
+        "knowledgeRef": "storm-02-b-knowledge-030"
+      },
+      {
+        "entryId": "equinoxe-q021",
+        "knowledgeRef": "storm-02-b-knowledge-031"
+      },
+      {
+        "entryId": "equinoxe-q050",
+        "knowledgeRef": "storm-02-b-knowledge-032"
+      },
+      {
+        "entryId": "equinoxe-q083",
+        "knowledgeRef": "storm-02-b-knowledge-033"
+      },
+      {
+        "entryId": "equinoxe-q108",
+        "knowledgeRef": "storm-02-b-knowledge-034"
+      },
+      {
+        "entryId": "equinoxe-q018",
+        "knowledgeRef": "storm-02-b-knowledge-035"
+      },
+      {
+        "entryId": "equinoxe-q008",
+        "knowledgeRef": "storm-02-b-knowledge-036"
+      },
+      {
+        "entryId": "equinoxe-q107",
+        "knowledgeRef": "storm-02-b-knowledge-037"
+      },
+      {
+        "entryId": "equinoxe-q002",
+        "knowledgeRef": "storm-02-b-knowledge-038"
+      },
+      {
+        "entryId": "equinoxe-q019",
+        "knowledgeRef": "storm-02-b-knowledge-039"
+      },
+      {
+        "entryId": "equinoxe-q003",
+        "knowledgeRef": "storm-02-b-knowledge-040"
+      },
+      {
+        "entryId": "equinoxe-q053",
+        "knowledgeRef": "storm-02-b-knowledge-041"
+      },
+      {
+        "entryId": "equinoxe-q105",
+        "knowledgeRef": "storm-02-b-knowledge-042"
+      },
+      {
+        "entryId": "equinoxe-q044",
+        "knowledgeRef": "storm-02-b-knowledge-043"
+      },
+      {
+        "entryId": "equinoxe-q110",
+        "knowledgeRef": "storm-02-b-knowledge-044"
+      },
+      {
+        "entryId": "equinoxe-q085",
+        "knowledgeRef": "storm-02-b-knowledge-045"
+      },
+      {
+        "entryId": "equinoxe-q020",
+        "knowledgeRef": "storm-02-b-knowledge-046"
+      },
+      {
+        "entryId": "equinoxe-q012",
+        "knowledgeRef": "storm-02-b-knowledge-047"
+      },
+      {
+        "entryId": "equinoxe-q025",
+        "knowledgeRef": "storm-02-b-knowledge-048"
+      },
+      {
+        "entryId": "equinoxe-q089",
+        "knowledgeRef": "storm-02-b-knowledge-049"
+      },
+      {
+        "entryId": "equinoxe-q091",
+        "knowledgeRef": "storm-02-b-knowledge-050"
+      },
+      {
+        "entryId": "equinoxe-q022",
+        "knowledgeRef": "storm-02-b-knowledge-051"
+      }
+    ],
+    "packetFingerprint": "406ff2fed512b6f9cd7b0d9de80a66f31eb79c31b7ee933b2e3e77d8c118ae8a"
+  },
+  "schemaVersion": 1,
+  "sectionKey": "knowledgeBoundaries",
+  "sourceItemsSha256": "3b2fa13251695d4f5e09f400dc137c81f61e0fdc10a4899f76b47e8c02ac5bb0"
+}

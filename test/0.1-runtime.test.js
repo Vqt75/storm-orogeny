@@ -2,14 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createApp } from '../src/http/app.js';
+import { loadConfig } from '../src/config/env.js';
+import { getPool } from '../src/db/pool.js';
 
 // Logger silencieux pour les tests — on ne veut pas polluer la sortie
 // des tests avec les logs applicatifs, mais on garde une vraie
 // implémentation (pas un mock qui masquerait un vrai bug de forme).
 const silentLogger = { info() {}, warn() {}, error() {} };
+const config = loadConfig();
+const pool = getPool(config);
 
 function startTestServer() {
-  const app = createApp({ logger: silentLogger });
+  const app = createApp({ logger: silentLogger, pool, config });
   const server = http.createServer(app);
   return new Promise(resolve => {
     server.listen(0, () => resolve(server));

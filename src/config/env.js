@@ -67,6 +67,69 @@ export function loadConfig() {
     // Jamais gravé comme solution métier durable.
     storage: {
       localDir: requireString('STORAGE_LOCAL_DIR', 'storage-data')
+    },
+    // trust proxy -- nombre de sauts de reverse proxy à faire
+    // confiance pour dériver req.ip (donc la clé du rate limiter, voir
+    // rateLimit.js) depuis X-Forwarded-For. JAMAIS deviné : sans cette
+    // configuration, deux erreurs symétriques sont possibles --
+    // (a) derrière un proxy réel non déclaré, tous les utilisateurs
+    // partagent la même req.ip (l'adresse du proxy), donc le même
+    // budget de rate limit ; (b) une valeur trop permissive (trust
+    // proxy=true, "faire confiance à tous les sauts") permettrait à
+    // un client parlant directement au process de forger son propre
+    // X-Forwarded-For et de contourner le rate limiting.
+    //
+    // Développement/test : 0 (aucun proxy en local, req.ip reflète
+    // déjà directement la vraie connexion -- comportement Express par
+    // défaut, sans risque ici).
+    //
+    // Production : AUCUNE valeur par défaut, exigée explicitement.
+    // La topologie réelle (Render aujourd'hui, OVH/reverse proxy
+    // Parella plus tard) doit être confirmée par la DSI/l'infra avant
+    // le premier déploiement réel -- jamais affirmée depuis ce repo.
+    // Pour Render, un seul saut de proxy (valeur 1) est la topologie
+    // usuelle mais DOIT être confirmée, jamais supposée ici à la
+    // légère.
+    security: {
+      trustProxyHops: nodeEnv === 'production'
+        ? requireInt('TRUST_PROXY_HOPS')
+        : requireInt('TRUST_PROXY_HOPS', '0')
+    },
+    // SSO / External Identity V1 — Batch 2 (squelette AuthN testable
+    // avec un fake provider, jamais encore le mécanisme production
+    // actif -- devAuth reste seul branché). Voir docs/contracts pour
+    // le plan complet validé.
+    sso: {
+      // issuer du fake provider : une valeur CONNUE à l'avance,
+      // jamais dérivée d'une requête entrante -- utilisée par le
+      // registre de providers de confiance (jamais un issuer
+      // arbitraire accepté).
+      fakeProviderIssuer: requireString('SSO_FAKE_PROVIDER_ISSUER', `http://localhost:${requireInt('PORT', '4000')}/auth/fake-provider`),
+      // Secret de signature HMAC de la transaction de login -- aucune
+      // valeur par défaut en production, même principe que DB_PASSWORD.
+      transactionSigningSecret: nodeEnv === 'production'
+        ? requireString('SSO_TRANSACTION_SIGNING_SECRET')
+        : requireString('SSO_TRANSACTION_SIGNING_SECRET', 'dev-only-transaction-signing-secret-never-use-in-production'),
+      // __Host- exige Secure=true, Path=/, aucun Domain -- inutilisable
+      // tel quel en développement (Secure=false sur http:// local, le
+      // navigateur rejetterait purement et simplement le cookie).
+      // Noms distincts en développement, jamais un simple retrait
+      // silencieux du préfixe qui laisserait croire à la même garantie.
+      sessionCookieName: nodeEnv === 'production' ? '__Host-storm_session' : 'storm_session_dev',
+      transactionCookieName: nodeEnv === 'production' ? '__Host-storm_oidc_tx' : 'storm_oidc_tx_dev',
+      sessionTtlHours: requireInt('SSO_SESSION_TTL_HOURS', '24'),
+      // Origines de confiance pour la validation stricte d'Origin sur
+      // les méthodes non sûres (voir CSRF). Jamais une liste ouverte.
+      allowedOrigins: requireString('SSO_ALLOWED_ORIGINS', `http://localhost:${requireInt('PORT', '4000')}`)
+        .split(',').map(o => o.trim()).filter(Boolean),
+      // Rate limiting léger sur /auth/login et /auth/callback --
+      // ralentit le bourrage, jamais un mécanisme d'autorisation.
+      // Valeur par défaut généreuse pour un usage normal (plusieurs
+      // tentatives légitimes par minute restent possibles) ; resserrée
+      // explicitement dans les tests qui vérifient le déclenchement
+      // lui-même, jamais en production.
+      authRateLimitWindowMs: requireInt('SSO_AUTH_RATE_LIMIT_WINDOW_MS', '60000'),
+      authRateLimitMax: requireInt('SSO_AUTH_RATE_LIMIT_MAX', '100')
     }
   };
 }

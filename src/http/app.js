@@ -14,6 +14,10 @@ import { createPublicTelemetryRouter } from './routes/publicTelemetry.js';
 import { createPilotageRouter } from './routes/pilotage.js';
 import { createPublicSiteRouter } from './routes/publicSite.js';
 import { devAuth } from './middleware/devAuth.js';
+import { securityHeaders } from './middleware/securityHeaders.js';
+import { originCheck } from './middleware/originCheck.js';
+import { rateLimit } from './middleware/rateLimit.js';
+import { createAuthRouter } from './routes/auth.js';
 import { errorHandler, notFoundHandler } from './errorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +30,14 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   const app = express();
 
   app.disable('x-powered-by');
+  // Nombre de sauts de reverse proxy explicitement configuré (voir
+  // config/env.js) -- jamais `true` (ferait confiance à un nombre
+  // arbitraire de sauts, spoofable par un client parlant directement
+  // au process), jamais laissé au défaut Express implicite (false,
+  // qui partagerait la même req.ip entre tous les utilisateurs
+  // derrière un vrai reverse proxy non déclaré).
+  app.set('trust proxy', config.security.trustProxyHops);
+  app.use(securityHeaders({ isProduction: config.isProduction }));
   app.use(express.json({ limit: '1mb' }));
 
   app.use(healthRouter);
@@ -185,6 +197,23 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   app.use('/public', createPublicAssetsRouter({ pool, storageAdapter }));
   app.use('/public', createPublicTelemetryRouter({ pool }));
   app.use('/api/control', authenticated, createControlRouter({ pool }));
+
+  // SSO / External Identity V1 -- Batch 2. Squelette AuthN testable
+  // avec le fake provider, PAS ENCORE le mécanisme production réel :
+  // aucune route ci-dessous n'est protégée par devAuth (login/callback
+  // sont par nature des points d'entrée pré-authentification), et
+  // aucune route existante n'est basculée vers ssoAuth dans ce batch.
+  // originCheck s'applique ici spécifiquement : c'est la seule zone de
+  // ce batch qui introduit une authentification par cookie (le futur
+  // vecteur CSRF classique) -- les routes API existantes restent
+  // authentifiées par en-tête (X-Storm-Dev-User), jamais attaché
+  // automatiquement par le navigateur, donc non concernées par ce
+  // risque précis aujourd'hui.
+  const authLoginCallbackRateLimit = rateLimit({ windowMs: config.sso.authRateLimitWindowMs, max: config.sso.authRateLimitMax });
+  app.use('/auth', originCheck({ allowedOrigins: config.sso.allowedOrigins }));
+  app.use('/auth/login', authLoginCallbackRateLimit);
+  app.use('/auth/callback', authLoginCallbackRateLimit);
+  app.use('/auth', createAuthRouter({ pool, config }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

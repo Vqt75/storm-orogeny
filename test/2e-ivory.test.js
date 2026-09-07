@@ -8,6 +8,7 @@ import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 // Branchement Ivory — suite E2E permanente, volontairement réduite.
 //
@@ -75,9 +76,9 @@ test.before(async () => {
 
   const { rows: [tenantA] } = await pool.query("insert into tenants (name) values ('Tenant Ivory E2E') returning id");
   const { rows: [editor] } = await pool.query("insert into users (email, display_name) values ('editor@ivory-e2e.local','Editor Ivory E2E') returning id");
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, editor.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: editor.id, permissionBundle: 'member' });
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenantA.id, 'Projet Ivory E2E']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, project.id, editor.id, 'editor']);
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: project.id, userId: editor.id, permissionBundle: 'editor' });
   await pool.query("insert into project_identity (tenant_id, project_id, theme, primary_color) values ($1,$2,'ivory','#1E1D1E')", [tenantA.id, project.id]);
 
   ids = { tenantA: tenantA.id, editor: editor.id, project: project.id };

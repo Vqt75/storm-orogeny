@@ -27,7 +27,8 @@ import { loadConfig } from '../config/env.js';
 import { getPool, closePool } from './pool.js';
 import { logger } from '../logger.js';
 import {
-  insertProjectIdentity, insertProjectSettings, insertProjectModules, insertProjectMembership
+  insertProjectIdentity, insertProjectSettings, insertProjectModules, insertProjectMembership,
+  insertProjectInvitation
 } from '../domain/project-setup/repository.js';
 import {
   insertQuestion, insertArticle, insertMilestone, insertTeamMember,
@@ -102,9 +103,13 @@ async function grantPlatformDemoIdentityAccess(pool, { tenantId, projectId }) {
     logger.info({ email: PLATFORM_DEMO_IDENTITY_EMAIL }, 'Identité démo plateforme introuvable dans cette base -- accès non accordé (seed.js classique n\'a peut-être jamais tourné ici)');
     return;
   }
-  await pool.query(
-    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)',
+  const { rows: [tm] } = await pool.query(
+    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3) returning id',
     [tenantId, platformUser.id, 'organization_admin']
+  );
+  await pool.query(
+    'insert into organization_grants (tenant_id, organization_membership_id, permission_bundle, source_type, actor_user_id) values ($1,$2,$3,$4,$5)',
+    [tenantId, tm.id, 'organization_admin', 'direct', platformUser.id]
   );
   await insertProjectMembership(pool, { tenantId, projectId, userId: platformUser.id, permissionBundle: 'project_admin' });
   logger.info({ email: PLATFORM_DEMO_IDENTITY_EMAIL, userId: platformUser.id }, 'Accès Équinoxe accordé à l\'identité démo réelle de la plateforme');
@@ -120,9 +125,13 @@ async function seedDemo() {
   await cleanDemoTenantContent(pool, tenantId);
 
   const userId = await findOrCreateContentAuthor(pool);
-  await pool.query(
-    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)',
+  const { rows: [contentAuthorTm] } = await pool.query(
+    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3) returning id',
     [tenantId, userId, 'organization_admin']
+  );
+  await pool.query(
+    'insert into organization_grants (tenant_id, organization_membership_id, permission_bundle, source_type, actor_user_id) values ($1,$2,$3,$4,$5)',
+    [tenantId, contentAuthorTm.id, 'organization_admin', 'direct', userId]
   );
 
   const { rows: [project] } = await pool.query(
@@ -139,6 +148,40 @@ async function seedDemo() {
   });
   await insertProjectMembership(pool, { tenantId, projectId, userId, permissionBundle: 'project_admin' });
   await grantPlatformDemoIdentityAccess(pool, { tenantId, projectId });
+
+  // ── Données de démonstration Storm Control V2 ──────────────────────
+  // Un mapping externe réel + une seconde source d'accès pour l'identité
+  // démo (jamais une réduction de ses capacités réelles -- elle garde
+  // project_admin via son grant direct déjà accordé ci-dessus ; ce
+  // second grant, additionnel, démontre simplement "plusieurs sources
+  // d'accès indépendantes" dans l'UI, cohérent avec l'exemple du
+  // handoff). Une invitation en attente réelle, jamais fictive côté UI
+  // seulement.
+  {
+    const { rows: [mapping] } = await pool.query(
+      `insert into external_group_mappings (tenant_id, provider, external_group_id, target_type, target_id, permission_bundle)
+       values ($1,'Microsoft Entra ID','grp-equinoxe-editors','project',$2,'editor') returning id`,
+      [tenantId, projectId]
+    );
+    const platformUser = await findUserByEmail(pool, PLATFORM_DEMO_IDENTITY_EMAIL);
+    if (platformUser) {
+      const { rows: [pm] } = await pool.query(
+        'select id from project_memberships where project_id=$1 and user_id=$2', [projectId, platformUser.id]
+      );
+      if (pm) {
+        await pool.query(
+          `insert into project_grants (tenant_id, project_id, project_membership_id, permission_bundle, source_type, external_provider, external_group_id, mapping_id)
+           values ($1,$2,$3,'editor','external_group_mapping','Microsoft Entra ID','grp-equinoxe-editors',$4)`,
+          [tenantId, projectId, pm.id, mapping.id]
+        );
+      }
+    }
+    await insertProjectInvitation(pool, {
+      tenantId, projectId,
+      email: 'lea.martin@example.com', permissionBundle: 'editor', locale: 'fr',
+      invitedByUserId: userId
+    });
+  }
 
   logger.info({ tenantId, projectId }, 'Tenant/projet démo créés');
 

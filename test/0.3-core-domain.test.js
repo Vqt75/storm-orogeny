@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { loadConfig } from '../src/config/env.js';
 import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 // Ces tests tournent contre une vraie instance PostgreSQL (voir .env) —
 // pas une simulation. L'objectif précis : prouver que l'isolation
@@ -35,7 +36,7 @@ test('une project_membership ne peut pas mélanger un projet et un tenant_member
   const { rows: [tenantB] } = await pool.query("insert into tenants (name) values ('Tenant B') returning id");
   const { rows: [user] } = await pool.query("insert into users (email, display_name) values ('cross@test.local', 'Cross Test') returning id");
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1, $2) returning id', [tenantA.id, 'Projet A']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1, $2, $3)', [tenantB.id, user.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenantB.id, userId: user.id, permissionBundle: 'member' });
 
   await assert.rejects(
     pool.query(
@@ -53,7 +54,7 @@ test('une project_membership ne peut pas référencer un projet qui n\'appartien
   const { rows: [tenantB] } = await pool.query("insert into tenants (name) values ('Tenant B') returning id");
   const { rows: [user] } = await pool.query("insert into users (email, display_name) values ('cross2@test.local', 'Cross Test 2') returning id");
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1, $2) returning id', [tenantA.id, 'Projet A']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1, $2, $3)', [tenantB.id, user.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenantB.id, userId: user.id, permissionBundle: 'member' });
 
   await assert.rejects(
     pool.query(
@@ -70,7 +71,7 @@ test('un permission_bundle hors de la liste autorisée est refusé par la contra
   const { rows: [tenant] } = await pool.query("insert into tenants (name) values ('Tenant Check') returning id");
   const { rows: [user] } = await pool.query("insert into users (email, display_name) values ('check@test.local', 'Check Test') returning id");
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1, $2) returning id', [tenant.id, 'Projet Check']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1, $2, $3)', [tenant.id, user.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: user.id, permissionBundle: 'member' });
 
   await assert.rejects(
     pool.query(
@@ -95,7 +96,7 @@ test('un status hors de la liste autorisée est refusé par la contrainte CHECK'
 test('la suppression d\'un tenant avec des memberships actives est refusée (RESTRICT, pas de cascade silencieuse)', async () => {
   const { rows: [tenant] } = await pool.query("insert into tenants (name) values ('Tenant Restrict') returning id");
   const { rows: [user] } = await pool.query("insert into users (email, display_name) values ('restrict@test.local', 'Restrict Test') returning id");
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1, $2, $3)', [tenant.id, user.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: user.id, permissionBundle: 'member' });
 
   await assert.rejects(
     pool.query('delete from tenants where id = $1', [tenant.id]),
@@ -109,11 +110,8 @@ test('deux projects_memberships identiques (même project_id + user_id) sont ref
   const { rows: [tenant] } = await pool.query("insert into tenants (name) values ('Tenant Unique') returning id");
   const { rows: [user] } = await pool.query("insert into users (email, display_name) values ('unique@test.local', 'Unique Test') returning id");
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1, $2) returning id', [tenant.id, 'Projet Unique']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1, $2, $3)', [tenant.id, user.id, 'member']);
-  await pool.query(
-    'insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1, $2, $3, $4)',
-    [tenant.id, project.id, user.id, 'contributor']
-  );
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: user.id, permissionBundle: 'member' });
+  await seedProjectMembership(pool, { tenantId: tenant.id, projectId: project.id, userId: user.id, permissionBundle: 'contributor' });
 
   await assert.rejects(
     pool.query(

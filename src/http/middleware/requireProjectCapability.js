@@ -1,6 +1,5 @@
 import { Errors } from '../../errors/AppError.js';
 import { findAccessibleProjectForUser } from '../../domain/projects/repository.js';
-import { bundleHasProjectCapability } from '../../domain/permissions/capabilities.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -15,11 +14,12 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 //   sans project_membership explicite (voir l'invariant central de
 //   docs/contracts/permissions.md).
 //
-//   Une project_membership existe, mais ne porte pas la capability
-//   requise pour CETTE action précise (ex. contributor tentant de
-//   publier) -> 403. L'utilisateur a déjà une relation légitime avec
-//   le projet ; refuser l'action ne fuite aucune information qu'il
-//   ne possède pas déjà.
+//   Une project_membership existe, mais son ensemble de capabilities
+//   EFFECTIVES (union de tous les grants actifs -- jamais un seul
+//   bundle relu directement, voir modèle Membership/Grant validé) ne
+//   porte pas la capability requise pour CETTE action précise -> 403.
+//   L'utilisateur a déjà une relation légitime avec le projet ; refuser
+//   l'action ne fuite aucune information qu'il ne possède pas déjà.
 export function requireProjectCapability(pool, capability) {
   return async (req, res, next) => {
     const { projectId } = req.params;
@@ -35,7 +35,7 @@ export function requireProjectCapability(pool, capability) {
       return;
     }
 
-    if (!bundleHasProjectCapability(project.my_bundle, capability)) {
+    if (!project.capabilities.includes(capability)) {
       next(Errors.forbidden(`Cette action nécessite la capability "${capability}".`));
       return;
     }

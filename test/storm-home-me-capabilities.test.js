@@ -5,6 +5,7 @@ import { loadConfig } from '../src/config/env.js';
 import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 // GET /api/me doit exposer les capabilities ORGANISATIONNELLES,
 // calculées côté serveur — jamais le nom brut du bundle, jamais une
@@ -33,8 +34,8 @@ test.before(async () => {
   const { rows: [tenant] } = await pool.query("insert into tenants (name) values ('Org Cap Test') returning id");
   const { rows: [admin] } = await pool.query("insert into users (email, display_name) values ('admin@captest.local','Admin') returning id");
   const { rows: [member] } = await pool.query("insert into users (email, display_name) values ('member@captest.local','Member') returning id");
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenant.id, admin.id, 'organization_admin']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenant.id, member.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: admin.id, permissionBundle: 'organization_admin' });
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: member.id, permissionBundle: 'member' });
   ids = { tenant: tenant.id, admin: admin.id, member: member.id };
 
   app = createApp({ logger: silentLogger, pool, config });
@@ -49,13 +50,13 @@ test.after(async () => {
   await closePool();
 });
 
-test('organization_admin reçoit ses 6 capabilities organisationnelles, jamais le nom du bundle', async () => {
+test('organization_admin reçoit ses 8 capabilities organisationnelles courantes (jamais projects.delete_permanently, encore non tranchée), jamais le nom du bundle', async () => {
   const res = await fetch(`${baseUrl}/api/me`, { headers: { 'X-Storm-Dev-User': ids.admin } });
   const body = await res.json();
   assert.equal('permission_bundle' in body.organization, false, 'le nom brut du bundle ne doit jamais être exposé');
   assert.deepEqual(
     [...body.organization.capabilities].sort(),
-    ['control.access', 'organization.members.manage', 'organization.settings.manage', 'projects.create', 'projects.manage_memberships', 'projects.view_all'].sort()
+    ['control.access', 'organization.external_identity.manage', 'organization.members.manage', 'organization.settings.manage', 'projects.create', 'projects.manage_lifecycle', 'projects.manage_memberships', 'projects.view_all'].sort()
   );
 });
 
@@ -67,10 +68,7 @@ test('member reçoit un tableau de capabilities vide, jamais absent', async () =
 
 test('aucune capability de projet ne fuite jamais dans organization.capabilities', async () => {
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [ids.tenant, 'Projet Test']);
-  await pool.query(
-    'insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)',
-    [ids.tenant, project.id, ids.member, 'project_admin']
-  );
+  await seedProjectMembership(pool, { tenantId: ids.tenant, projectId: project.id, userId: ids.member, permissionBundle: 'project_admin' });
 
   const res = await fetch(`${baseUrl}/api/me`, { headers: { 'X-Storm-Dev-User': ids.member } });
   const body = await res.json();

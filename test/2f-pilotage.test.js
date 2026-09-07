@@ -9,6 +9,7 @@ import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
 import { recordPageView, recordMatchResult, recordMoodFeedback } from '../src/domain/pilotage/telemetry.js';
 import { insertQuestion } from '../src/domain/studio/repository.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -43,16 +44,16 @@ test.before(async () => {
   const { rows: [pilotUser] } = await pool.query("insert into users (email, display_name) values ('pilot@pilotage.local','Pilote') returning id");
   const { rows: [contributor] } = await pool.query("insert into users (email, display_name) values ('contrib@pilotage.local','Contributeur') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, pilotUser.id, 'member']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, contributor.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: pilotUser.id, permissionBundle: 'member' });
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: contributor.id, permissionBundle: 'member' });
 
   const { rows: [projectA] } = await pool.query("insert into projects (tenant_id, name) values ($1,'Projet Pilotage A') returning id", [tenantA.id]);
   const { rows: [projectB] } = await pool.query("insert into projects (tenant_id, name) values ($1,'Projet Pilotage B') returning id", [tenantB.id]);
   await pool.query('insert into project_identity (tenant_id, project_id) values ($1,$2)', [tenantA.id, projectA.id]);
   await pool.query('insert into project_identity (tenant_id, project_id) values ($1,$2)', [tenantB.id, projectB.id]);
 
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, projectA.id, pilotUser.id, 'pilot']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, projectA.id, contributor.id, 'contributor']);
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: projectA.id, userId: pilotUser.id, permissionBundle: 'pilot' });
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: projectA.id, userId: contributor.id, permissionBundle: 'contributor' });
 
   ids = { tenantA: tenantA.id, tenantB: tenantB.id, projectA: projectA.id, projectB: projectB.id, pilotUser: pilotUser.id, contributor: contributor.id };
 

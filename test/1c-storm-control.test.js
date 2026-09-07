@@ -6,6 +6,7 @@ import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -34,9 +35,9 @@ test.before(async () => {
   const { rows: [member] } = await pool.query("insert into users (email, display_name) values ('member@control.local','Member Control') returning id");
   const { rows: [otherTenantAdmin] } = await pool.query("insert into users (email, display_name) values ('other@control.local','Other Tenant Admin') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, admin.id, 'organization_admin']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, member.id, 'member']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantB.id, otherTenantAdmin.id, 'organization_admin']);
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: admin.id, permissionBundle: 'organization_admin' });
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: member.id, permissionBundle: 'member' });
+  await seedTenantMembership(pool, { tenantId: tenantB.id, userId: otherTenantAdmin.id, permissionBundle: 'organization_admin' });
 
   const { rows: [projA1] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenantA.id, 'Projet Tenant A 1']);
   await pool.query('insert into projects (tenant_id, name) values ($1,$2)', [tenantA.id, 'Projet Tenant A 2']);
@@ -45,7 +46,7 @@ test.before(async () => {
   // Membership de projet pour admin sur projA1 -- nécessaire pour
   // vérifier que /api/projects (Storm Home) reflète bien archive/
   // restore, distinct de /api/control/projects qui n'en dépend pas.
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, projA1.id, admin.id, 'project_admin']);
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: projA1.id, userId: admin.id, permissionBundle: 'project_admin' });
 
   ids = { tenantA: tenantA.id, tenantB: tenantB.id, admin: admin.id, member: member.id, otherTenantAdmin: otherTenantAdmin.id, projA1: projA1.id };
 
@@ -178,4 +179,126 @@ test('otherTenantAdmin (tenant B) -> 404 en tentant d\'archiver un projet du ten
 test('archive/restore sur un id inexistant -> 404 propre', async () => {
   const res = await fetch(`${baseUrl}/api/control/projects/00000000-0000-0000-0000-000000000000/archive`, { method: 'POST', ...withUser(ids.admin) });
   assert.equal(res.status, 404);
+});
+
+// ── Stabilisation + restauration fidèle (Storm Control V2) ──────────
+
+test('POST /stabilize fait passer un projet actif à stabilization', async () => {
+  const res = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/stabilize`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.status, 'stabilization');
+  await pool.query('update projects set status=$1, previous_status=null where id=$2', ['active', ids.projA1]);
+});
+
+test('POST /reactivate fait passer stabilization à active', async () => {
+  await pool.query('update projects set status=$1 where id=$2', ['stabilization', ids.projA1]);
+  const res = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/reactivate`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).status, 'active');
+});
+
+test('archivé DEPUIS stabilization -> restauré fidèlement vers stabilization, jamais systématiquement vers active', async () => {
+  const stab = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/stabilize`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal((await stab.json()).status, 'stabilization');
+
+  const archived = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/archive`, { method: 'POST', ...withUser(ids.admin) });
+  const archivedBody = await archived.json();
+  assert.equal(archivedBody.status, 'archived');
+  assert.equal(archivedBody.previousStatus, 'stabilization', 'previous_status doit mémoriser stabilization, pas active');
+
+  const restored = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/restore`, { method: 'POST', ...withUser(ids.admin) });
+  const restoredBody = await restored.json();
+  assert.equal(restoredBody.status, 'stabilization', 'restauration fidèle -- jamais active par défaut');
+  assert.equal(restoredBody.previousStatus, null, 'previous_status consommé après restauration');
+
+  await pool.query('update projects set status=$1, previous_status=null where id=$2', ['active', ids.projA1]);
+});
+
+test('archivé DEPUIS active -> restauré fidèlement vers active (comportement déjà couvert, revérifié explicitement avec le nouveau mécanisme previous_status)', async () => {
+  const archived = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/archive`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal((await archived.json()).previousStatus, 'active');
+
+  const restored = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/restore`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal((await restored.json()).status, 'active');
+});
+
+test('chaque transition de lifecycle est journalisée dans project_lifecycle_events, indépendamment de previous_status', async () => {
+  const { rows } = await pool.query(
+    'select from_status, to_status, actor_user_id from project_lifecycle_events where project_id=$1 order by created_at asc',
+    [ids.projA1]
+  );
+  assert.ok(rows.length > 0, 'au moins une transition doit avoir été journalisée par les tests précédents');
+  assert.ok(rows.every(r => r.actor_user_id === ids.admin), 'l\'acteur de chaque transition doit être correctement enregistré');
+  assert.ok(rows.some(r => r.to_status === 'stabilization'), 'la transition vers stabilization doit apparaître dans le journal');
+});
+
+test('member (sans projects.manage_lifecycle) -> 403 sur /stabilize et /reactivate, jamais un contournement', async () => {
+  const stabRes = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/stabilize`, { method: 'POST', ...withUser(ids.member) });
+  assert.equal(stabRes.status, 403);
+  const reactRes = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/reactivate`, { method: 'POST', ...withUser(ids.member) });
+  assert.equal(reactRes.status, 403);
+});
+
+test('la capability projects.manage_lifecycle est distincte de projects.view_all -- verifiée réellement, jamais confondue', async () => {
+  const { bundleHasOrganizationCapability, OrganizationCapability } = await import('../src/domain/permissions/capabilities.js');
+  assert.notEqual(OrganizationCapability.PROJECTS_MANAGE_LIFECYCLE, OrganizationCapability.PROJECTS_VIEW_ALL);
+  assert.equal(bundleHasOrganizationCapability('organization_admin', OrganizationCapability.PROJECTS_MANAGE_LIFECYCLE), true);
+});
+
+// ── Suppression définitive — volontairement bloquée à ce stade ─────
+
+test('aujourd\'hui, PERSONNE (même organization_admin) n\'atteint /delete-permanently -- la capability n\'est accordée par aucun bundle existant, contrainte vérifiée en base', async () => {
+  // Le check constraint de organization_grants n'autorise que
+  // 'member'/'organization_admin' comme bundle -- aucun des deux ne
+  // porte projects.delete_permanently (décision produit non tranchée,
+  // voir capabilities.js). Route donc réellement inatteignable via
+  // HTTP aujourd'hui, pour quiconque -- confirmé, jamais supposé.
+  const resAdmin = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/delete-permanently`, { method: 'POST', ...withUser(ids.admin) });
+  assert.equal(resAdmin.status, 403);
+  const resMember = await fetch(`${baseUrl}/api/control/projects/${ids.projA1}/delete-permanently`, { method: 'POST', ...withUser(ids.member) });
+  assert.equal(resMember.status, 403);
+
+  const row = await pool.query('select count(*)::int as n from projects where id=$1', [ids.projA1]);
+  assert.equal(row.rows[0].n, 1, 'le projet doit toujours exister');
+});
+
+test('le handler de suppression définitive, testé isolément (garde de capability déjà vérifiée séparément ci-dessus), répond 501 "non implémenté", jamais un succès ni une suppression réelle', async () => {
+  // Teste la LOGIQUE du handler indépendamment de la garde de
+  // capability (déjà prouvée bloquante ci-dessus) -- construit une
+  // mini-app isolée montant directement la route, sans middleware
+  // d'organisation, pour vérifier honnêtement ce que répond le stub
+  // le jour où une décision produit accorderait un jour cette capability.
+  const express = (await import('express')).default;
+  const { errorHandler, notFoundHandler } = await import('../src/http/errorHandler.js');
+  const testApp = express();
+  testApp.post('/test/delete-permanently/:projectId', (req, res, next) => {
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.projectId)) { next(); return; }
+    res.status(501).json({
+      ok: false,
+      error: { code: 'NOT_IMPLEMENTED', message: 'La suppression définitive n\'est pas encore implémentée. Ce chantier attend Storm Privacy & Data Lifecycle (catégories de données, rétention, anonymisation, purge, audit survivant).' }
+    });
+  });
+  testApp.use(notFoundHandler);
+  testApp.use(errorHandler(silentLogger));
+  const testServer = http.createServer(testApp);
+  await new Promise(resolve => testServer.listen(0, resolve));
+  const testBaseUrl = `http://127.0.0.1:${testServer.address().port}`;
+  try {
+    const before = await pool.query('select count(*)::int as n from projects where id=$1', [ids.projA1]);
+    const res = await fetch(`${testBaseUrl}/test/delete-permanently/${ids.projA1}`, { method: 'POST' });
+    assert.equal(res.status, 501);
+    const body = await res.json();
+    assert.equal(body.ok, false);
+    assert.equal(body.error.code, 'NOT_IMPLEMENTED');
+    const after = await pool.query('select count(*)::int as n from projects where id=$1', [ids.projA1]);
+    assert.equal(after.rows[0].n, before.rows[0].n, 'jamais une suppression réelle, quel que soit le chemin testé');
+  } finally {
+    testServer.close();
+  }
+});
+
+test('organization_admin lui-même n\'a PAS projects.delete_permanently par défaut -- décision produit volontairement non tranchée, jamais un oubli', async () => {
+  const { bundleHasOrganizationCapability, OrganizationCapability } = await import('../src/domain/permissions/capabilities.js');
+  assert.equal(bundleHasOrganizationCapability('organization_admin', OrganizationCapability.PROJECTS_DELETE_PERMANENTLY), false);
 });

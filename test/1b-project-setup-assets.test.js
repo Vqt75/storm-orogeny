@@ -8,6 +8,7 @@ import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 const TEST_STORAGE_DIR = path.join(process.cwd(), '.test-storage-3a');
 const config = { ...loadConfig(), storage: { localDir: TEST_STORAGE_DIR } };
@@ -41,12 +42,12 @@ test.before(async () => {
   const { rows: [creator] } = await pool.query("insert into users (email, display_name) values ('creator@assets.local','Créateur') returning id");
   const { rows: [outsider] } = await pool.query("insert into users (email, display_name) values ('outsider@assets.local','Étranger') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, creator.id, 'organization_admin']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantB.id, outsider.id, 'organization_admin']);
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: creator.id, permissionBundle: 'organization_admin' });
+  await seedTenantMembership(pool, { tenantId: tenantB.id, userId: outsider.id, permissionBundle: 'organization_admin' });
 
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenantA.id, 'Projet Assets']);
   await pool.query('insert into project_identity (tenant_id, project_id) values ($1,$2)', [tenantA.id, project.id]);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, project.id, creator.id, 'project_admin']);
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: project.id, userId: creator.id, permissionBundle: 'project_admin' });
 
   ids = { tenantA: tenantA.id, tenantB: tenantB.id, creator: creator.id, outsider: outsider.id, project: project.id };
 
@@ -184,10 +185,7 @@ test('régression : uploader sur un projet SANS project_identity échoue bruyamm
     'insert into projects (tenant_id, name) values ($1,$2) returning id',
     [ids.tenantA, 'Projet sans identité']
   );
-  await pool.query(
-    'insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)',
-    [ids.tenantA, projectWithoutIdentity.id, ids.creator, 'project_admin']
-  );
+  await seedProjectMembership(pool, { tenantId: ids.tenantA, projectId: projectWithoutIdentity.id, userId: ids.creator, permissionBundle: 'project_admin' });
 
   const form = new FormData();
   form.append('logo', new Blob([tinyPngBuffer()], { type: 'image/png' }), 'logo.png');
@@ -287,8 +285,8 @@ test('upload de police secondaire, puis DELETE -- jamais la primaire, jamais une
 
 test('member (sans project.manage) -> 403 sur upload/suppression de police, jamais un contournement', async () => {
   const { rows: [member] } = await pool.query("insert into users (email, display_name) values ('member-font@assets.local','Membre') returning id");
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [ids.tenantA, member.id, 'member']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [ids.tenantA, ids.project, member.id, 'contributor']);
+  await seedTenantMembership(pool, { tenantId: ids.tenantA, userId: member.id, permissionBundle: 'member' });
+  await seedProjectMembership(pool, { tenantId: ids.tenantA, projectId: ids.project, userId: member.id, permissionBundle: 'contributor' });
 
   const uploadRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity/fonts/primary`, {
     method: 'POST', headers: { 'X-Storm-Dev-User': member.id },

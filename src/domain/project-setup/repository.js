@@ -47,21 +47,35 @@ export async function insertProjectModules(client, { tenantId, projectId, module
   }
 }
 
-export async function insertProjectMembership(client, { tenantId, projectId, userId, permissionBundle }) {
-  await client.query(
+// Toute création de project_membership s'accompagne désormais de son
+// grant miroir -- jamais une membership sans au moins un grant actif
+// (voir modèle Membership/Grant validé). actorUserId par défaut =
+// userId lui-même : à la création d'un projet, l'administration du
+// projet est une conséquence directe de l'action de le créer, jamais
+// "accordée" par quelqu'un d'autre -- un appelant qui a un acteur réel
+// distinct (ex. une invitation acceptée) peut le préciser explicitement.
+export async function insertProjectMembership(client, { tenantId, projectId, userId, permissionBundle, actorUserId, sourceType = 'direct' }) {
+  const { rows: [membership] } = await client.query(
     `insert into project_memberships (tenant_id, project_id, user_id, permission_bundle)
-     values ($1, $2, $3, $4)`,
+     values ($1, $2, $3, $4) returning id`,
     [tenantId, projectId, userId, permissionBundle]
   );
+  await client.query(
+    `insert into project_grants (tenant_id, project_id, project_membership_id, permission_bundle, source_type, actor_user_id)
+     values ($1, $2, $3, $4, $5, $6)`,
+    [tenantId, projectId, membership.id, permissionBundle, sourceType, actorUserId ?? userId]
+  );
+  return membership.id;
 }
 
 export async function insertProjectInvitation(client, { tenantId, projectId, email, permissionBundle, locale, invitedByUserId }) {
-  await client.query(
+  const { rows: [row] } = await client.query(
     `insert into project_invitations
        (tenant_id, project_id, email, permission_bundle, locale, invited_by_user_id)
-     values ($1, $2, $3, $4, $5, $6)`,
+     values ($1, $2, $3, $4, $5, $6) returning id`,
     [tenantId, projectId, email, permissionBundle, locale, invitedByUserId]
   );
+  return row.id;
 }
 
 export async function listSupportedLocales(pool) {

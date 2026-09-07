@@ -6,6 +6,7 @@ import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -39,16 +40,16 @@ test.before(async () => {
   const { rows: [editor] } = await pool.query("insert into users (email, display_name) values ('editor@publication.local','Editor Publication') returning id");
   const { rows: [viewer] } = await pool.query("insert into users (email, display_name) values ('viewer@publication.local','Viewer Publication') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, editor.id, 'member']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, viewer.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: editor.id, permissionBundle: 'member' });
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: viewer.id, permissionBundle: 'member' });
 
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenantA.id, 'Projet Publication']);
   // editor : bundle contient publication.publish. viewer : bundle
   // pilot, VIEW + PILOTAGE_VIEW seulement, jamais PUBLICATION_PUBLISH
   // ni CONTENT_EDIT — exactement le cas "a une relation légitime avec
   // le projet mais pas la capability requise" (403, pas 404).
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, project.id, editor.id, 'editor']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, project.id, viewer.id, 'pilot']);
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: project.id, userId: editor.id, permissionBundle: 'editor' });
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: project.id, userId: viewer.id, permissionBundle: 'pilot' });
 
   await pool.query(
     "insert into project_identity (tenant_id, project_id, theme, primary_color) values ($1,$2,'ivory','#1E1D1E')",

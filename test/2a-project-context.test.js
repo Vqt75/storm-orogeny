@@ -6,6 +6,7 @@ import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -38,9 +39,9 @@ test.before(async () => {
   const { rows: [pilotUser] } = await pool.query("insert into users (email, display_name) values ('pilot@context.local','Pilot Context') returning id");
   const { rows: [outsider] } = await pool.query("insert into users (email, display_name) values ('outsider@context.local','Outsider') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenant.id, admin.id, 'organization_admin']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenant.id, pilotUser.id, 'member']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [otherTenant.id, outsider.id, 'organization_admin']);
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: admin.id, permissionBundle: 'organization_admin' });
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: pilotUser.id, permissionBundle: 'member' });
+  await seedTenantMembership(pool, { tenantId: otherTenant.id, userId: outsider.id, permissionBundle: 'organization_admin' });
 
   // Projet complet — identité, réglages, modules, deux memberships
   // (project_admin et pilot) — noms de police neutres, jamais
@@ -57,14 +58,14 @@ test.before(async () => {
   );
   await pool.query("insert into project_modules (tenant_id, project_id, module_key, enabled) values ($1,$2,'faq',true)", [tenant.id, project.id]);
   await pool.query("insert into project_modules (tenant_id, project_id, module_key, enabled) values ($1,$2,'equipe',false)", [tenant.id, project.id]);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenant.id, project.id, admin.id, 'project_admin']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenant.id, project.id, pilotUser.id, 'pilot']);
+  await seedProjectMembership(pool, { tenantId: tenant.id, projectId: project.id, userId: admin.id, permissionBundle: 'project_admin' });
+  await seedProjectMembership(pool, { tenantId: tenant.id, projectId: project.id, userId: pilotUser.id, permissionBundle: 'pilot' });
 
   // Projet sans identité ni réglages (cas limite — un projet créé
   // avant Phase 1B, ou toute anomalie similaire à celle déjà trouvée
   // dans le seed initial de Phase 0).
   const { rows: [bareProject] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenant.id, 'Projet Sans Config']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenant.id, bareProject.id, admin.id, 'project_admin']);
+  await seedProjectMembership(pool, { tenantId: tenant.id, projectId: bareProject.id, userId: admin.id, permissionBundle: 'project_admin' });
 
   ids = { tenant: tenant.id, otherTenant: otherTenant.id, admin: admin.id, pilotUser: pilotUser.id, outsider: outsider.id, project: project.id, bareProject: bareProject.id };
 

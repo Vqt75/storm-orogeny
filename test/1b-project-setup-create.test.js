@@ -5,6 +5,7 @@ import { loadConfig } from '../src/config/env.js';
 import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
+import { seedTenantMembership } from './helpers/memberships.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -44,8 +45,8 @@ test.before(async () => {
   const { rows: [nonCreator] } = await pool.query("insert into users (email, display_name) values ('sansdroit@lot2.local','Sans Droit') returning id");
   const { rows: [otherTenant] } = await pool.query("insert into tenants (name) values ('Autre Tenant Lot2') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenant.id, creator.id, 'organization_admin']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenant.id, nonCreator.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: creator.id, permissionBundle: 'organization_admin' });
+  await seedTenantMembership(pool, { tenantId: tenant.id, userId: nonCreator.id, permissionBundle: 'member' });
 
   ids = { tenant: tenant.id, creator: creator.id, nonCreator: nonCreator.id, otherTenant: otherTenant.id };
 

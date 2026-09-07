@@ -10,6 +10,7 @@ import { insertProjectIdentity, insertProjectMembership } from '../src/domain/pr
 import {
   findOrCreateDemoTenant, grantPlatformDemoIdentityAccess, PLATFORM_DEMO_IDENTITY_EMAIL, DEMO_TENANT_NAME
 } from '../src/db/seedDemo.js';
+import { seedTenantMembership } from './helpers/memberships.js';
 
 // Bug trouvé en production, corrigé ici : le seed démo créait son
 // propre utilisateur fictif (Camille Renaud) et ne l'accordait qu'à
@@ -79,10 +80,7 @@ test.before(async () => {
   const { rows: [contentAuthor] } = await pool.query(
     "insert into users (email, display_name) values ('contentauthor.testfix@demo.storm.local', 'Auteur Contenu Test') returning id"
   );
-  await pool.query(
-    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)',
-    [tenantId, contentAuthor.id, 'organization_admin']
-  );
+  await seedTenantMembership(pool, { tenantId: tenantId, userId: contentAuthor.id, permissionBundle: 'organization_admin' });
   await insertProjectMembership(pool, { tenantId, projectId, userId: contentAuthor.id, permissionBundle: 'project_admin' });
 
   await grantPlatformDemoIdentityAccess(pool, { tenantId, projectId });

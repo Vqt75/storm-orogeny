@@ -39,9 +39,13 @@ async function insertUser(client, email, displayName) {
 }
 
 async function insertTenantMembership(client, tenantId, userId, bundle) {
-  await client.query(
-    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1, $2, $3)',
+  const { rows: [row] } = await client.query(
+    'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1, $2, $3) returning id',
     [tenantId, userId, bundle]
+  );
+  await client.query(
+    'insert into organization_grants (tenant_id, organization_membership_id, permission_bundle, source_type, actor_user_id) values ($1, $2, $3, $4, $5)',
+    [tenantId, row.id, bundle, 'direct', userId]
   );
 }
 
@@ -54,9 +58,13 @@ async function insertProject(client, tenantId, name) {
 }
 
 async function insertProjectMembership(client, tenantId, projectId, userId, bundle) {
-  await client.query(
-    'insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1, $2, $3, $4)',
+  const { rows: [row] } = await client.query(
+    'insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1, $2, $3, $4) returning id',
     [tenantId, projectId, userId, bundle]
+  );
+  await client.query(
+    'insert into project_grants (tenant_id, project_id, project_membership_id, permission_bundle, source_type, actor_user_id) values ($1, $2, $3, $4, $5, $6)',
+    [tenantId, projectId, row.id, bundle, 'direct', userId]
   );
 }
 

@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from '../src/http/errorHandler.js';
 import { devAuth } from '../src/http/middleware/devAuth.js';
 import { requireProjectCapability } from '../src/http/middleware/requireProjectCapability.js';
 import { ProjectCapability } from '../src/domain/permissions/capabilities.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 // Tests HTTP réels, contre une vraie instance PostgreSQL, avec un
 // scénario de données isolé (pas le seed applicatif — pour que cette
@@ -39,20 +40,20 @@ async function insertScenario() {
   const { rows: [bob] } = await pool.query("insert into users (email, display_name) values ('bob@test.local','Bob') returning id");
   const { rows: [charlie] } = await pool.query("insert into users (email, display_name) values ('charlie@test.local','Charlie') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [parella.id, vivien.id, 'organization_admin']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [parella.id, alice.id, 'member']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [parella.id, bob.id, 'member']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [autreOrg.id, charlie.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: parella.id, userId: vivien.id, permissionBundle: 'organization_admin' });
+  await seedTenantMembership(pool, { tenantId: parella.id, userId: alice.id, permissionBundle: 'member' });
+  await seedTenantMembership(pool, { tenantId: parella.id, userId: bob.id, permissionBundle: 'member' });
+  await seedTenantMembership(pool, { tenantId: autreOrg.id, userId: charlie.id, permissionBundle: 'member' });
 
   const { rows: [clermont] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [parella.id, 'Clermont-Ferrand']);
   const { rows: [tours] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [parella.id, 'Tours']);
   const { rows: [peugeot] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [parella.id, 'Peugeot']);
 
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [parella.id, clermont.id, vivien.id, 'project_admin']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [parella.id, clermont.id, alice.id, 'editor']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [parella.id, tours.id, vivien.id, 'contributor']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [parella.id, tours.id, bob.id, 'pilot']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [parella.id, peugeot.id, alice.id, 'contributor']);
+  await seedProjectMembership(pool, { tenantId: parella.id, projectId: clermont.id, userId: vivien.id, permissionBundle: 'project_admin' });
+  await seedProjectMembership(pool, { tenantId: parella.id, projectId: clermont.id, userId: alice.id, permissionBundle: 'editor' });
+  await seedProjectMembership(pool, { tenantId: parella.id, projectId: tours.id, userId: vivien.id, permissionBundle: 'contributor' });
+  await seedProjectMembership(pool, { tenantId: parella.id, projectId: tours.id, userId: bob.id, permissionBundle: 'pilot' });
+  await seedProjectMembership(pool, { tenantId: parella.id, projectId: peugeot.id, userId: alice.id, permissionBundle: 'contributor' });
   // Vivien n'a délibérément AUCUNE membership sur Peugeot.
 
   return { parella: parella.id, autreOrg: autreOrg.id, vivien: vivien.id, alice: alice.id, bob: bob.id, charlie: charlie.id, clermont: clermont.id, tours: tours.id, peugeot: peugeot.id };
@@ -175,11 +176,17 @@ test('editor peut ce que publication.publish autorise ; contributor non — chan
     const resContributor = await fetch(`${testBaseUrl}/test/projects/${ids.tours}/publish`, withUser(ids.vivien));
     assert.equal(resContributor.status, 403);
 
-    // Preuve du moteur capability/bundle : on ne change QUE le bundle en
-    // DB (aucun code de route touché) et l'autorisation change en
-    // conséquence, immédiatement.
+    // Preuve du moteur capability/bundle : on ne change QUE le bundle du
+    // GRANT actif en DB (aucun code de route touché) et l'autorisation
+    // change en conséquence, immédiatement -- jamais le bundle de la
+    // membership elle-même, qui n'a plus d'effet direct sur
+    // l'autorisation depuis l'introduction du modèle Grant (les
+    // permissions effectives sont calculées par union des grants actifs,
+    // jamais par lecture directe de project_memberships.permission_bundle).
     await pool.query(
-      "update project_memberships set permission_bundle = 'editor' where project_id = $1 and user_id = $2",
+      `update project_grants set permission_bundle = 'editor'
+       where project_id = $1 and status = 'active'
+       and project_membership_id = (select id from project_memberships where project_id = $1 and user_id = $2)`,
       [ids.tours, ids.vivien]
     );
     const resAfterUpgrade = await fetch(`${testBaseUrl}/test/projects/${ids.tours}/publish`, withUser(ids.vivien));
@@ -187,7 +194,9 @@ test('editor peut ce que publication.publish autorise ; contributor non — chan
 
     // Remettre l'état initial pour ne pas contaminer les autres tests.
     await pool.query(
-      "update project_memberships set permission_bundle = 'contributor' where project_id = $1 and user_id = $2",
+      `update project_grants set permission_bundle = 'contributor'
+       where project_id = $1 and status = 'active'
+       and project_membership_id = (select id from project_memberships where project_id = $1 and user_id = $2)`,
       [ids.tours, ids.vivien]
     );
   } finally {

@@ -38,10 +38,21 @@ test('member (organisation) n\'a aucune capability organisationnelle', () => {
   }
 });
 
-test('organization_admin a toutes les capabilities organisationnelles', () => {
+test('organization_admin a toutes les capabilities organisationnelles COURANTES, à l\'exception explicite et provisoire de projects.delete_permanently', () => {
+  // Décision produit non tranchée à ce stade (voir capabilities.js) :
+  // la suppression définitive est une capability distincte, jamais
+  // accordée implicitement à project_admin, et son attribution par
+  // défaut à organization_admin reste un choix produit encore ouvert
+  // -- documenté ici comme exclusion EXPLICITE, jamais un oubli.
   for (const cap of Object.values(OrganizationCapability)) {
+    if (cap === OrganizationCapability.PROJECTS_DELETE_PERMANENTLY) continue;
     assert.equal(bundleHasOrganizationCapability('organization_admin', cap), true, `organization_admin devrait avoir ${cap}`);
   }
+});
+
+test('projects.delete_permanently n\'est accordée à AUCUN bundle par défaut -- décision produit encore ouverte, jamais un oubli', () => {
+  assert.equal(bundleHasOrganizationCapability('organization_admin', OrganizationCapability.PROJECTS_DELETE_PERMANENTLY), false);
+  assert.equal(bundleHasOrganizationCapability('member', OrganizationCapability.PROJECTS_DELETE_PERMANENTLY), false);
 });
 
 test('invariant central : aucune capability organisationnelle n\'existe dans l\'espace des capabilities de projet, et réciproquement', () => {

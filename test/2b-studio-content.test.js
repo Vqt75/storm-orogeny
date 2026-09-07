@@ -6,6 +6,7 @@ import { getPool, closePool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
+import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -44,12 +45,12 @@ test.before(async () => {
   const { rows: [editor] } = await pool.query("insert into users (email, display_name) values ('editor@studio.local','Editor Studio') returning id");
   const { rows: [viewer] } = await pool.query("insert into users (email, display_name) values ('viewer@studio.local','Viewer Studio') returning id");
 
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, editor.id, 'member']);
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [tenantA.id, viewer.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: editor.id, permissionBundle: 'member' });
+  await seedTenantMembership(pool, { tenantId: tenantA.id, userId: viewer.id, permissionBundle: 'member' });
 
   const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenantA.id, 'Projet Studio']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, project.id, editor.id, 'editor']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [tenantA.id, project.id, viewer.id, 'pilot']);
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: project.id, userId: editor.id, permissionBundle: 'editor' });
+  await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: project.id, userId: viewer.id, permissionBundle: 'pilot' });
 
   const { rows: [assetInProject] } = await pool.query(
     "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'ambassador_photo','k','image/png',10) returning id",
@@ -763,7 +764,7 @@ test('Homepage V3 : manual + featuredArticleId inexistant -> refusé, aucune éc
 
 test('Homepage V3 : manual + featuredArticleId d\'un AUTRE projet -> refusé', async () => {
   const { rows: [otherProject] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [ids.tenantA, 'Autre Projet Homepage Test']);
-  await pool.query('insert into project_memberships (tenant_id, project_id, user_id, permission_bundle) values ($1,$2,$3,$4)', [ids.tenantA, otherProject.id, ids.editor, 'editor']);
+  await seedProjectMembership(pool, { tenantId: ids.tenantA, projectId: otherProject.id, userId: ids.editor, permissionBundle: 'editor' });
   const otherArticle = await (await fetch(`${baseUrl}/api/projects/${otherProject.id}/studio/articles`, {
     method: 'POST', ...withUser(ids.editor), body: jsonBody({ title: 'Article Autre Projet', chapeauRuns: [], blocks: [], position: 0 })
   })).json();
@@ -1080,7 +1081,7 @@ test('section-content/le_projet : title/body acceptés, champ hors allowlist ref
 
 test('cross-tenant : un utilisateur sans membership sur ce projet -> 404 sur les routes Studio aussi', async () => {
   const { rows: [outsider] } = await pool.query("insert into users (email, display_name) values ('outsider-studio@test.local','Outsider') returning id");
-  await pool.query('insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3)', [ids.tenantB, outsider.id, 'member']);
+  await seedTenantMembership(pool, { tenantId: ids.tenantB, userId: outsider.id, permissionBundle: 'member' });
 
   const res = await fetch(`${baseUrl}/api/projects/${ids.project}/studio/questions`, withUser(outsider.id));
   assert.equal(res.status, 404);

@@ -6,7 +6,7 @@ import {
 } from '../../domain/projects/repository.js';
 import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
 import { requireOrganizationCapability } from '../middleware/requireOrganizationCapability.js';
-import { ProjectCapability, OrganizationCapability, projectCapabilitiesForBundle } from '../../domain/permissions/capabilities.js';
+import { ProjectCapability, OrganizationCapability } from '../../domain/permissions/capabilities.js';
 import { validateCreateProjectPayload } from '../../domain/project-setup/validation.js';
 import { listSupportedLocales } from '../../domain/project-setup/repository.js';
 import {
@@ -309,7 +309,7 @@ export function createProjectsRouter({ pool, storageAdapter }) {
         modules: modules.map(m => ({ key: m.module_key, enabled: m.enabled })),
         membership: {
           permissionBundle: req.project.my_bundle,
-          capabilities: projectCapabilitiesForBundle(req.project.my_bundle)
+          capabilities: req.project.capabilities
         }
       });
     }

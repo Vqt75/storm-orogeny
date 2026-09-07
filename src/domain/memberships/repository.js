@@ -295,7 +295,7 @@ export async function listMemberProjectAccess(pool, { tenantId, userId }) {
 
 export async function listExternalGroupMappings(pool, tenantId) {
   const { rows } = await pool.query(
-    `select id, provider, external_group_id, target_type, target_id, permission_bundle, created_at
+    `select id, provider, issuer, external_group_id, target_type, target_id, permission_bundle, status, created_at
      from external_group_mappings where tenant_id = $1
      order by created_at asc`,
     [tenantId]

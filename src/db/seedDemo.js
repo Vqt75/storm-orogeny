@@ -88,10 +88,25 @@ async function findOrCreateContentAuthor(pool) {
 // sur le tenant démo (prérequis FK -- project_memberships_tenant_id_
 // user_id_fkey exige qu'une tenant_membership existe d'abord pour ce
 // couple tenant_id/user_id, confirmé par contrainte réelle), PUIS une
-// project_membership project_admin sur Équinoxe lui-même. Storm
-// Control liste les projets par tenant (listAllProjectsForTenant),
-// jamais cross-tenant -- sans la tenant_membership, l'identité démo
-// ne verrait Équinoxe ni via Storm Home ni via Storm Control.
+// project_membership project_admin sur Équinoxe lui-même.
+//
+// Bundle 'member', jamais 'organization_admin' -- deuxième bug trouvé
+// en production (celui-ci après coup) : listProjectsForUser (Storm
+// Home) ne lit QUE project_memberships, jamais le bundle du tenant --
+// 'member' suffit intégralement à la visibilité recherchée ici.
+// 'organization_admin' accordait en trop projects.create (et les
+// autres capabilities organisationnelles) sur un tenant qui n'a
+// jamais eu vocation à être administré par cette identité -- ce qui
+// rendait Project Creation V2 inutilisable pour elle dès qu'une
+// résolution stricte "une seule organisation créable" a été mise en
+// place (fail closed multi-organisation), Asteria comptant alors à
+// tort comme une seconde organisation créable. Asteria reste
+// administrée par sa propre identité démo dédiée
+// (CONTENT_AUTHOR_EMAIL/Camille, organization_admin plus bas) --
+// jamais par l'identité plateforme, qui n'a besoin que d'y voir
+// Équinoxe. Storm Control sur Asteria devient donc inaccessible pour
+// cette identité (perte assumée, jamais son usage prévu) ; Storm Home
+// reste intact.
 //
 // Si l'identité démo n'existe pas dans cette base (environnement où
 // seed.js classique n'a jamais tourné), ne fait rien silencieusement
@@ -105,11 +120,11 @@ async function grantPlatformDemoIdentityAccess(pool, { tenantId, projectId }) {
   }
   const { rows: [tm] } = await pool.query(
     'insert into tenant_memberships (tenant_id, user_id, permission_bundle) values ($1,$2,$3) returning id',
-    [tenantId, platformUser.id, 'organization_admin']
+    [tenantId, platformUser.id, 'member']
   );
   await pool.query(
     'insert into organization_grants (tenant_id, organization_membership_id, permission_bundle, source_type, actor_user_id) values ($1,$2,$3,$4,$5)',
-    [tenantId, tm.id, 'organization_admin', 'direct', platformUser.id]
+    [tenantId, tm.id, 'member', 'direct', platformUser.id]
   );
   await insertProjectMembership(pool, { tenantId, projectId, userId: platformUser.id, permissionBundle: 'project_admin' });
   logger.info({ email: PLATFORM_DEMO_IDENTITY_EMAIL, userId: platformUser.id }, 'Accès Équinoxe accordé à l\'identité démo réelle de la plateforme');

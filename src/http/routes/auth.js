@@ -3,17 +3,15 @@ import { serialize as serializeCookie, parse as parseCookie } from 'cookie';
 import { createProviderRegistry } from '../../domain/providers/providerRegistry.js';
 import { createLoginTransaction, verifyLoginTransaction } from '../../domain/identity/loginTransaction.js';
 import { resolveOrLinkIdentity } from '../../domain/identity/linking.js';
+import { reconcileGroupsToGrants } from '../../domain/identity/groupReconciliation.js';
 import { createSession, revokeSession, findActiveSessionByRawToken } from '../../domain/identity/sessions.js';
 import * as fakeProvider from '../../domain/providers/fakeProvider.js';
 
-// Routes /auth/* -- Batch 2. Squelette AuthN SSO entièrement
-// testable avec le fake provider, aucun réseau, aucun secret
-// Microsoft. N'est PAS monté comme mécanisme production réel dans ce
-// batch (voir app.js) -- devAuth reste seul actif. Aucune
-// réconciliation de groupes, aucun pont invitation ici (batches
-// ultérieurs) -- linking limité au sous-ensemble validé (voir
-// domain/identity/linking.js).
-
+// Routes /auth/* -- Batch 2 (squelette) + Batch 3 (réconciliation
+// groupes->grants, pont invitation). Testable avec le fake provider,
+// aucun réseau, aucun secret Microsoft. N'est PAS monté comme
+// mécanisme production réel (voir app.js) -- devAuth reste seul actif.
+// Voir domain/identity/linking.js et groupReconciliation.js.
 function cookieBaseOptions(config) {
   return {
     httpOnly: true,
@@ -30,7 +28,7 @@ function failClosed(res, status, code) {
   res.status(status).json({ ok: false, error: { code } });
 }
 
-export function createAuthRouter({ pool, config }) {
+export function createAuthRouter({ pool, config, logger }) {
   const router = Router();
   const registry = createProviderRegistry(config);
 
@@ -162,14 +160,20 @@ export function createAuthRouter({ pool, config }) {
       return;
     }
 
-    // 5. Résoudre/lier l'identité -- sous-ensemble minimal Batch 2.
+    // 5. Résoudre/lier l'identité -- issuerTrusted:true passé
+    // explicitement ICI, uniquement parce que les étapes 2 et 4
+    // ci-dessus viennent de vérifier cet issuer contre le registre de
+    // confiance -- jamais une confiance implicite déléguée au module
+    // de linking, qui exige cette preuve explicite avant tout pont
+    // invitation (voir domain/identity/linking.js).
     const linked = await resolveOrLinkIdentity(pool, {
       providerType: transaction.providerType,
       issuer: identity.issuer,
       subject: identity.subject,
       email: identity.email,
       emailVerified: identity.emailVerified,
-      displayName: identity.displayName
+      displayName: identity.displayName,
+      issuerTrusted: true
     });
 
     clearTransactionCookie();
@@ -177,6 +181,40 @@ export function createAuthRouter({ pool, config }) {
     if (!linked.ok) {
       failClosed(res, 403, linked.code);
       return;
+    }
+
+    // 5bis. Réconciliation groupes -> grants (JIT, Batch 3).
+    //
+    // Distinction obligatoire entre deux catégories, jamais mélangées :
+    //   - ANOMALIE MÉTIER (adminInterventionRequired non vide) : l'état
+    //     DB reste cohérent et voulu (garde-fou dernier administrateur
+    //     appliqué délibérément) -- ne bloque JAMAIS la connexion,
+    //     seulement un log structuré, sans secret.
+    //   - ÉCHEC TECHNIQUE (exception) : FAIL CLOSED AVANT toute création
+    //     de session -- si Storm ne peut pas déterminer/appliquer
+    //     correctement l'état d'autorisation, autoriser quand même la
+    //     session pourrait maintenir un accès périmé. L'authentification
+    //     IdP a pu réussir ; l'entrée dans Storm dépend aussi d'un état
+    //     d'autorisation serveur cohérent -- jamais un simple
+    //     avertissement suivi d'une session.
+    let reconciliation;
+    try {
+      reconciliation = await reconcileGroupsToGrants(pool, {
+        userId: linked.userId,
+        issuer: identity.issuer,
+        groups: identity.groups
+      });
+    } catch (err) {
+      logger.error({ err: { name: err.name, message: err.message } }, 'Échec technique de la réconciliation groupes->grants -- connexion refusée, aucune session créée');
+      failClosed(res, 500, 'RECONCILIATION_FAILED');
+      return;
+    }
+
+    if (reconciliation.adminInterventionRequired.length > 0) {
+      logger.warn(
+        { userId: linked.userId, issuer: identity.issuer, adminInterventionRequired: reconciliation.adminInterventionRequired },
+        'Réconciliation : intervention administrative requise -- une révocation attendue a été bloquée par le garde-fou dernier administrateur'
+      );
     }
 
     // 6. Créer la session, poser le cookie, rediriger.

@@ -1,7 +1,8 @@
 // Repository memberships — fonctions typées, jamais de SQL brut dans
 // les routes ou les middlewares.
 
-import { organizationCapabilitiesForBundle } from '../permissions/capabilities.js';
+import { organizationCapabilitiesForBundle, projectCapabilitiesForBundle } from '../permissions/capabilities.js';
+import { hasAdministrativeCapabilityRemaining, ADMINISTRATIVE_CAPABILITY } from '../permissions/lastAdministrator.js';
 
 export async function findTenantMembershipForUser(pool, userId) {
   // Le schéma autorise déjà plusieurs OrganizationMembership par
@@ -234,10 +235,10 @@ export async function acceptProjectInvitation(pool, { invitationId, userId }) {
 }
 
 // Révoque UN grant précis -- jamais toute la membership. Garde-fou
-// dernier project_admin : bloque si cette révocation laisserait le
-// projet sans plus aucun grant actif portant project_admin (calculé en
-// direct à chaque révocation, jamais un compteur mis en cache). Scopé
-// par tenant_id explicite -- même invariant que le reste du repo.
+// dernier administrateur : bloque si cette révocation laisserait le
+// projet sans plus aucune capability administrative effective restante
+// (voir permissions/lastAdministrator.js -- UNE seule définition dans
+// tout le système, jamais une comparaison de nom de bundle dupliquée).
 export async function revokeProjectGrant(pool, { tenantId, projectId, grantId }) {
   const { rows: [grant] } = await pool.query(
     "select permission_bundle from project_grants where id = $1 and project_id = $2 and tenant_id = $3 and status = 'active'",
@@ -245,13 +246,11 @@ export async function revokeProjectGrant(pool, { tenantId, projectId, grantId })
   );
   if (!grant) return { ok: false, code: 'NOT_FOUND' };
 
-  if (grant.permission_bundle === 'project_admin') {
-    const { rows: [{ count }] } = await pool.query(
-      `select count(*)::int as count from project_grants
-       where project_id = $1 and tenant_id = $2 and status = 'active' and permission_bundle = 'project_admin' and id != $3`,
-      [projectId, tenantId, grantId]
-    );
-    if (Number(count) === 0) {
+  if (projectCapabilitiesForBundle(grant.permission_bundle).includes(ADMINISTRATIVE_CAPABILITY.project)) {
+    const stillAdministrable = await hasAdministrativeCapabilityRemaining(pool, {
+      targetType: 'project', targetId: projectId, excludingGrantIds: [grantId], capability: ADMINISTRATIVE_CAPABILITY.project
+    });
+    if (!stillAdministrable) {
       return { ok: false, code: 'LAST_ADMIN' };
     }
   }
@@ -303,9 +302,91 @@ export async function listExternalGroupMappings(pool, tenantId) {
   return rows;
 }
 
+// Désactive un mapping -- transactionnel, révoque TOUS les grants
+// actifs dont ce mapping précis est la source, et EUX SEULS. Jamais un
+// hard delete (lifecycle actif/disabled uniquement, conservé pour
+// audit/provenance). Garde-fou dernier administrateur : même helper
+// unique que revokeProjectGrant (permissions/lastAdministrator.js),
+// jamais une seconde définition -- si la cascade laisserait la cible
+// (projet ou organisation) sans plus aucune capability administrative
+// effective, toute l'opération est annulée, atomiquement.
+export async function disableExternalGroupMapping(pool, { tenantId, mappingId }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: [mapping] } = await client.query(
+      "select id, target_type, target_id, status from external_group_mappings where id = $1 and tenant_id = $2 for update",
+      [mappingId, tenantId]
+    );
+    if (!mapping) {
+      await client.query('ROLLBACK');
+      return { ok: false, code: 'NOT_FOUND' };
+    }
+    if (mapping.status !== 'active') {
+      await client.query('ROLLBACK');
+      return { ok: false, code: 'ALREADY_DISABLED' };
+    }
+
+    const grantsTable = mapping.target_type === 'project' ? 'project_grants' : 'organization_grants';
+    const { rows: grantsToRevoke } = await client.query(
+      `select id, permission_bundle from ${grantsTable} where mapping_id = $1 and status = 'active'`,
+      [mappingId]
+    );
+
+    const capability = ADMINISTRATIVE_CAPABILITY[mapping.target_type];
+    const capabilitiesForBundle = mapping.target_type === 'project' ? projectCapabilitiesForBundle : organizationCapabilitiesForBundle;
+    const revokesAnyAdministrative = grantsToRevoke.some(g => capabilitiesForBundle(g.permission_bundle).includes(capability));
+
+    if (revokesAnyAdministrative) {
+      const stillAdministrable = await hasAdministrativeCapabilityRemaining(client, {
+        targetType: mapping.target_type,
+        targetId: mapping.target_id,
+        excludingGrantIds: grantsToRevoke.map(g => g.id),
+        capability
+      });
+      if (!stillAdministrable) {
+        await client.query('ROLLBACK');
+        return { ok: false, code: 'LAST_ADMIN' };
+      }
+    }
+
+    if (grantsToRevoke.length > 0) {
+      await client.query(
+        `update ${grantsTable} set status = 'revoked', revoked_at = now() where mapping_id = $1 and status = 'active'`,
+        [mappingId]
+      );
+    }
+    await client.query("update external_group_mappings set status = 'disabled' where id = $1", [mappingId]);
+
+    await client.query('COMMIT');
+    return { ok: true, revokedGrantCount: grantsToRevoke.length };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // Invitations en attente, tous projets du tenant confondus -- alimente
 // la vue "Accès" globale de Storm Control (jamais scopée à un seul
 // projet, contrairement à listProjectInvitations).
+// Invitations en attente pour un email précis, tous tenants/projets
+// confondus -- utilisée uniquement au moment exact de la création
+// d'un nouvel utilisateur Storm (pont invitation SSO, voir
+// identity/linking.js), jamais comme mécanisme de résolution
+// perpétuel basé sur l'email.
+export async function listPendingInvitationsForEmail(pool, email) {
+  const { rows } = await pool.query(
+    `select id, tenant_id, project_id, permission_bundle
+     from project_invitations
+     where email = $1 and status = 'pending'`,
+    [email]
+  );
+  return rows;
+}
+
 export async function listPendingInvitationsForTenant(pool, tenantId) {
   const { rows } = await pool.query(
     `select pi.id, pi.email, pi.permission_bundle, pi.created_at, p.id as project_id, p.name as project_name

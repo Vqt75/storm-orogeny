@@ -213,7 +213,7 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   app.use('/auth', originCheck({ allowedOrigins: config.sso.allowedOrigins }));
   app.use('/auth/login', authLoginCallbackRateLimit);
   app.use('/auth/callback', authLoginCallbackRateLimit);
-  app.use('/auth', createAuthRouter({ pool, config }));
+  app.use('/auth', createAuthRouter({ pool, config, logger }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

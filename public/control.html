@@ -7,11 +7,13 @@
 <link rel="stylesheet" href="/fonts/roboto.css" />
 <style>
 :root{--canvas:#f6f6f3;--surface:#fff;--ink:#111;--graphite:#2f2f32;--muted:#77777b;--quiet:#96969a;--gold:#c2af7e;--green:#2c7a58;--amber:#9b6b19;--red:#a7372d;--line:rgba(17,17,17,.08);--ease:cubic-bezier(.22,1,.36,1);--shadow-soft:0 18px 50px rgba(17,17,17,.075);--radius-xl:30px}
-*{box-sizing:border-box}html{background:var(--canvas)}
-body{margin:0;min-height:100vh;background:radial-gradient(circle at 14% -12%,rgba(255,255,255,.98),transparent 35%),radial-gradient(circle at 92% 4%,rgba(194,175,126,.07),transparent 23%),var(--canvas);color:var(--ink);font-family:Roboto,"Helvetica Neue",Arial,sans-serif}
+*{box-sizing:border-box}html{background:var(--canvas);scroll-timeline-name:--storm-page;scroll-timeline-axis:block}
+body{margin:0;min-height:100vh;overflow-x:hidden;background:radial-gradient(circle at 14% -12%,rgba(255,255,255,.98),transparent 35%),radial-gradient(circle at 92% 4%,rgba(194,175,126,.07),transparent 23%),var(--canvas);color:var(--ink);font-family:Roboto,"Helvetica Neue",Arial,sans-serif}
 button,input{font:inherit;color:inherit}[hidden]{display:none!important}button{border:0;cursor:pointer}
 .shell{min-height:100vh;padding:22px 28px 132px}
-.topbar{position:sticky;top:16px;z-index:30;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 20px;border:1px solid rgba(255,255,255,.72);background:rgba(255,255,255,.36);backdrop-filter:blur(24px) saturate(175%) contrast(102%);-webkit-backdrop-filter:blur(24px) saturate(175%) contrast(102%);border-radius:20px;box-shadow:0 10px 34px rgba(17,17,17,.07),inset 0 1px 0 rgba(255,255,255,.78),inset 0 -1px 0 rgba(17,17,17,.04);overflow:hidden}
+.topbar{position:sticky;top:16px;z-index:30;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 20px;border:1px solid rgba(255,255,255,.72);background:rgba(255,255,255,.36);backdrop-filter:blur(24px) saturate(175%) contrast(102%);-webkit-backdrop-filter:blur(24px) saturate(175%) contrast(102%);border-radius:20px;box-shadow:0 10px 34px rgba(17,17,17,.07),inset 0 1px 0 rgba(255,255,255,.78),inset 0 -1px 0 rgba(17,17,17,.04);overflow:hidden;isolation:isolate;transform-origin:top center}
+@supports (animation-timeline:--storm-page){.topbar{animation:storm-topbar-scroll linear both;animation-timeline:--storm-page;animation-range:0 420px}}
+@keyframes storm-topbar-scroll{0%{opacity:1;transform:translateY(0) scale(1);border-radius:20px}44%{opacity:1;transform:translateY(-2px) scale(.985);border-radius:18px}66%{opacity:1;transform:translateY(-4px) scale(.97)}100%{opacity:0;transform:translateY(-82px) scale(.94);pointer-events:none}}
 .brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:720;letter-spacing:-.035em}.brand span{color:var(--muted);font-weight:560}
 .top-actions{display:flex;align-items:center;gap:6px}.home-link{padding:9px 12px;border-radius:12px;background:transparent;font-size:13px;font-weight:670}.home-link:hover,.home-link:focus-visible{background:rgba(255,255,255,.52)}
 .avatar-wrap{position:relative}.avatar-btn{width:38px;height:38px;border-radius:12px;background:#111;color:#fff;font-size:12px;font-weight:760}
@@ -19,11 +21,10 @@ button,input{font:inherit;color:inherit}[hidden]{display:none!important}button{b
 .account-popover.open{opacity:1;visibility:visible;transform:translateY(0) scale(1)}.account-head{padding:12px}.account-head strong{display:block;font-size:14px;margin-bottom:3px}.account-head span{display:block;color:var(--muted);font-size:12px}.account-action{width:100%;padding:10px 12px;border-radius:11px;background:transparent;text-align:left;font-size:13px}.account-action:hover{background:rgba(17,17,17,.045)}
 .home-link:focus-visible,.avatar-btn:focus-visible,.account-action:focus-visible,.command-button:focus-visible{outline:3px solid rgba(17,17,17,.12);outline-offset:3px}
 main{width:min(1240px,100%);margin:0 auto;padding-top:96px}
-.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:end;margin-bottom:64px}.eyebrow{margin:0 0 14px;color:var(--muted);font-size:11px;font-weight:780;letter-spacing:.13em;text-transform:uppercase}
+.hero{margin-bottom:64px}.eyebrow{margin:0 0 14px;color:var(--muted);font-size:11px;font-weight:780;letter-spacing:.13em;text-transform:uppercase}
 .detail-back{display:inline-flex;align-items:center;gap:8px;margin-bottom:18px;padding:0;background:transparent;color:var(--muted);font-size:13px;font-weight:680}.detail-back:hover{color:var(--ink)}
 h1{margin:0;font-size:clamp(56px,7vw,102px);line-height:.9;letter-spacing:-.067em;font-weight:630}.hero-copy{margin:20px 0 0;max-width:580px;color:var(--muted);font-size:16px;line-height:1.55}
 .status-hero{display:inline-flex;align-items:center;gap:8px;margin-top:20px;font-size:13px;font-weight:700}.dot{width:8px;height:8px;border-radius:50%;background:var(--green)}.dot.stabilization{background:var(--amber)}.dot.archived{background:var(--quiet)}
-.scope-mark{align-self:start;margin-top:14px;min-width:140px;padding:15px 17px 16px;border-radius:22px;background:rgba(17,17,17,.94);color:#f6f6f3;box-shadow:var(--shadow-soft)}.scope-mark small{display:block;color:rgba(246,246,243,.55);font-size:10px;font-weight:760;letter-spacing:.11em;text-transform:uppercase;margin-bottom:14px}.scope-mark strong{display:block;font-size:20px;letter-spacing:-.035em}
 .section{margin-bottom:48px}.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:18px;padding:0 4px}.section-head h2{margin:0;font-size:24px;letter-spacing:-.04em;font-weight:690}.section-head p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.5}.section-count{color:var(--quiet);font-size:13px;font-weight:680}
 .subhead{margin:30px 3px 12px;color:var(--quiet);font-size:11px;font-weight:780;letter-spacing:.10em;text-transform:uppercase}
 .collection{display:grid;gap:10px}.cell{width:100%;border-radius:24px;background:rgba(255,255,255,.72);box-shadow:0 1px 0 rgba(255,255,255,.82) inset,0 10px 30px rgba(17,17,17,.035);text-align:left;border:1px solid transparent;transition:transform .2s var(--ease),border-color .2s ease,box-shadow .2s ease}.cell.clickable{cursor:pointer}.cell.clickable:hover{transform:translateY(-2px);border-color:rgba(17,17,17,.08);box-shadow:0 18px 38px rgba(17,17,17,.055)}
@@ -43,8 +44,11 @@ h1{margin:0;font-size:clamp(56px,7vw,102px);line-height:.9;letter-spacing:-.067e
 .form-field{margin-top:14px}.form-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}.form-field select,.form-field input{width:100%;padding:11px 13px;border:1px solid rgba(17,17,17,.12);border-radius:12px;background:white}
 .toast{position:fixed;z-index:90;left:50%;top:30px;transform:translate(-50%,-10px);padding:12px 16px;border-radius:14px;background:#111;color:white;font-size:12px;font-weight:680;opacity:0;visibility:hidden;transition:.2s var(--ease)}.toast.show{opacity:1;visibility:visible;transform:translate(-50%,0)}
 @media(max-width:900px){.metric-grid{grid-template-columns:1fr}.info-grid{grid-template-columns:1fr}}
-@media(max-width:780px){.shell{padding:14px 14px 126px}.topbar{top:10px;height:58px;padding-left:15px}.brand span,.home-link{display:none}main{padding-top:72px}.hero{grid-template-columns:1fr;margin-bottom:48px}h1{font-size:clamp(50px,16vw,76px)}.scope-mark{display:none}.project-cell,.member-cell,.provider-cell{grid-template-columns:48px minmax(0,1fr)}.cell-right{grid-column:2;justify-self:start}.command-layer{bottom:12px}.lifecycle-top{display:block}.action-row{margin-top:18px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+@media(max-width:780px){.shell{padding:14px 14px 126px}.topbar{top:10px;height:58px;padding-left:15px}.brand span,.home-link{display:none}main{padding-top:72px}.hero{margin-bottom:48px}h1{font-size:clamp(50px,16vw,76px)}.project-cell,.member-cell,.provider-cell{grid-template-columns:48px minmax(0,1fr)}.cell-right{grid-column:2;justify-self:start}.command-layer{bottom:12px}.lifecycle-top{display:block}.action-row{margin-top:18px}
+@supports (animation-timeline:--storm-page){.topbar{position:fixed;left:50%;width:calc(100vw - 28px);transform:translateX(-50%);animation:storm-mobile-topbar-scroll linear both;animation-timeline:--storm-page;animation-range:0 300px}}
+@keyframes storm-mobile-topbar-scroll{0%{width:calc(100vw - 28px);opacity:1;transform:translateX(-50%) translateY(0) scale(1)}45%{width:148px;opacity:1;transform:translateX(-50%) translateY(0) scale(.985)}68%{width:148px;opacity:1;transform:translateX(-50%) translateY(-2px) scale(.98)}100%{width:148px;opacity:0;transform:translateX(-50%) translateY(-76px) scale(.94);pointer-events:none}}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}.topbar{position:sticky!important;left:auto!important;width:auto!important;transform:none!important;opacity:1!important}}
 </style>
 </head>
 <body>
@@ -93,7 +97,12 @@ function loading(){return `<div class="loading-state"><div class="skeleton-list"
 function errState(noun){return `<div class="error-state" role="alert"><div><strong>Storm n’arrive pas à charger ${esc(noun)}.</strong><p>Votre organisation n’a pas été modifiée. Vous pouvez réessayer depuis la Command Layer.</p></div></div>`}
 function emptyState(title,copy){return `<div class="empty-state"><div><strong>${esc(title)}</strong><span>${esc(copy)}</span></div></div>`}
 
-function hero(title,copy,status){return `<section class="hero"><div>${state.detail?'<button class="detail-back" type="button" data-back>← Retour</button>':''}<p class="eyebrow">Storm Control</p><h1>${esc(title)}</h1><p class="hero-copy">${esc(copy)}</p>${status?`<div class="status-hero"><span class="dot ${statusClass(status)}"></span>${esc(statusLabel(status))}</div>`:''}</div>${!state.detail?`<div class="scope-mark"><small>Organisation</small><strong>${esc(state.me&&state.me.organization?state.me.organization.name:'—')}</strong></div>`:''}</section>`}
+function backLabel(){
+  if(state.projects.data.some(p=>p.id===state.detail))return 'Retour aux projets';
+  if(state.members.data.some(m=>m.id===state.detail))return 'Retour aux membres';
+  return 'Retour';
+}
+function hero(title,copy,status){return `<section class="hero"><div>${state.detail?`<button class="detail-back" type="button" data-back>${esc(backLabel())}</button>`:''}<p class="eyebrow">Storm Control</p><h1>${esc(title)}</h1><p class="hero-copy">${esc(copy)}</p>${status?`<div class="status-hero"><span class="dot ${statusClass(status)}"></span>${esc(statusLabel(status))}</div>`:''}</div></section>`}
 
 function projectCell(p){
   const logo=p.logoAssetId?`<img data-asset-id="${esc(p.logoAssetId)}" alt="">`:esc((p.name||'P')[0].toUpperCase());
@@ -196,11 +205,11 @@ function setCommand(html){commandState.innerHTML=html;wireCommand()}
 function renderCommand(){
   if(state.commandLocked)return;
   if(state.detail && state.projects.data.some(p=>p.id===state.detail)){
-    setCommand(`<button class="command-button back" type="button" data-back>← Projets</button>${['overview','access','lifecycle'].map(t=>`<button class="command-button ${state.detailTab===t?'active':''}" type="button" data-detail-tab="${t}">${t==='overview'?'Aperçu':t==='access'?'Accès':'Cycle de vie'}</button>`).join('')}`);
+    setCommand(`${['overview','access','lifecycle'].map(t=>`<button class="command-button ${state.detailTab===t?'active':''}" type="button" data-detail-tab="${t}">${t==='overview'?'Aperçu':t==='access'?'Accès':'Cycle de vie'}</button>`).join('')}`);
     return;
   }
   if(state.detail && state.members.data.some(m=>m.id===state.detail)){
-    setCommand(`<button class="command-button back" type="button" data-back>← Membres</button><span class="command-message"><strong>Fiche membre</strong></span>`);
+    setCommand(`<span class="command-message"><strong>Fiche membre</strong></span>`);
     return;
   }
   const views=[];
@@ -211,8 +220,6 @@ function renderCommand(){
 }
 function wireCommand(){
   commandState.querySelectorAll('[data-root]').forEach(b=>b.onclick=()=>goRoot(b.dataset.root));
-  const backBtn=commandState.querySelector('[data-back]');
-  if(backBtn)backBtn.addEventListener('click',()=>goRoot(state.projects.data.some(p=>p.id===state.detail)?'projects':'members'));
   commandState.querySelectorAll('[data-detail-tab]').forEach(b=>b.onclick=()=>{state.detailTab=b.dataset.detailTab;state.commandLocked=false;if(state.detailTab==='access'&&state.detailAccess.status==='idle')loadDetailAccess();render()});
 }
 commandLayer.addEventListener('focusin',()=>state.commandLocked=true);

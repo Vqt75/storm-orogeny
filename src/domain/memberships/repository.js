@@ -1,6 +1,8 @@
 // Repository memberships — fonctions typées, jamais de SQL brut dans
 // les routes ou les middlewares.
 
+import { organizationCapabilitiesForBundle } from '../permissions/capabilities.js';
+
 export async function findTenantMembershipForUser(pool, userId) {
   // Le schéma autorise déjà plusieurs OrganizationMembership par
   // utilisateur (aucune contrainte "un seul tenant" en base -- voir
@@ -22,6 +24,53 @@ export async function findTenantMembershipForUser(pool, userId) {
     [userId]
   );
   return rows[0] ?? null;
+}
+
+// Compte les organisations auxquelles l'utilisateur appartient
+// réellement (memberships actives), indépendamment de la résolution
+// déterministe ci-dessus -- utilisée par les chemins qui doivent
+// savoir "plusieurs organisations sont-elles possibles ?" sans jamais
+// choisir silencieusement laquelle (voir Project Creation V2 : fail
+// closed si count > 1, jamais un repli implicite). Ne remplace ni ne
+// modifie findTenantMembershipForUser, utilisée telle quelle ailleurs
+// (Storm Control notamment).
+//
+// L'ambiguïté pertinente pour une action organisationnelle donnée
+// n'est jamais "combien de memberships actives", mais "dans combien
+// d'organisations cette capability précise est-elle effectivement
+// accordée" -- une membership sans la capability requise n'est jamais
+// une destination légitime, jamais un candidat à l'ambiguïté.
+// Réutilise bundleHasOrganizationCapability telle quelle (même
+// résolution que requireOrganizationCapability) -- aucun système de
+// permissions parallèle.
+// Organisations actives de l'utilisateur, AVEC leurs capabilities
+// organisationnelles EFFECTIVES -- union des bundles de tous les
+// organization_grants actifs de chaque membership, jamais une lecture
+// directe de tenant_memberships.permission_bundle (colonne legacy,
+// jamais mise à jour par une révocation de grant -- voir audit :
+// bundleHasOrganizationCapability sur cette seule colonne ne reflète
+// pas le modèle Grant actuel). Même motif exact que
+// findAccessibleProjectForUser (projects/repository.js) au niveau
+// projet, répliqué ici au niveau organisation, scopé à l'usage réel
+// de cette fonction (résolution de POST /api/projects).
+export async function listActiveTenantMembershipsForUser(pool, userId) {
+  const { rows } = await pool.query(
+    `select tm.tenant_id, t.name as tenant_name, tm.id as membership_id,
+            coalesce(array_agg(distinct og.permission_bundle) filter (where og.permission_bundle is not null), '{}') as active_bundles
+     from tenant_memberships tm
+     join tenants t on t.id = tm.tenant_id
+     left join organization_grants og on og.organization_membership_id = tm.id and og.status = 'active'
+     where tm.user_id = $1 and tm.status = 'active'
+     group by tm.tenant_id, t.name, tm.id, tm.created_at
+     order by tm.created_at asc, tm.tenant_id asc`,
+    [userId]
+  );
+  return rows.map(row => ({
+    tenant_id: row.tenant_id,
+    tenant_name: row.tenant_name,
+    membership_id: row.membership_id,
+    capabilities: [...new Set(row.active_bundles.flatMap(b => organizationCapabilitiesForBundle(b)))]
+  }));
 }
 
 export async function findProjectMembership(pool, { userId, projectId }) {

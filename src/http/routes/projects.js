@@ -5,7 +5,7 @@ import {
   listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules
 } from '../../domain/projects/repository.js';
 import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
-import { requireOrganizationCapability } from '../middleware/requireOrganizationCapability.js';
+import { listActiveTenantMembershipsForUser } from '../../domain/memberships/repository.js';
 import { ProjectCapability, OrganizationCapability } from '../../domain/permissions/capabilities.js';
 import { validateCreateProjectPayload } from '../../domain/project-setup/validation.js';
 import { listSupportedLocales } from '../../domain/project-setup/repository.js';
@@ -49,19 +49,56 @@ export function createProjectsRouter({ pool, storageAdapter }) {
     })));
   });
 
-  // Création transactionnelle — le tenant vient exclusivement du
-  // contexte authentifié (req.tenantMembership, posé par
-  // requireOrganizationCapability), jamais d'un tenant_id fourni par
-  // le client. Toute écriture se fait sur un seul client, dans une
-  // seule transaction : soit tout est créé, soit rien ne l'est.
+  // Création transactionnelle — le tenant vient exclusivement de la
+  // résolution dédiée ci-dessous (req.tenantMembership, posé
+  // explicitement après vérification de la capability effective par
+  // organisation), jamais d'un tenant_id fourni par le client. Toute
+  // écriture se fait sur un seul client, dans une seule transaction :
+  // soit tout est créé, soit rien ne l'est.
   router.post(
     '/',
-    requireOrganizationCapability(pool, OrganizationCapability.PROJECTS_CREATE),
+    async (req, res, next) => {
+      // Résolution dédiée à Project Creation -- jamais un changement de
+      // requireOrganizationCapability/findTenantMembershipForUser
+      // elles-mêmes (utilisées telles quelles ailleurs, notamment Storm
+      // Control). Le middleware générique suppose UNE membership déjà
+      // résolue de façon déterministe puis vérifie la capability
+      // dessus -- sémantique inadaptée ici : une membership sans
+      // projects.create n'est jamais un candidat à l'ambiguïté, et une
+      // organisation qualifiée ailleurs ne doit jamais être ignorée au
+      // seul motif qu'une autre membership, non qualifiée, aurait été
+      // choisie en premier par l'ordre déterministe transitoire.
+      //
+      // Résolution effective, jamais un filtre naïf sur le nom du
+      // bundle de la membership : listActiveTenantMembershipsForUser
+      // calcule déjà l'union des capabilities de tous les
+      // organization_grants actifs (voir audit -- la membership seule
+      // porte un bundle legacy jamais mis à jour par une révocation de
+      // grant). Aucun système de permissions parallèle : même
+      // organizationCapabilitiesForBundle que le reste du domaine.
+      const memberships = await listActiveTenantMembershipsForUser(pool, req.user.id);
+      const creatable = memberships.filter(m => m.capabilities.includes(OrganizationCapability.PROJECTS_CREATE));
+
+      if (creatable.length === 0) {
+        next(Errors.forbidden(`Cette action nécessite la capability "${OrganizationCapability.PROJECTS_CREATE}".`));
+        return;
+      }
+      if (creatable.length > 1) {
+        next(Errors.organizationContextRequired());
+        return;
+      }
+
+      // Exactement une organisation qualifiée -- utilisée explicitement
+      // pour toute la suite de la création, jamais rerésolue.
+      req.tenantMembership = creatable[0];
+      next();
+    },
     async (req, res, next) => {
       const supportedLocales = await listSupportedLocales(pool);
       const validation = validateCreateProjectPayload(req.body, {
         supportedLocales,
-        creatorEmail: req.user.email
+        creatorEmail: req.user.email,
+        acceptLanguageHeader: req.get('Accept-Language')
       });
 
       if (!validation.valid) {

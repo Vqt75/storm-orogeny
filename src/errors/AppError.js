@@ -39,6 +39,18 @@ export const Errors = {
   invalid(message, details) {
     return new AppError('INVALID_REQUEST', message, { status: 400, details });
   },
+  // Plusieurs organisations sont accessibles à l'utilisateur et aucun
+  // contexte organisationnel actif n'existe encore dans le système
+  // (voir Project Creation V2) -- jamais un repli implicite vers une
+  // membership choisie arbitrairement. Message volontairement neutre,
+  // sans jamais exposer tenant/membership/détails techniques.
+  organizationContextRequired() {
+    return new AppError(
+      'ORGANIZATION_CONTEXT_REQUIRED',
+      'Plusieurs organisations sont disponibles. Choisissez d\'abord celle dans laquelle créer ce projet.',
+      { status: 409 }
+    );
+  },
   internal(message = 'Erreur interne.') {
     return new AppError('INTERNAL_ERROR', message, { status: 500 });
   }

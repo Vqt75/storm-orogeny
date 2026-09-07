@@ -13,6 +13,13 @@
   --line:rgba(17,17,17,.08);--danger:#b42318;--glass:rgba(247,247,244,.50);
   --ease:cubic-bezier(.22,1,.36,1)
 }
+
+/* Continuité perceptible depuis Project Creation (et Home) --
+   mécanisme natif du navigateur, aucune réécriture SPA. Repli
+   silencieux et sans erreur sur les navigateurs non supportés. */
+@view-transition{
+  navigation:auto;
+}
 *{box-sizing:border-box}[hidden]{display:none!important}
 html{background:var(--canvas)}
 body{

@@ -7,6 +7,13 @@
 <link rel="stylesheet" href="/fonts/roboto.css" />
 <link rel="stylesheet" href="/studio-shell.css">
 <style>
+/* Continuité perceptible avec Project Creation -- shared-element
+   cross-document (large title -> navigation title). Scopé à cet id
+   précis, jamais une règle globale dans studio-shell.css : n'affecte
+   que ce point d'entrée, sans toucher au reste de Studio. Sans effet
+   en dehors d'une navigation avec view-transition-name correspondant
+   côté source (Creation) -- inoffensif partout ailleurs. */
+#brandProject{view-transition-name:project-title}
 .editor{
   border-radius:30px;background:rgba(255,255,255,.77);padding:34px;
   box-shadow:0 1px 0 rgba(255,255,255,.88) inset,0 14px 38px rgba(17,17,17,.045)

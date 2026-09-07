@@ -1,10 +1,115 @@
 {
   "appendOnly": true,
-  "events": [],
+  "events": [
+    {
+      "decisionType": "knowledgeComponentBoundary",
+      "decisionValue": "sameConnectedComponent",
+      "eventHash": "63010936429160d05171674423bdef5b5d74249a9f81c541ed75f8d12ca5a7a9",
+      "eventId": "1078077c-36c6-46da-b613-b3cffdc4c096",
+      "languageCompetenceAttested": true,
+      "previousEventHash": null,
+      "rationale": "Les connaissances décrivent un même continuum d’arrivée à Cobalt : date d’emménagement, jalons de préparation, visites, guide et stabilité du calendrier, avec plusieurs réponses explicitement positionnées par rapport à l’emménagement.",
+      "recordedAt": "2026-09-07T14:05:29.642Z",
+      "reviewItemRef": "storm-02-b-item-001",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 1
+    },
+    {
+      "decisionType": "futureCoverageBoundaryRules",
+      "decisionValue": "rulesDocumented",
+      "eventHash": "b8cca3189f749a3f791c3033c1791013ec7801e9a661b86934a51be1938dc711",
+      "eventId": "a83af64e-7b8b-45d0-95b9-87f0da3bdbd2",
+      "languageCompetenceAttested": true,
+      "previousEventHash": "63010936429160d05171674423bdef5b5d74249a9f81c541ed75f8d12ca5a7a9",
+      "rationale": "Règles de frontière futures documentées : Couvert : faits affichés sur la date d’emménagement, le guide, les visites, la semaine de préparation, les modalités annoncées et la stabilité des jalons. Non couvert : détail logistique absent des connaissances affichées. Réellement ambigu : demande portant sur une date ou une préparation sans permettre d’identifier le jalon concerné parmi emménagement, visites, guide ou semaine de préparation.\nRationale courte : Les `knowledgeRef` storm-02-b-knowledge-004, -007, -009, -014, -021, -034, -038 et -040 couvrent des jalons distincts mais reliés du même calendrier d’arrivée.",
+      "recordedAt": "2026-09-07T14:05:29.653Z",
+      "reviewItemRef": "storm-02-b-item-001",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 2
+    },
+    {
+      "decisionType": "knowledgeComponentBoundary",
+      "decisionValue": "partitionRequired",
+      "eventHash": "1684aa526ff2dd2e06b30f2ce13bac7fc31ecab6c0f072b5c2c298b9a0c51c4d",
+      "eventId": "8c1511a0-c4f9-4358-93d6-20edc9dc7a96",
+      "languageCompetenceAttested": true,
+      "previousEventHash": "b8cca3189f749a3f791c3033c1791013ec7801e9a661b86934a51be1938dc711",
+      "rationale": "Partition métier nécessaire : espaces de collaboration/réservation/confidentialité = [storm-02-b-knowledge-028, storm-02-b-knowledge-016, storm-02-b-knowledge-032, storm-02-b-knowledge-002, storm-02-b-knowledge-027, storm-02-b-knowledge-051, storm-02-b-knowledge-013, storm-02-b-knowledge-010, storm-02-b-knowledge-023, storm-02-b-knowledge-008, storm-02-b-knowledge-049, storm-02-b-knowledge-039, storm-02-b-knowledge-005, storm-02-b-knowledge-042, storm-02-b-knowledge-011, storm-02-b-knowledge-041] ; espaces de travail calme Focus/Bibliothèque = [storm-02-b-knowledge-048, storm-02-b-knowledge-050, storm-02-b-knowledge-020, storm-02-b-knowledge-046]. Les finalités et règles d’accès ne sont pas interchangeables.",
+      "recordedAt": "2026-09-07T14:05:29.668Z",
+      "reviewItemRef": "storm-02-b-item-002",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 3
+    },
+    {
+      "decisionType": "futureCoverageBoundaryRules",
+      "decisionValue": "rulesDocumented",
+      "eventHash": "60fad5cc38826eb3152c346a8a9058defee8d95ec625cd5f00c72b0cb6ab6537",
+      "eventId": "c2daf550-cc21-49eb-88e6-0e9dddd39326",
+      "languageCompetenceAttested": true,
+      "previousEventHash": "1684aa526ff2dd2e06b30f2ce13bac7fc31ecab6c0f072b5c2c298b9a0c51c4d",
+      "rationale": "Règles de frontière futures documentées : Couvert : capacité, réservation, disponibilité, confidentialité ou usage d’un espace lorsqu’un type d’espace ou un besoin fonctionnel affiché permet de rattacher la demande au bon groupe. Non couvert : équipement, service ou règle d’usage non présent dans ces connaissances. Réellement ambigu : espace non identifié alors que plusieurs types affichés ont des règles différentes de réservation, d’accès ou d’usage.\nRationale courte : Les connaissances distinguent notamment salles, Project Rooms, Forum et bulles des espaces Focus/Bibliothèque ; certaines sont réservables, d’autres en accès libre ou spontanées.",
+      "recordedAt": "2026-09-07T14:05:29.680Z",
+      "reviewItemRef": "storm-02-b-item-002",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 4
+    },
+    {
+      "decisionType": "knowledgeComponentBoundary",
+      "decisionValue": "partitionRequired",
+      "eventHash": "fcfde4dbfe9e024e01a347a474e270aa43a4d0594c23a21debcf7bc7c0a92ffb",
+      "eventId": "44d2a443-3393-4e8e-b483-323f2a2a817c",
+      "languageCompetenceAttested": true,
+      "previousEventHash": "60fad5cc38826eb3152c346a8a9058defee8d95ec625cd5f00c72b0cb6ab6537",
+      "rationale": "Deux composantes doivent être séparées : organisation des postes/quartiers = [storm-02-b-knowledge-035, storm-02-b-knowledge-047, storm-02-b-knowledge-022, storm-02-b-knowledge-015] ; règles de présence/télétravail = [storm-02-b-knowledge-030, storm-02-b-knowledge-012, storm-02-b-knowledge-043, storm-02-b-knowledge-001, storm-02-b-knowledge-031, storm-02-b-knowledge-029, storm-02-b-knowledge-024]. Le flex d’assise ne détermine pas les obligations de présence.",
+      "recordedAt": "2026-09-07T14:05:29.695Z",
+      "reviewItemRef": "storm-02-b-item-003",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 5
+    },
+    {
+      "decisionType": "futureCoverageBoundaryRules",
+      "decisionValue": "rulesDocumented",
+      "eventHash": "62dbee612ff26f79098d960aa4ae9f007ad8a9bc28791e02529335dcc3abeb58",
+      "eventId": "1e74cbdd-411a-4025-95c1-b822302aac8f",
+      "languageCompetenceAttested": true,
+      "previousEventHash": "fcfde4dbfe9e024e01a347a474e270aa43a4d0594c23a21debcf7bc7c0a92ffb",
+      "rationale": "Règles de frontière futures documentées : Couvert : organisation du poste ou du quartier lorsque le sujet est l’assise sur site ; règles affichées de télétravail ou de présence lorsque le sujet est la fréquence, les jours, la déclaration ou l’autorité d’équipe. Non couvert : règles managériales détaillées non affichées. Réellement ambigu : demande qui confond obligation de venir sur site avec réservation ou choix du poste.\nRationale courte : Les réponses affichées disent à la fois qu’il n’y a pas de poste nominatif et que le projet ne change pas les règles de télétravail ; ces dimensions doivent rester distinctes.",
+      "recordedAt": "2026-09-07T14:05:29.708Z",
+      "reviewItemRef": "storm-02-b-item-003",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 6
+    },
+    {
+      "decisionType": "knowledgeComponentBoundary",
+      "decisionValue": "partitionRequired",
+      "eventHash": "a7f14f278896a0f381a2b82912fcdb8f9d5ea5b1f786cf3d19c9e55a16ab4e31",
+      "eventId": "1dc432f1-c181-4497-bf1b-7f9692093724",
+      "languageCompetenceAttested": true,
+      "previousEventHash": "62dbee612ff26f79098d960aa4ae9f007ad8a9bc28791e02529335dcc3abeb58",
+      "rationale": "Trois groupes métier ressortent : information/questions projet = [storm-02-b-knowledge-025, storm-02-b-knowledge-045, storm-02-b-knowledge-036, storm-02-b-knowledge-033] ; rôle et implantation des ambassadeurs = [storm-02-b-knowledge-006, storm-02-b-knowledge-003, storm-02-b-knowledge-037] ; pilote, contribution, feedback et évolution = [storm-02-b-knowledge-044, storm-02-b-knowledge-019, storm-02-b-knowledge-018, storm-02-b-knowledge-017, storm-02-b-knowledge-026].",
+      "recordedAt": "2026-09-07T14:05:29.725Z",
+      "reviewItemRef": "storm-02-b-item-004",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 7
+    },
+    {
+      "decisionType": "futureCoverageBoundaryRules",
+      "decisionValue": "rulesDocumented",
+      "eventHash": "7bc92094777f327a9c997a4441f949aa808ec5af78f1056ccc5a446b77682892",
+      "eventId": "e9ba8b9d-bfca-4fb7-a7de-cf0c11ec81f2",
+      "languageCompetenceAttested": true,
+      "previousEventHash": "a7f14f278896a0f381a2b82912fcdb8f9d5ea5b1f786cf3d19c9e55a16ab4e31",
+      "rationale": "Règles de frontière futures documentées : Couvert : réception d’actualités et canal de question, rôle/désignation des ambassadeurs, ou faits affichés sur le plateau témoin, les retours et les ajustements. Non couvert : gouvernance ou procédure détaillée non affichée. Réellement ambigu : interaction avec le projet sans distinguer recherche d’information, rôle d’un ambassadeur ou transmission d’un retour/idée.\nRationale courte : Les connaissances affichent des canaux et acteurs communs, mais des fonctions différentes : informer, relayer, tester et recueillir des retours.",
+      "recordedAt": "2026-09-07T14:05:29.743Z",
+      "reviewItemRef": "storm-02-b-item-004",
+      "reviewerIdentity": "reviewer-b",
+      "sequence": 8
+    }
+  ],
   "languageStratum": "fr",
   "packetFingerprint": "406ff2fed512b6f9cd7b0d9de80a66f31eb79c31b7ee933b2e3e77d8c118ae8a",
   "packetId": "storm-02-b-knowledgeBoundaries-fr",
   "reviewerSlot": "B",
   "schemaVersion": 1,
-  "status": "NOT_STARTED"
+  "status": "IN_PROGRESS"
 }

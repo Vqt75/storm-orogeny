@@ -185,18 +185,21 @@ test('scenario-family packet is an honest partial preflight, not a bound invento
 test('persisted response logs are separate, bound and never reset by package checks', () => {
   const filename = '01-equivalence-preferred.fr.response-log.json';
   const aPath = join(DEFAULT_STRUCTURAL_REVIEW_OUTPUT, 'responses', 'reviewer-a', filename);
+  const bPath = join(DEFAULT_STRUCTURAL_REVIEW_OUTPUT, 'responses', 'reviewer-b', filename);
   const aBefore = readFileSync(aPath, 'utf8');
+  const bBefore = readFileSync(bPath, 'utf8');
   const a = JSON.parse(aBefore);
-  const b = JSON.parse(readFileSync(join(DEFAULT_STRUCTURAL_REVIEW_OUTPUT, 'responses', 'reviewer-b', filename), 'utf8'));
+  const b = JSON.parse(bBefore);
   assert.equal(a.events.length, 10);
-  assert.deepEqual(b.events, []);
+  assert.equal(b.events.length, 10);
   assert.equal(a.status, 'IN_PROGRESS');
-  assert.equal(b.status, 'NOT_STARTED');
+  assert.equal(b.status, 'IN_PROGRESS');
   assert.equal(a.reviewerSlot, 'A');
   assert.equal(b.reviewerSlot, 'B');
   assert.notEqual(a.packetFingerprint, b.packetFingerprint);
   materialiseStructuralReviewPackages({ checkOnly: true });
   assert.equal(readFileSync(aPath, 'utf8'), aBefore);
+  assert.equal(readFileSync(bPath, 'utf8'), bBefore);
 });
 
 test('materialisation bootstraps missing response logs but preserves existing journals', () => {

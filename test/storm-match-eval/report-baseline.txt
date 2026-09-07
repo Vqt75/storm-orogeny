@@ -1,94 +1,257 @@
-==============================================================================
-STORM MATCH — RAPPORT D'ÉVALUATION (moteur actuel, corpus Équinoxe)
-==============================================================================
-Corpus : 112 questions réelles (Équinoxe) — 30 canoniques testées
-Requêtes d'évaluation : 270 formulations + 30 ambiguës + 20 hors-corpus = 320
+STORM MATCH — PORTABLE BENCHMARK V0
+===================================
+Production Git hash: d0243f15c4c390098663a9d31a462e5244ee6e60
+Matcher: storm-heuristic-current
+Snapshot entries: 112
+Selected canonical questions: 30
+Evaluation cases: 320
+In-corpus cases: 300
+Resolvable in-corpus cases: 290
+True-ambiguous in-corpus cases: 10
+Out-of-corpus cases: 20
+Execution timestamp: omitted for deterministic diffs
 
---- Tableau de métriques par type de formulation ---
+CURRENT ENGINE THRESHOLDS (reported unchanged)
+----------------------------------------------
+Minimum match/candidate score: 12
+Medium confidence starts at: 18
+High confidence starts at: 28
 
-Type                  Requêtes    Top-1    Top-3  Abstention
-nearIdentical               30    86.7%    90.0%       10.0%
-naturalParaphrase           30    36.7%    53.3%       36.7%
-conversational              30    43.3%    60.0%       36.7%
-short                       30    63.3%    70.0%       30.0%
-synonym                     30    33.3%    40.0%       43.3%
-differentVocab              30    16.7%    23.3%       66.7%
-imperfectSyntax             30    80.0%    83.3%       16.7%
-typo                        30    56.7%    60.0%       40.0%
-keywordsOnly                30    46.7%    56.7%       33.3%
+GLOBAL METRICS
+--------------
+Top-1 global (correct entry or correct required abstention): 149/320 (46.6%)
+Top-1 in-corpus (including correct true-ambiguity abstention): 133/300 (44.3%)
+Top-1 resolvable in-corpus: 132/290 (45.5%)
+Top-3 diagnostic resolvable in-corpus: 217/290 (74.8%)
+Abstention rate (all cases): 131/320 (40.9%)
+Correct true-ambiguity abstention: 1/10 (10.0%)
+Correct out-of-corpus abstention: 16/20 (80.0%)
+Out-of-corpus false positives/non-abstentions: 4/20 (20.0%)
+Over-abstentions (expected entry, engine abstained): 114
+Ambiguity/adjacent errors: 22/30
 
-Top-1 accuracy globale (hors ambiguës/hors-corpus) : 51.5% (139/270)
+METRICS BY CATEGORY
+-------------------
+quasi_identique | cases=30 | top1=30/30 (100.0%) | top3=30/30 (100.0%) | abstained=0
+paraphrase_naturelle | cases=30 | top1=8/30 (26.7%) | top3=19/30 (63.3%) | abstained=16
+conversationnel | cases=30 | top1=11/30 (36.7%) | top3=19/30 (63.3%) | abstained=12
+formulation_courte | cases=30 | top1=11/30 (36.7%) | top3=27/30 (90.0%) | abstained=17
+synonymes | cases=30 | top1=4/30 (13.3%) | top3=17/30 (56.7%) | abstained=19
+vocabulaire_different | cases=30 | top1=1/30 (3.3%) | top3=8/30 (26.7%) | abstained=26
+syntaxe_imparfaite | cases=30 | top1=22/30 (73.3%) | top3=27/30 (90.0%) | abstained=3
+faute_de_frappe | cases=30 | top1=21/30 (70.0%) | top3=27/30 (90.0%) | abstained=9
+mots_cles_seuls | cases=30 | top1=17/30 (56.7%) | top3=25/30 (83.3%) | abstained=12
+ambiguite_adjacent | cases=30 | top1=8/30 (26.7%) | top3=18/20 (90.0%) | abstained=1
+hors_corpus | cases=20 | top1=16/20 (80.0%) | top3=n/a | abstained=16
 
-Abstention correcte (hors-corpus) : 17/20 (85.0%)
-Faux positifs sur hors-corpus : 3/20 (15.0%)
+OBSERVABLE FAILURE CAUSES
+-------------------------
+expected_outside_top3_lexical_gap: 61
+expected_top1_below_match_threshold: 34
+competing_entry_ranked_first: 44
+true_ambiguity_non_abstention: 9
+expected_in_top3_but_not_selected: 19
+out_of_corpus_non_abstention: 4
 
-Ambiguïté (30 requêtes) : 2 correctes / 23 abstentions / 5 incorrectes
+OUT-OF-CORPUS FALSE POSITIVES (4)
+---------------------------------
+hors-corpus-014 | "Quelle est la procédure pour commander du matériel à domicile ?" | source=null | expected=null | ambiguity=n/a | outcome=matched | actual=equinoxe-q045 | expectedRank=n/a | top3=[equinoxe-q045:12/low, equinoxe-q046:6/low, equinoxe-q047:6/low]
+hors-corpus-015 | "Peut-on inviter un fournisseur à déjeuner ?" | source=null | expected=null | ambiguity=n/a | outcome=matched | actual=equinoxe-q092 | expectedRank=n/a | top3=[equinoxe-q092:12/low, equinoxe-q003:6/low, equinoxe-q022:6/low]
+hors-corpus-017 | "Quel est le numéro du support informatique ?" | source=null | expected=null | ambiguity=n/a | outcome=matched | actual=equinoxe-q045 | expectedRank=n/a | top3=[equinoxe-q045:12/low, equinoxe-q046:6/low, equinoxe-q047:6/low]
+hors-corpus-020 | "Combien coûte l’abonnement à la salle de sport ?" | source=null | expected=null | ambiguity=n/a | outcome=matched | actual=equinoxe-q019 | expectedRank=n/a | top3=[equinoxe-q019:12/low, equinoxe-q028:12/low, equinoxe-q007:6/low]
+Severity counts: weak=4, medium=0, dangerous=0
 
---- Faux positifs dangereux (score >= 28, réponse fausse avec forte confiance) ---
-Aucun.
+OVER-ABSTENTIONS (114)
+----------------------
+equinoxe-q001-paraphrase_naturelle | "À quelle date est prévu notre déménagement ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=7 | top3=[equinoxe-q002:6/low, equinoxe-q005:6/low, equinoxe-q007:6/low]
+equinoxe-q001-conversationnel | "Dis, on part quand à Cobalt ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q001:6/low, equinoxe-q002:6/low, equinoxe-q004:6/low]
+equinoxe-q001-formulation_courte | "Date du déménagement ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=6 | top3=[equinoxe-q005:6/low, equinoxe-q007:6/low, equinoxe-q008:6/low]
+equinoxe-q001-vocabulaire_different | "Quel jour doit-on rejoindre nos nouveaux locaux ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=8 | top3=[equinoxe-q021:6/low, equinoxe-q045:6/low, equinoxe-q048:6/low]
+equinoxe-q001-mots_cles_seuls | "déménagement date" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=6 | top3=[equinoxe-q005:6/low, equinoxe-q007:6/low, equinoxe-q008:6/low]
+equinoxe-q003-formulation_courte | "Calendrier définitif ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q003:6/low, equinoxe-q111:6/low, equinoxe-q001:0/low]
+equinoxe-q003-synonymes | "Le planning reste-t-il modifiable ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q003-vocabulaire_different | "Les échéances sont-elles désormais gravées dans le marbre ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q003-mots_cles_seuls | "calendrier changement" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q003:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q005-vocabulaire_different | "Y aura-t-il une découverte des lieux en amont de l’installation ?" | source=equinoxe-q005 | expected=equinoxe-q005 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q005:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q010-paraphrase_naturelle | "Est-ce qu’un poste de travail me sera personnellement attribué ?" | source=equinoxe-q010 | expected=equinoxe-q010 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q010-formulation_courte | "Bureau personnel ?" | source=equinoxe-q010 | expected=equinoxe-q010 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q007:6/low, equinoxe-q010:6/low, equinoxe-q012:6/low]
+equinoxe-q010-synonymes | "Disposerai-je d’un desk nominatif ?" | source=equinoxe-q010 | expected=equinoxe-q010 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q010-vocabulaire_different | "Est-ce que chacun conserve un emplacement rien qu’à lui ?" | source=equinoxe-q010 | expected=equinoxe-q010 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=10 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q011-synonymes | "Que signifie le bureau flexible ?" | source=equinoxe-q011 | expected=equinoxe-q011 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=20 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q011-vocabulaire_different | "Comment fonctionne un environnement sans place assignée ?" | source=equinoxe-q011 | expected=equinoxe-q011 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=21 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q011-faute_de_frappe | "C’est quoi le flex ofice ?" | source=equinoxe-q011 | expected=equinoxe-q011 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q011:6/low, equinoxe-q016:6/low, equinoxe-q088:6/low]
+equinoxe-q013-faute_de_frappe | "Qu’est-ce qu’un quertier d’équipe ?" | source=equinoxe-q013 | expected=equinoxe-q013 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q013:6/low, equinoxe-q014:6/low, equinoxe-q024:6/low]
+equinoxe-q016-paraphrase_naturelle | "Y aura-t-il moins de bureaux disponibles que de collaborateurs ?" | source=equinoxe-q016 | expected=equinoxe-q016 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q016:6/low, equinoxe-q098:6/low, equinoxe-q001:0/low]
+equinoxe-q016-formulation_courte | "Assez de postes ?" | source=equinoxe-q016 | expected=equinoxe-q016 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q016:6/low, equinoxe-q045:6/low, equinoxe-q049:6/low]
+equinoxe-q016-synonymes | "Le desk sharing implique-t-il une pénurie de bureaux ?" | source=equinoxe-q016 | expected=equinoxe-q016 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=24 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q016-vocabulaire_different | "La capacité d’assises sera-t-elle inférieure à l’effectif ?" | source=equinoxe-q016 | expected=equinoxe-q016 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=17 | top3=[equinoxe-q028:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q020-paraphrase_naturelle | "La Bibliothèque nécessite-t-elle une réservation préalable ?" | source=equinoxe-q020 | expected=equinoxe-q020 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q020:6/low, equinoxe-q026:6/low, equinoxe-q090:6/low]
+equinoxe-q020-conversationnel | "Je dois booker avant de m’installer à la Bibliothèque ?" | source=equinoxe-q020 | expected=equinoxe-q020 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q005:6/low, equinoxe-q018:6/low, equinoxe-q020:6/low]
+equinoxe-q020-formulation_courte | "Bibliothèque sur réservation ?" | source=equinoxe-q020 | expected=equinoxe-q020 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q020:6/low, equinoxe-q026:6/low, equinoxe-q090:6/low]
+equinoxe-q020-synonymes | "L’accès à la Bibliothèque silencieuse doit-il être planifié ?" | source=equinoxe-q020 | expected=equinoxe-q020 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q020:6/low, equinoxe-q026:6/low, equinoxe-q055:6/low]
+equinoxe-q020-vocabulaire_different | "Le grand espace collectif silencieux est-il accessible sans inscription ?" | source=equinoxe-q020 | expected=equinoxe-q020 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=28 | top3=[equinoxe-q027:6/low, equinoxe-q030:6/low, equinoxe-q032:6/low]
+equinoxe-q020-mots_cles_seuls | "bibliothèque réservation" | source=equinoxe-q020 | expected=equinoxe-q020 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q020:6/low, equinoxe-q026:6/low, equinoxe-q090:6/low]
+equinoxe-q025-conversationnel | "Je vais où si j’ai besoin d’être tranquille ?" | source=equinoxe-q025 | expected=equinoxe-q025 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=28 | top3=[equinoxe-q012:6/low, equinoxe-q041:6/low, equinoxe-q069:6/low]
+equinoxe-q025-formulation_courte | "Espace calme ?" | source=equinoxe-q025 | expected=equinoxe-q025 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q025:6/low, equinoxe-q030:6/low, equinoxe-q032:6/low]
+equinoxe-q025-synonymes | "Où puis-je me concentrer en silence ?" | source=equinoxe-q025 | expected=equinoxe-q025 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=37 | top3=[equinoxe-q026:6/low, equinoxe-q027:6/low, equinoxe-q039:6/low]
+equinoxe-q025-vocabulaire_different | "Quel lieu convient à une tâche exigeant toute mon attention ?" | source=equinoxe-q025 | expected=equinoxe-q025 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=26 | top3=[equinoxe-q004:6/low, equinoxe-q093:6/low, equinoxe-q001:0/low]
+equinoxe-q025-faute_de_frappe | "Ou travaller au calme ?" | source=equinoxe-q025 | expected=equinoxe-q025 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q025:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q025-mots_cles_seuls | "calme concentration" | source=equinoxe-q025 | expected=equinoxe-q025 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q025:6/low, equinoxe-q026:6/low, equinoxe-q070:6/low]
+equinoxe-q027-paraphrase_naturelle | "Quel espace utiliser pour téléphoner quelques minutes ?" | source=equinoxe-q027 | expected=equinoxe-q027 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=31 | top3=[equinoxe-q030:6/low, equinoxe-q032:6/low, equinoxe-q071:6/low]
+equinoxe-q027-conversationnel | "Je vais où pour un petit coup de fil ?" | source=equinoxe-q027 | expected=equinoxe-q027 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=28 | top3=[equinoxe-q012:6/low, equinoxe-q041:6/low, equinoxe-q001:0/low]
+equinoxe-q027-synonymes | "Où faire une courte visio sans gêner les collègues ?" | source=equinoxe-q027 | expected=equinoxe-q027 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q027:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q027-vocabulaire_different | "Quel endroit isole une conversation brève du reste du plateau ?" | source=equinoxe-q027 | expected=equinoxe-q027 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=29 | top3=[equinoxe-q006:6/low, equinoxe-q079:6/low, equinoxe-q110:6/low]
+equinoxe-q028-vocabulaire_different | "Quel effectif maximal peut se réunir dans une même pièce ?" | source=equinoxe-q028 | expected=equinoxe-q028 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=34 | top3=[equinoxe-q003:6/low, equinoxe-q014:6/low, equinoxe-q022:6/low]
+equinoxe-q029-paraphrase_naturelle | "À quels usages le Forum est-il destiné ?" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q024:6/low, equinoxe-q029:6/low, equinoxe-q084:6/low]
+equinoxe-q029-conversationnel | "On y fait quoi dans le Forum ?" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q024:6/low, equinoxe-q029:6/low, equinoxe-q064:6/low]
+equinoxe-q029-formulation_courte | "Usage du Forum ?" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q024:6/low, equinoxe-q029:6/low, equinoxe-q105:6/low]
+equinoxe-q029-synonymes | "À quoi sert l’espace événementiel ?" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=34 | top3=[equinoxe-q030:6/low, equinoxe-q032:6/low, equinoxe-q063:6/low]
+equinoxe-q029-vocabulaire_different | "Quel lieu accueillera les grandes prises de parole ?" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=30 | top3=[equinoxe-q004:6/low, equinoxe-q038:6/low, equinoxe-q001:0/low]
+equinoxe-q029-syntaxe_imparfaite | "forum sert à quoi exactement" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=4 | top3=[equinoxe-q002:6/low, equinoxe-q011:6/low, equinoxe-q024:6/low]
+equinoxe-q029-faute_de_frappe | "Le Forrum c’est pour quoi ?" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=29 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q029-mots_cles_seuls | "Forum événements" | source=equinoxe-q029 | expected=equinoxe-q029 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q024:6/low, equinoxe-q029:6/low, equinoxe-q105:6/low]
+equinoxe-q030-paraphrase_naturelle | "Un lieu de repos est-il prévu dans le bâtiment ?" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=31 | top3=[equinoxe-q002:6/low, equinoxe-q004:6/low, equinoxe-q047:6/low]
+equinoxe-q030-conversationnel | "Il y aura un coin pour souffler un peu ?" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=30 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q030-formulation_courte | "Espace détente ?" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q030:6/low, equinoxe-q032:6/low, equinoxe-q071:6/low]
+equinoxe-q030-synonymes | "Existe-t-il une zone de récupération et de bien-être ?" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=31 | top3=[equinoxe-q014:6/low, equinoxe-q071:6/low, equinoxe-q001:0/low]
+equinoxe-q030-vocabulaire_different | "Où pourrai-je faire une pause au calme pour reprendre des forces ?" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=30 | top3=[equinoxe-q025:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q030-syntaxe_imparfaite | "prévu endroit pour se détendre" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q002:6/low, equinoxe-q030:6/low, equinoxe-q001:0/low]
+equinoxe-q030-faute_de_frappe | "Y aura-t-il un espace pour se détandre ?" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q030:6/low, equinoxe-q032:6/low, equinoxe-q071:6/low]
+equinoxe-q030-mots_cles_seuls | "détente repos espace" | source=equinoxe-q030 | expected=equinoxe-q030 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q030:6/low, equinoxe-q032:6/low, equinoxe-q071:6/low]
+equinoxe-q034-paraphrase_naturelle | "Quelle est la capacité du stationnement pour vélos ?" | source=equinoxe-q034 | expected=equinoxe-q034 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q028:6/low, equinoxe-q034:6/low, equinoxe-q037:6/low]
+equinoxe-q034-synonymes | "Combien d’emplacements pour bicyclettes ?" | source=equinoxe-q034 | expected=equinoxe-q034 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q007:6/low, equinoxe-q031:6/low, equinoxe-q034:6/low]
+equinoxe-q034-vocabulaire_different | "Quelle quantité de deux-roues non motorisés le local peut-il accueillir ?" | source=equinoxe-q034 | expected=equinoxe-q034 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=41 | top3=[equinoxe-q003:6/low, equinoxe-q022:6/low, equinoxe-q037:6/low]
+equinoxe-q034-mots_cles_seuls | "stationnement vélo capacité" | source=equinoxe-q034 | expected=equinoxe-q034 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=38 | top3=[equinoxe-q028:6/low, equinoxe-q056:6/low, equinoxe-q058:6/low]
+equinoxe-q035-paraphrase_naturelle | "Chaque collaborateur disposera-t-il de son propre casier ?" | source=equinoxe-q035 | expected=equinoxe-q035 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q015:6/low, equinoxe-q035:6/low, equinoxe-q039:6/low]
+equinoxe-q035-formulation_courte | "Casier individuel ?" | source=equinoxe-q035 | expected=equinoxe-q035 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q035:6/low, equinoxe-q039:6/low, equinoxe-q094:6/low]
+equinoxe-q035-synonymes | "Un locker nominatif sera-t-il disponible ?" | source=equinoxe-q035 | expected=equinoxe-q035 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q035:6/low, equinoxe-q039:6/low, equinoxe-q094:6/low]
+equinoxe-q035-vocabulaire_different | "Où conserver mes effets dans un rangement réservé ?" | source=equinoxe-q035 | expected=equinoxe-q035 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q019:6/low, equinoxe-q023:6/low, equinoxe-q035:6/low]
+equinoxe-q038-paraphrase_naturelle | "Pourra-t-on recharger un vélo électrique dans le local ?" | source=equinoxe-q038 | expected=equinoxe-q038 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=41 | top3=[equinoxe-q037:6/low, equinoxe-q056:6/low, equinoxe-q067:6/low]
+equinoxe-q038-formulation_courte | "Recharge vélo électrique ?" | source=equinoxe-q038 | expected=equinoxe-q038 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q038:6/low, equinoxe-q056:6/low, equinoxe-q067:6/low]
+equinoxe-q038-synonymes | "Des bornes pour bicyclettes à assistance électrique sont-elles prévues ?" | source=equinoxe-q038 | expected=equinoxe-q038 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=39 | top3=[equinoxe-q100:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q038-vocabulaire_different | "Le stationnement permettra-t-il d’alimenter la batterie de mon deux-roues ?" | source=equinoxe-q038 | expected=equinoxe-q038 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=39 | top3=[equinoxe-q058:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q038-mots_cles_seuls | "vélo électrique recharge" | source=equinoxe-q038 | expected=equinoxe-q038 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q038:6/low, equinoxe-q056:6/low, equinoxe-q067:6/low]
+equinoxe-q040-formulation_courte | "Télétravail modifié ?" | source=equinoxe-q040 | expected=equinoxe-q040 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q040:6/low, equinoxe-q042:6/low, equinoxe-q001:0/low]
+equinoxe-q040-synonymes | "Le travail à distance évolue-t-il ?" | source=equinoxe-q040 | expected=equinoxe-q040 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=40 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q040-vocabulaire_different | "Notre organisation entre domicile et site sera-t-elle revue ?" | source=equinoxe-q040 | expected=equinoxe-q040 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=45 | top3=[equinoxe-q026:6/low, equinoxe-q049:6/low, equinoxe-q051:6/low]
+equinoxe-q043-paraphrase_naturelle | "Un nombre minimum de jours sur site sera-t-il exigé ?" | source=equinoxe-q043 | expected=equinoxe-q043 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=48 | top3=[equinoxe-q012:6/low, equinoxe-q042:6/low, equinoxe-q044:6/low]
+equinoxe-q043-synonymes | "Y aura-t-il un quota de présentiel obligatoire ?" | source=equinoxe-q043 | expected=equinoxe-q043 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=43 | top3=[equinoxe-q040:6/low, equinoxe-q042:6/low, equinoxe-q001:0/low]
+equinoxe-q043-vocabulaire_different | "Le projet fixe-t-il un plancher de fréquentation des locaux ?" | source=equinoxe-q043 | expected=equinoxe-q043 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=47 | top3=[equinoxe-q008:6/low, equinoxe-q036:6/low, equinoxe-q040:6/low]
+equinoxe-q045-paraphrase_naturelle | "Quels équipements informatiques trouverons-nous sur chaque poste ?" | source=equinoxe-q045 | expected=equinoxe-q045 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=50 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q015:6/low]
+equinoxe-q045-synonymes | "Quel hardware sera installé sur les desks ?" | source=equinoxe-q045 | expected=equinoxe-q045 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=45 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q045-vocabulaire_different | "Quels appareils permettront de travailler depuis les nouveaux emplacements ?" | source=equinoxe-q045 | expected=equinoxe-q045 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q025:6/low, equinoxe-q045:6/low, equinoxe-q059:6/low]
+equinoxe-q047-vocabulaire_different | "Pourrai-je me connecter à Internet depuis n’importe quelle zone ?" | source=equinoxe-q047 | expected=equinoxe-q047 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=48 | top3=[equinoxe-q014:6/low, equinoxe-q059:6/low, equinoxe-q001:0/low]
+equinoxe-q047-faute_de_frappe | "Y aura-t-il du wfi partout ?" | source=equinoxe-q047 | expected=equinoxe-q047 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q047:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q050-conversationnel | "Je fais comment pour parler discrètement sur le plateau ?" | source=equinoxe-q050 | expected=equinoxe-q050 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=52 | top3=[equinoxe-q006:6/low, equinoxe-q079:6/low, equinoxe-q110:6/low]
+equinoxe-q050-formulation_courte | "Confidentialité au bureau ?" | source=equinoxe-q050 | expected=equinoxe-q050 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=9 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q050-synonymes | "Comment assurer la discrétion dans un bureau partagé ?" | source=equinoxe-q050 | expected=equinoxe-q050 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=52 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q050-vocabulaire_different | "Quel dispositif évite que les conversations sensibles soient entendues ?" | source=equinoxe-q050 | expected=equinoxe-q050 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=51 | top3=[equinoxe-q070:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q054-paraphrase_naturelle | "Quels transports collectifs permettent de rejoindre Cobalt ?" | source=equinoxe-q054 | expected=equinoxe-q054 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q005:6/low, equinoxe-q043:6/low, equinoxe-q054:6/low]
+equinoxe-q054-conversationnel | "Je viens comment à Cobalt sans voiture ?" | source=equinoxe-q054 | expected=equinoxe-q054 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=5 | top3=[equinoxe-q005:6/low, equinoxe-q021:6/low, equinoxe-q027:6/low]
+equinoxe-q054-formulation_courte | "Transports vers Cobalt ?" | source=equinoxe-q054 | expected=equinoxe-q054 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q005:6/low, equinoxe-q043:6/low, equinoxe-q054:6/low]
+equinoxe-q054-vocabulaire_different | "Quelles lignes publiques conduisent jusqu’aux nouveaux locaux ?" | source=equinoxe-q054 | expected=equinoxe-q054 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=55 | top3=[equinoxe-q045:6/low, equinoxe-q084:6/low, equinoxe-q001:0/low]
+equinoxe-q060-paraphrase_naturelle | "Un restaurant est-il prévu sur le site ?" | source=equinoxe-q060 | expected=equinoxe-q060 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=4 | top3=[equinoxe-q002:6/low, equinoxe-q051:6/low, equinoxe-q059:6/low]
+equinoxe-q060-conversationnel | "On aura un endroit pour déjeuner à Cobalt ?" | source=equinoxe-q060 | expected=equinoxe-q060 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=4 | top3=[equinoxe-q005:6/low, equinoxe-q043:6/low, equinoxe-q054:6/low]
+equinoxe-q060-formulation_courte | "Restaurant prévu ?" | source=equinoxe-q060 | expected=equinoxe-q060 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=2 | top3=[equinoxe-q002:6/low, equinoxe-q060:6/low, equinoxe-q061:6/low]
+equinoxe-q060-synonymes | "Y aura-t-il une cantine ?" | source=equinoxe-q060 | expected=equinoxe-q060 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q060:6/low, equinoxe-q061:6/low, equinoxe-q063:6/low]
+equinoxe-q060-vocabulaire_different | "Pourra-t-on prendre un repas chaud sans quitter le bâtiment ?" | source=equinoxe-q060 | expected=equinoxe-q060 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q027:6/low, equinoxe-q047:6/low, equinoxe-q060:6/low]
+equinoxe-q060-faute_de_frappe | "Y aura-t-il un restarant ?" | source=equinoxe-q060 | expected=equinoxe-q060 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=60 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q060-mots_cles_seuls | "restaurant Cobalt" | source=equinoxe-q060 | expected=equinoxe-q060 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=4 | top3=[equinoxe-q005:6/low, equinoxe-q043:6/low, equinoxe-q054:6/low]
+equinoxe-q062-paraphrase_naturelle | "Le restaurant proposera-t-il des plats végétariens ?" | source=equinoxe-q062 | expected=equinoxe-q062 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=68 | top3=[equinoxe-q060:6/low, equinoxe-q061:6/low, equinoxe-q063:6/low]
+equinoxe-q062-formulation_courte | "Option végétarienne ?" | source=equinoxe-q062 | expected=equinoxe-q062 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q062:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q062-synonymes | "Une alternative sans viande sera-t-elle proposée ?" | source=equinoxe-q062 | expected=equinoxe-q062 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=62 | top3=[equinoxe-q027:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q062-vocabulaire_different | "Les personnes ne consommant pas de produits carnés auront-elles un choix ?" | source=equinoxe-q062 | expected=equinoxe-q062 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=68 | top3=[equinoxe-q016:6/low, equinoxe-q017:6/low, equinoxe-q031:6/low]
+equinoxe-q062-syntaxe_imparfaite | "restaurant prévoir repas végétarien" | source=equinoxe-q062 | expected=equinoxe-q062 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=68 | top3=[equinoxe-q060:6/low, equinoxe-q061:6/low, equinoxe-q063:6/low]
+equinoxe-q062-faute_de_frappe | "Y aura-t-il une offre végétariene ?" | source=equinoxe-q062 | expected=equinoxe-q062 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q062:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q062-mots_cles_seuls | "végétarien restaurant" | source=equinoxe-q062 | expected=equinoxe-q062 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=68 | top3=[equinoxe-q060:6/low, equinoxe-q061:6/low, equinoxe-q063:6/low]
+equinoxe-q066-conversationnel | "Je contacte qui pour adapter mon bureau ?" | source=equinoxe-q066 | expected=equinoxe-q066 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=9 | top3=[equinoxe-q010:6/low, equinoxe-q012:6/low, equinoxe-q017:6/low]
+equinoxe-q066-synonymes | "Comment solliciter un aménagement ergonomique ?" | source=equinoxe-q066 | expected=equinoxe-q066 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=66 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q067-conversationnel | "Une personne en fauteuil pourra circuler à Cobalt ?" | source=equinoxe-q067 | expected=equinoxe-q067 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=5 | top3=[equinoxe-q005:6/low, equinoxe-q027:6/low, equinoxe-q043:6/low]
+equinoxe-q067-formulation_courte | "Accès PMR ?" | source=equinoxe-q067 | expected=equinoxe-q067 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=68 | top3=[equinoxe-q055:6/low, equinoxe-q104:6/low, equinoxe-q001:0/low]
+equinoxe-q067-vocabulaire_different | "Les déplacements dans les locaux sont-ils possibles pour tous ?" | source=equinoxe-q067 | expected=equinoxe-q067 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=67 | top3=[equinoxe-q012:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q067-mots_cles_seuls | "PMR accessibilité Cobalt" | source=equinoxe-q067 | expected=equinoxe-q067 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=4 | top3=[equinoxe-q005:6/low, equinoxe-q043:6/low, equinoxe-q054:6/low]
+equinoxe-q070-vocabulaire_different | "Le confort sonore a-t-il été conçu pour limiter la fatigue auditive ?" | source=equinoxe-q070 | expected=equinoxe-q070 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q070:6/low, equinoxe-q001:0/low, equinoxe-q002:0/low]
+equinoxe-q077-paraphrase_naturelle | "Quel est le rôle des ambassadeurs du projet ?" | source=equinoxe-q077 | expected=equinoxe-q077 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=3 | top3=[equinoxe-q008:6/low, equinoxe-q040:6/low, equinoxe-q077:6/low]
+equinoxe-q077-conversationnel | "Les ambassadeurs, ils peuvent m’aider pour quoi ?" | source=equinoxe-q077 | expected=equinoxe-q077 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q077:6/low, equinoxe-q106:6/low, equinoxe-q107:6/low]
+equinoxe-q077-formulation_courte | "Rôle des ambassadeurs ?" | source=equinoxe-q077 | expected=equinoxe-q077 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q077:6/low, equinoxe-q106:6/low, equinoxe-q107:6/low]
+equinoxe-q077-vocabulaire_different | "Quelles personnes font circuler les informations dans chaque service ?" | source=equinoxe-q077 | expected=equinoxe-q077 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=80 | top3=[equinoxe-q015:6/low, equinoxe-q016:6/low, equinoxe-q031:6/low]
+equinoxe-q077-faute_de_frappe | "Qui sont les ambassaseurs ?" | source=equinoxe-q077 | expected=equinoxe-q077 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=77 | top3=[equinoxe-q001:0/low, equinoxe-q002:0/low, equinoxe-q003:0/low]
+equinoxe-q077-mots_cles_seuls | "ambassadeurs rôle relais" | source=equinoxe-q077 | expected=equinoxe-q077 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q077:6/low, equinoxe-q106:6/low, equinoxe-q107:6/low]
 
---- Faux positifs sur requêtes hors-corpus (jamais censé matcher) ---
-  "Comment installer Python sur mon ordinateur personnel ?" -> "Quel matériel IT sera fourni sur les nouveaux postes ?"
-  "Comment se muscler efficacement en salle de sport ?" -> "Comment je réserve une salle de réunion ?"
-  "Quelle est la différence entre le Wi-Fi 5 et le Wi-Fi 6 en général ?" -> "C’est quoi la différence entre Focus et Bibliothèque ?"
+TRUE-AMBIGUOUS CASES (10)
+-------------------------
+equinoxe-q001-ambiguite_adjacent | "Quand commence-t-on à préparer puis à déménager ?" | source=equinoxe-q001 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q007 | expectedRank=n/a | top3=[equinoxe-q007:12/low, equinoxe-q039:12/low, equinoxe-q064:12/low]
+equinoxe-q010-ambiguite_adjacent | "Aurai-je mon bureau ou seulement un casier personnel ?" | source=equinoxe-q010 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q035 | expectedRank=n/a | top3=[equinoxe-q035:18/medium, equinoxe-q010:12/low, equinoxe-q007:6/low]
+equinoxe-q028-ambiguite_adjacent | "La capacité des salles est-elle comparable à celle des Project Rooms ?" | source=equinoxe-q028 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q028 | expectedRank=n/a | top3=[equinoxe-q028:18/medium, equinoxe-q019:12/low, equinoxe-q052:12/low]
+equinoxe-q034-ambiguite_adjacent | "Le nombre de places vélos inclut-il les emplacements avec recharge ?" | source=equinoxe-q034 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q034 | expectedRank=n/a | top3=[equinoxe-q034:12/low, equinoxe-q038:12/low, equinoxe-q037:6/low]
+equinoxe-q038-ambiguite_adjacent | "Les prises vélo sont-elles les mêmes que les bornes pour voitures électriques ?" | source=equinoxe-q038 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q100 | expectedRank=n/a | top3=[equinoxe-q100:18/medium, equinoxe-q038:12/low, equinoxe-q042:6/low]
+equinoxe-q040-ambiguite_adjacent | "Le télétravail change-t-il avec une présence minimale à Cobalt ?" | source=equinoxe-q040 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q043 | expectedRank=n/a | top3=[equinoxe-q043:18/medium, equinoxe-q040:12/low, equinoxe-q086:12/low]
+equinoxe-q054-ambiguite_adjacent | "Pour accéder à Cobalt, le RER est-il plus simple que le bus ?" | source=equinoxe-q054 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q054 | expectedRank=n/a | top3=[equinoxe-q054:18/medium, equinoxe-q096:12/low, equinoxe-q005:6/low]
+equinoxe-q062-ambiguite_adjacent | "L’offre végétarienne changera-t-elle chaque jour avec le menu ?" | source=equinoxe-q062 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q103 | expectedRank=n/a | top3=[equinoxe-q103:18/medium, equinoxe-q062:12/low, equinoxe-q015:6/low]
+equinoxe-q067-ambiguite_adjacent | "L’accès PMR est-il prévu depuis les transports en commun ?" | source=equinoxe-q067 | expected=null | ambiguity=trueAmbiguous | outcome=abstained | actual=null | expectedRank=n/a | top3=[equinoxe-q002:6/low, equinoxe-q054:6/low, equinoxe-q055:6/low]
+equinoxe-q070-ambiguite_adjacent | "Les personnes sensibles au bruit devront-elles travailler en Focus ?" | source=equinoxe-q070 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q070 | expectedRank=n/a | top3=[equinoxe-q070:18/medium, equinoxe-q076:12/low, equinoxe-q016:6/low]
 
---- Réussites surprenantes (formulation éloignée, bonne réponse quand même) ---
-  [conversational] "On peut aller jeter un œil à Cobalt avant d’y être ?" -> "Est-ce que je peux visiter Cobalt avant le déménagement ?"
-  [typo] "je peu visiter cobal avant le demenagement" -> "Est-ce que je peux visiter Cobalt avant le déménagement ?"
-  [synonym] "Aurai-je un poste nominatif ?" -> "Aurai-je un bureau attitré ?"
-  [typo] "aurai je un buro attitre" -> "Aurai-je un bureau attitré ?"
-  [typo] "doi je reserver un poste" -> "Dois-je réserver un poste ?"
-  [conversational] "Pour la bibliothèque, faut réserver ou j’y vais direct ?" -> "Faut-il réserver pour aller à la Bibliothèque ?"
-  [typo] "faut il reservé pour la bibliotheque" -> "Faut-il réserver pour aller à la Bibliothèque ?"
-  [typo] "ou travailler o calme" -> "Où travailler au calme ?"
-  [typo] "capacite des sale de reunion" -> "Quelle est la capacité des salles de réunion ?"
-  [synonym] "Aurai-je un rangement individuel ?" -> "J’aurai un casier personnel ?"
-  (45 au total, 10 premières affichées)
+AMBIGUITY OR ADJACENT CASES (30)
+--------------------------------
+equinoxe-q001-ambiguite_adjacent | "Quand commence-t-on à préparer puis à déménager ?" | source=equinoxe-q001 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q007 | expectedRank=n/a | top3=[equinoxe-q007:12/low, equinoxe-q039:12/low, equinoxe-q064:12/low]
+equinoxe-q003-ambiguite_adjacent | "Les dates des visites peuvent-elles encore changer ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q003 | expectedRank=1 | top3=[equinoxe-q003:12/low, equinoxe-q005:6/low, equinoxe-q012:6/low]
+equinoxe-q005-ambiguite_adjacent | "La visite aura-t-elle lieu pendant la semaine de préparation ?" | source=equinoxe-q005 | expected=equinoxe-q005 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q004 | expectedRank=2 | top3=[equinoxe-q004:18/medium, equinoxe-q005:6/low, equinoxe-q001:0/low]
+equinoxe-q010-ambiguite_adjacent | "Aurai-je mon bureau ou seulement un casier personnel ?" | source=equinoxe-q010 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q035 | expectedRank=n/a | top3=[equinoxe-q035:18/medium, equinoxe-q010:12/low, equinoxe-q007:6/low]
+equinoxe-q011-ambiguite_adjacent | "Le flex office signifie-t-il qu’il y aura moins de postes ?" | source=equinoxe-q011 | expected=equinoxe-q016 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q016 | expectedRank=1 | top3=[equinoxe-q016:24/medium, equinoxe-q011:12/low, equinoxe-q088:12/low]
+equinoxe-q013-ambiguite_adjacent | "Le quartier d’équipe est-il toujours la même zone ?" | source=equinoxe-q013 | expected=equinoxe-q014 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q014 | expectedRank=1 | top3=[equinoxe-q014:24/medium, equinoxe-q013:12/low, equinoxe-q086:12/low]
+equinoxe-q016-ambiguite_adjacent | "Pourquoi ne pas garder assez de bureaux attitrés pour tout le monde ?" | source=equinoxe-q016 | expected=equinoxe-q017 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q017 | expectedRank=1 | top3=[equinoxe-q017:30/high, equinoxe-q088:12/low, equinoxe-q036:6/low]
+equinoxe-q019-ambiguite_adjacent | "Comment réserver une salle pour un entretien confidentiel ?" | source=equinoxe-q019 | expected=equinoxe-q019 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q053 | expectedRank=3 | top3=[equinoxe-q053:18/medium, equinoxe-q099:18/medium, equinoxe-q019:12/low]
+equinoxe-q020-ambiguite_adjacent | "Dois-je réserver un poste pour travailler à la Bibliothèque ?" | source=equinoxe-q020 | expected=equinoxe-q020 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q018 | expectedRank=2 | top3=[equinoxe-q018:33/high, equinoxe-q020:12/low, equinoxe-q010:6/low]
+equinoxe-q022-ambiguite_adjacent | "Une Project Room se réserve-t-elle comme une salle de réunion ?" | source=equinoxe-q022 | expected=equinoxe-q022 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q019 | expectedRank=2 | top3=[equinoxe-q019:18/medium, equinoxe-q022:12/low, equinoxe-q028:12/low]
+equinoxe-q025-ambiguite_adjacent | "Pour être au calme, faut-il choisir Focus ou Bibliothèque ?" | source=equinoxe-q025 | expected=equinoxe-q026 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q020 | expectedRank=2 | top3=[equinoxe-q020:12/low, equinoxe-q026:12/low, equinoxe-q025:6/low]
+equinoxe-q027-ambiguite_adjacent | "Pour un appel confidentiel, bulle ou salle de réunion ?" | source=equinoxe-q027 | expected=equinoxe-q050 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q099 | expectedRank=57 | top3=[equinoxe-q099:18/medium, equinoxe-q019:12/low, equinoxe-q028:12/low]
+equinoxe-q028-ambiguite_adjacent | "La capacité des salles est-elle comparable à celle des Project Rooms ?" | source=equinoxe-q028 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q028 | expectedRank=n/a | top3=[equinoxe-q028:18/medium, equinoxe-q019:12/low, equinoxe-q052:12/low]
+equinoxe-q029-ambiguite_adjacent | "Le Forum peut-il aussi servir aux réunions d’équipe classiques ?" | source=equinoxe-q029 | expected=equinoxe-q105 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q105 | expectedRank=1 | top3=[equinoxe-q105:24/medium, equinoxe-q024:12/low, equinoxe-q003:6/low]
+equinoxe-q030-ambiguite_adjacent | "L’espace détente comprend-il aussi la salle d’allaitement ?" | source=equinoxe-q030 | expected=equinoxe-q068 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q019 | expectedRank=3 | top3=[equinoxe-q019:12/low, equinoxe-q028:12/low, equinoxe-q068:12/low]
+equinoxe-q034-ambiguite_adjacent | "Le nombre de places vélos inclut-il les emplacements avec recharge ?" | source=equinoxe-q034 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q034 | expectedRank=n/a | top3=[equinoxe-q034:12/low, equinoxe-q038:12/low, equinoxe-q037:6/low]
+equinoxe-q035-ambiguite_adjacent | "Mon casier personnel sera-t-il assez grand pour mes dossiers ?" | source=equinoxe-q035 | expected=equinoxe-q094 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q035 | expectedRank=2 | top3=[equinoxe-q035:12/low, equinoxe-q094:12/low, equinoxe-q007:6/low]
+equinoxe-q038-ambiguite_adjacent | "Les prises vélo sont-elles les mêmes que les bornes pour voitures électriques ?" | source=equinoxe-q038 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q100 | expectedRank=n/a | top3=[equinoxe-q100:18/medium, equinoxe-q038:12/low, equinoxe-q042:6/low]
+equinoxe-q040-ambiguite_adjacent | "Le télétravail change-t-il avec une présence minimale à Cobalt ?" | source=equinoxe-q040 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q043 | expectedRank=n/a | top3=[equinoxe-q043:18/medium, equinoxe-q040:12/low, equinoxe-q086:12/low]
+equinoxe-q043-ambiguite_adjacent | "La présence minimale dépendra-t-elle des jours de télétravail ?" | source=equinoxe-q043 | expected=equinoxe-q043 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q042 | expectedRank=2 | top3=[equinoxe-q042:12/low, equinoxe-q043:12/low, equinoxe-q012:6/low]
+equinoxe-q045-ambiguite_adjacent | "Le matériel fourni comprend-il les écrans partagés entre postes ?" | source=equinoxe-q045 | expected=equinoxe-q049 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q045 | expectedRank=2 | top3=[equinoxe-q045:24/medium, equinoxe-q049:24/medium, equinoxe-q016:6/low]
+equinoxe-q047-ambiguite_adjacent | "Le wifi sera-t-il disponible jusque dans les salles confidentielles ?" | source=equinoxe-q047 | expected=equinoxe-q047 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q019 | expectedRank=6 | top3=[equinoxe-q019:12/low, equinoxe-q028:12/low, equinoxe-q045:12/low]
+equinoxe-q050-ambiguite_adjacent | "Pour un entretien RH confidentiel, faut-il une bulle ou une salle ?" | source=equinoxe-q050 | expected=equinoxe-q051 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q019 | expectedRank=3 | top3=[equinoxe-q019:12/low, equinoxe-q028:12/low, equinoxe-q051:12/low]
+equinoxe-q054-ambiguite_adjacent | "Pour accéder à Cobalt, le RER est-il plus simple que le bus ?" | source=equinoxe-q054 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q054 | expectedRank=n/a | top3=[equinoxe-q054:18/medium, equinoxe-q096:12/low, equinoxe-q005:6/low]
+equinoxe-q060-ambiguite_adjacent | "Le restaurant sera-t-il ouvert dès notre premier jour ?" | source=equinoxe-q060 | expected=equinoxe-q065 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q065 | expectedRank=1 | top3=[equinoxe-q065:24/medium, equinoxe-q048:12/low, equinoxe-q103:12/low]
+equinoxe-q062-ambiguite_adjacent | "L’offre végétarienne changera-t-elle chaque jour avec le menu ?" | source=equinoxe-q062 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q103 | expectedRank=n/a | top3=[equinoxe-q103:18/medium, equinoxe-q062:12/low, equinoxe-q015:6/low]
+equinoxe-q066-ambiguite_adjacent | "Pour un poste adapté, faut-il contacter l’ergonomie ou l’accessibilité ?" | source=equinoxe-q066 | expected=equinoxe-q066 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q066 | expectedRank=1 | top3=[equinoxe-q066:12/low, equinoxe-q069:12/low, equinoxe-q104:12/low]
+equinoxe-q067-ambiguite_adjacent | "L’accès PMR est-il prévu depuis les transports en commun ?" | source=equinoxe-q067 | expected=null | ambiguity=trueAmbiguous | outcome=abstained | actual=null | expectedRank=n/a | top3=[equinoxe-q002:6/low, equinoxe-q054:6/low, equinoxe-q055:6/low]
+equinoxe-q070-ambiguite_adjacent | "Les personnes sensibles au bruit devront-elles travailler en Focus ?" | source=equinoxe-q070 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q070 | expectedRank=n/a | top3=[equinoxe-q070:18/medium, equinoxe-q076:12/low, equinoxe-q016:6/low]
+equinoxe-q077-ambiguite_adjacent | "Les ambassadeurs de mon service peuvent-ils répondre à mes questions ?" | source=equinoxe-q077 | expected=equinoxe-q077 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q106 | expectedRank=3 | top3=[equinoxe-q106:12/low, equinoxe-q008:6/low, equinoxe-q077:6/low]
 
---- Échecs (Top-1 incorrect) ---
-  [synonym] "Quand a lieu le transfert vers le nouveau site ?" -> attendu "Quand déménageons-nous ?", obtenu "Quand aura lieu la semaine de préparation ?" (score 12)
-  [differentVocab] "Quand est prévue la bascule vers Cobalt ?" -> attendu "Quand déménageons-nous ?", obtenu "Est-ce que je peux visiter Cobalt avant le déménagement ?" (score 12)
-  [keywordsOnly] "date déménagement Cobalt" -> attendu "Quand déménageons-nous ?", obtenu "Est-ce que je peux visiter Cobalt avant le déménagement ?" (score 12)
-  [synonym] "Puis-je découvrir le futur site avant l’emménagement ?" -> attendu "Est-ce que je peux visiter Cobalt avant le déménagement ?", obtenu "Puis-je passer un entretien RH confidentiel sur site ?" (score 12)
-  [naturalParaphrase] "Vais-je avoir un poste qui m’est réservé ?" -> attendu "Aurai-je un bureau attitré ?", obtenu "Je vais devoir changer de bureau tous les jours ?" (score 12)
-  [conversational] "Du coup j’ai un bureau à moi ou pas ?" -> attendu "Aurai-je un bureau attitré ?", obtenu "Pourquoi ne pas garder un bureau attitré pour tout le monde ?" (score 12)
-  [conversational] "Le flex office là, ça veut dire quoi concrètement ?" -> attendu "C’est quoi le flex office exactement ?", obtenu "Le flex office, ça veut dire moins de postes que de personnes ?" (score 24)
-  [conversational] "Je dois booker un poste avant de venir ou pas ?" -> attendu "Dois-je réserver un poste ?", obtenu "Pourquoi ne pas garder un bureau attitré pour tout le monde ?" (score 12)
-  [naturalParaphrase] "Combien de personnes peuvent tenir dans une salle de réunion ?" -> attendu "Quelle est la capacité des salles de réunion ?", obtenu "Comment je réserve une salle de réunion ?" (score 12)
-  [conversational] "Les salles de réunion font combien de places à peu près ?" -> attendu "Quelle est la capacité des salles de réunion ?", obtenu "Comment je réserve une salle de réunion ?" (score 12)
-  [differentVocab] "Combien de participants dans une salle de réunion classique ?" -> attendu "Quelle est la capacité des salles de réunion ?", obtenu "Comment je réserve une salle de réunion ?" (score 12)
-  [naturalParaphrase] "Quelle est la capacité du local vélos ?" -> attendu "Combien de places vélos ?", obtenu "Le local vélos a des douches à proximité ?" (score 12)
-  [naturalParaphrase] "Vais-je conserver le même ordinateur après le déménagement ?" -> attendu "Puis-je garder mon ordinateur actuel ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
-  [differentVocab] "Mon laptop actuel reste-t-il le même après la bascule ?" -> attendu "Puis-je garder mon ordinateur actuel ?", obtenu "Qui puis-je contacter pour une question d’accessibilité avant même le déménagement ?" (score 12)
-  [naturalParaphrase] "Le wifi est-il disponible dans tous les espaces du bâtiment ?" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
-  [conversational] "Y a du wifi partout ou juste dans certains coins ?" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
-  [synonym] "La couverture réseau sans fil couvre-t-elle tout le site ?" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
-  [typo] "y a t il du wifi partou dans le batiment" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
-  [keywordsOnly] "wifi couverture bâtiment" -> attendu "Y aura-t-il du wifi partout dans le bâtiment ?", obtenu "Quel matériel IT sera fourni sur les nouveaux postes ?" (score 12)
-  [synonym] "Comment assurer la discrétion des échanges en espace partagé ?" -> attendu "Comment garantir la confidentialité dans un open space ?", obtenu "Y a-t-il un espace pour les échanges informels ?" (score 12)
-  (37 au total, 20 premiers affichés)
+REPRESENTATIVE SUCCESSES (10)
+-----------------------------
+equinoxe-q001-quasi_identique | "Quand déménageons-nous ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=matched | actual=equinoxe-q001 | expectedRank=1 | top3=[equinoxe-q001:27/medium, equinoxe-q002:6/low, equinoxe-q004:6/low]
+equinoxe-q001-faute_de_frappe | "Quand déménageons nou ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=matched | actual=equinoxe-q001 | expectedRank=1 | top3=[equinoxe-q001:27/medium, equinoxe-q002:6/low, equinoxe-q004:6/low]
+equinoxe-q003-quasi_identique | "Le calendrier peut-il encore changer ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=matched | actual=equinoxe-q003 | expectedRank=1 | top3=[equinoxe-q003:39/high, equinoxe-q111:12/low, equinoxe-q012:6/low]
+equinoxe-q003-conversationnel | "On est sûrs du planning ou ça peut encore changer ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=matched | actual=equinoxe-q003 | expectedRank=1 | top3=[equinoxe-q003:18/medium, equinoxe-q111:12/low, equinoxe-q012:6/low]
+equinoxe-q003-syntaxe_imparfaite | "calendrier peut encore changer ou pas" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=matched | actual=equinoxe-q003 | expectedRank=1 | top3=[equinoxe-q003:24/medium, equinoxe-q111:12/low, equinoxe-q012:6/low]
+equinoxe-q003-faute_de_frappe | "Le calandrier peut-il changer ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=matched | actual=equinoxe-q003 | expectedRank=1 | top3=[equinoxe-q003:12/low, equinoxe-q012:6/low, equinoxe-q022:6/low]
+equinoxe-q003-ambiguite_adjacent | "Les dates des visites peuvent-elles encore changer ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=adjacentButResolvable | outcome=matched | actual=equinoxe-q003 | expectedRank=1 | top3=[equinoxe-q003:12/low, equinoxe-q005:6/low, equinoxe-q012:6/low]
+equinoxe-q005-quasi_identique | "Puis-je visiter Cobalt avant le déménagement ?" | source=equinoxe-q005 | expected=equinoxe-q005 | ambiguity=n/a | outcome=matched | actual=equinoxe-q005 | expectedRank=1 | top3=[equinoxe-q005:24/medium, equinoxe-q104:18/medium, equinoxe-q007:6/low]
+equinoxe-q005-paraphrase_naturelle | "Des visites du site sont-elles prévues avant notre arrivée ?" | source=equinoxe-q005 | expected=equinoxe-q005 | ambiguity=n/a | outcome=matched | actual=equinoxe-q005 | expectedRank=1 | top3=[equinoxe-q005:12/low, equinoxe-q051:6/low, equinoxe-q059:6/low]
+equinoxe-q005-conversationnel | "On pourra aller voir Cobalt avant de s’installer ?" | source=equinoxe-q005 | expected=equinoxe-q005 | ambiguity=n/a | outcome=matched | actual=equinoxe-q005 | expectedRank=1 | top3=[equinoxe-q005:12/low, equinoxe-q020:6/low, equinoxe-q043:6/low]
 
---- Abstentions excessives (aucune réponse alors qu'une existe) ---
-  [nearIdentical] "Quand est-ce qu’on déménage ?" -> attendu "Quand déménageons-nous ?"
-  [naturalParaphrase] "À quelle date est prévu le déménagement ?" -> attendu "Quand déménageons-nous ?"
-  [conversational] "Du coup on part quand pour Cobalt ?" -> attendu "Quand déménageons-nous ?"
-  [short] "date déménagement ?" -> attendu "Quand déménageons-nous ?"
-  [typo] "quand est-ce qu on demenage svp" -> attendu "Quand déménageons-nous ?"
-  [differentVocab] "Des visites du nouveau site sont-elles prévues au préalable ?" -> attendu "Est-ce que je peux visiter Cobalt avant le déménagement ?"
-  [differentVocab] "Est-ce que j’ai un desk qui m’est dédié ?" -> attendu "Aurai-je un bureau attitré ?"
-  [keywordsOnly] "bureau attribué" -> attendu "Aurai-je un bureau attitré ?"
-  [synonym] "C’est quoi le principe du poste non attribué ?" -> attendu "C’est quoi le flex office exactement ?"
-  [differentVocab] "Comment fonctionne le desk sharing chez nous ?" -> attendu "C’est quoi le flex office exactement ?"
-  [typo] "c est quoi le flexe office" -> attendu "C’est quoi le flex office exactement ?"
-  [synonym] "La réservation d’un desk est-elle obligatoire ?" -> attendu "Dois-je réserver un poste ?"
-  [differentVocab] "Y a-t-il une réservation à faire pour avoir une place ?" -> attendu "Dois-je réserver un poste ?"
-  [keywordsOnly] "réservation poste obligatoire" -> attendu "Dois-je réserver un poste ?"
-  [naturalParaphrase] "La Bibliothèque nécessite-t-elle une réservation ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
-  [short] "réservation bibliothèque ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
-  [synonym] "L’accès à la Bibliothèque est-il libre ou sur réservation ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
-  [differentVocab] "Le silence room nécessite-t-il une inscription préalable ?" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
-  [keywordsOnly] "bibliothèque réservation" -> attendu "Faut-il réserver pour aller à la Bibliothèque ?"
-  [conversational] "Y a un coin tranquille pour bosser sans bruit ?" -> attendu "Où travailler au calme ?"
-  (94 au total, 20 premières affichées)
+REPRESENTATIVE FAILURES (10)
+----------------------------
+equinoxe-q001-paraphrase_naturelle | "À quelle date est prévu notre déménagement ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=7 | top3=[equinoxe-q002:6/low, equinoxe-q005:6/low, equinoxe-q007:6/low]
+equinoxe-q001-conversationnel | "Dis, on part quand à Cobalt ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q001:6/low, equinoxe-q002:6/low, equinoxe-q004:6/low]
+equinoxe-q001-formulation_courte | "Date du déménagement ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=6 | top3=[equinoxe-q005:6/low, equinoxe-q007:6/low, equinoxe-q008:6/low]
+equinoxe-q001-synonymes | "Quand a lieu le transfert vers Cobalt ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=matched | actual=equinoxe-q004 | expectedRank=3 | top3=[equinoxe-q004:12/low, equinoxe-q005:12/low, equinoxe-q001:6/low]
+equinoxe-q001-vocabulaire_different | "Quel jour doit-on rejoindre nos nouveaux locaux ?" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=8 | top3=[equinoxe-q021:6/low, equinoxe-q045:6/low, equinoxe-q048:6/low]
+equinoxe-q001-syntaxe_imparfaite | "nous déménage quand exactement" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=matched | actual=equinoxe-q002 | expectedRank=2 | top3=[equinoxe-q002:12/low, equinoxe-q001:6/low, equinoxe-q004:6/low]
+equinoxe-q001-mots_cles_seuls | "déménagement date" | source=equinoxe-q001 | expected=equinoxe-q001 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=6 | top3=[equinoxe-q005:6/low, equinoxe-q007:6/low, equinoxe-q008:6/low]
+equinoxe-q001-ambiguite_adjacent | "Quand commence-t-on à préparer puis à déménager ?" | source=equinoxe-q001 | expected=null | ambiguity=trueAmbiguous | outcome=matched | actual=equinoxe-q007 | expectedRank=n/a | top3=[equinoxe-q007:12/low, equinoxe-q039:12/low, equinoxe-q064:12/low]
+equinoxe-q003-paraphrase_naturelle | "Les dates du projet peuvent-elles encore bouger ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=matched | actual=equinoxe-q111 | expectedRank=2 | top3=[equinoxe-q111:12/low, equinoxe-q003:6/low, equinoxe-q008:6/low]
+equinoxe-q003-formulation_courte | "Calendrier définitif ?" | source=equinoxe-q003 | expected=equinoxe-q003 | ambiguity=n/a | outcome=abstained | actual=null | expectedRank=1 | top3=[equinoxe-q003:6/low, equinoxe-q111:6/low, equinoxe-q001:0/low]
 
-==============================================================================
+Notes:
+- Top-3 is diagnostic ranking only; it does not change the production outcome.
+- expectedEntryId=null means required abstention; category distinguishes true ambiguity from out-of-corpus.
+- False-positive severity reuses Ivory confidence buckets: weak=low, medium=medium, dangerous=high.
+- No user/runtime query, timestamp, database value, or random content is persisted; this report contains only static evaluation fixtures and their results.

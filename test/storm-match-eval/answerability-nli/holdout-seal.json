@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "sealedBeforeNliInference": true,
+  "sourceHead": "87f8616686e3bd3f587a549870a42a1148e6725b",
+  "officialCorpusFingerprint": "55f5df84538e53a21f3c9fa3c2363587fb1e80d39ec5ff8288e1796a3f0559f1",
+  "priorDecisionFingerprint": "7965afbd8fe9d63bffc27dd3f59b87733a24e302f75ab36e56dc3a6bce61f35f",
+  "answerabilityHoldoutFingerprint": "f157f8ec0e15d2bb2ef3f8c9dd25e3225a86a656a14a9c24e7c174dcdb0c10ff",
+  "cases": 96,
+  "labels": {
+    "covered": 32,
+    "notCovered": 32,
+    "ambiguous": 32
+  },
+  "policy": "Any corpus change invalidates this seal. Thresholds and architecture choices must be locked before the first holdout inference."
+}

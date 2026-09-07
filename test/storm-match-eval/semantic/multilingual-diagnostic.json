@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "officialScoreContribution": false,
+  "languages": ["fr", "en", "nl", "es"],
+  "cases": [
+    { "id": "floors-fr", "language": "fr", "query": "Combien d’étages compte le bâtiment ?", "expectedEntryId": "equinoxe-q075" },
+    { "id": "floors-en", "language": "en", "query": "How many floors does the building have?", "expectedEntryId": "equinoxe-q075" },
+    { "id": "floors-nl", "language": "nl", "query": "Hoeveel verdiepingen heeft het gebouw?", "expectedEntryId": "equinoxe-q075" },
+    { "id": "floors-es", "language": "es", "query": "¿Cuántas plantas tiene el edificio?", "expectedEntryId": "equinoxe-q075" },
+
+    { "id": "headcount-fr", "language": "fr", "query": "Combien de personnes travailleront à Cobalt ?", "expectedEntryId": "equinoxe-q076" },
+    { "id": "headcount-en", "language": "en", "query": "How many people will work at Cobalt?", "expectedEntryId": "equinoxe-q076" },
+    { "id": "headcount-nl", "language": "nl", "query": "Hoeveel mensen zullen bij Cobalt werken?", "expectedEntryId": "equinoxe-q076" },
+    { "id": "headcount-es", "language": "es", "query": "¿Cuántas personas trabajarán en Cobalt?", "expectedEntryId": "equinoxe-q076" },
+
+    { "id": "project-room-sound-fr", "language": "fr", "query": "Les Project Rooms sont-elles bien insonorisées ?", "expectedEntryId": "equinoxe-q052" },
+    { "id": "project-room-sound-en", "language": "en", "query": "Are the Project Rooms soundproof?", "expectedEntryId": "equinoxe-q052" },
+    { "id": "project-room-sound-nl", "language": "nl", "query": "Zijn de Project Rooms geluiddicht?", "expectedEntryId": "equinoxe-q052" },
+    { "id": "project-room-sound-es", "language": "es", "query": "¿Están insonorizadas las Project Rooms?", "expectedEntryId": "equinoxe-q052" },
+
+    { "id": "wifi-fr", "language": "fr", "query": "Le wifi couvrira-t-il tout le bâtiment ?", "expectedEntryId": "equinoxe-q047" },
+    { "id": "wifi-en", "language": "en", "query": "Will Wi-Fi cover the entire building?", "expectedEntryId": "equinoxe-q047" },
+    { "id": "wifi-nl", "language": "nl", "query": "Is er wifi in het hele gebouw?", "expectedEntryId": "equinoxe-q047" },
+    { "id": "wifi-es", "language": "es", "query": "¿Habrá wifi en todo el edificio?", "expectedEntryId": "equinoxe-q047" },
+
+    { "id": "workshops-fr", "language": "fr", "query": "Les ateliers d’équipe sont-ils obligatoires ?", "expectedEntryId": "equinoxe-q080" },
+    { "id": "workshops-en", "language": "en", "query": "Are the team workshops mandatory?", "expectedEntryId": "equinoxe-q080" },
+    { "id": "workshops-nl", "language": "nl", "query": "Zijn de teamworkshops verplicht?", "expectedEntryId": "equinoxe-q080" },
+    { "id": "workshops-es", "language": "es", "query": "¿Son obligatorios los talleres de equipo?", "expectedEntryId": "equinoxe-q080" },
+
+    { "id": "improvement-fr", "language": "fr", "query": "Puis-je proposer une idée pour améliorer le projet ?", "expectedEntryId": "equinoxe-q112" },
+    { "id": "improvement-en", "language": "en", "query": "Can I suggest an idea to improve the project?", "expectedEntryId": "equinoxe-q112" },
+    { "id": "improvement-nl", "language": "nl", "query": "Kan ik een idee voorstellen om het project te verbeteren?", "expectedEntryId": "equinoxe-q112" },
+    { "id": "improvement-es", "language": "es", "query": "¿Puedo proponer una idea para mejorar el proyecto?", "expectedEntryId": "equinoxe-q112" }
+  ]
+}

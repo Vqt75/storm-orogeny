@@ -1,0 +1,684 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "path": "src/db/seedDemo.js",
+    "symbol": "QUESTIONS",
+    "gitCommit": "d0243f15c4c390098663a9d31a462e5244ee6e60"
+  },
+  "entryIdPolicy": "Stable test-only ordinal identifiers. The demo seed generates database UUIDs at insert time, so no stable production UUID exists in source.",
+  "entries": [
+    {
+      "entryId": "equinoxe-q001",
+      "intentId": null,
+      "question": "Quand déménageons-nous ?",
+      "answer": "Le 18 janvier 2027."
+    },
+    {
+      "entryId": "equinoxe-q002",
+      "intentId": null,
+      "question": "C’est prévu pour quand exactement, l’emménagement ?",
+      "answer": "L’emménagement à Cobalt est prévu le 18 janvier 2027."
+    },
+    {
+      "entryId": "equinoxe-q003",
+      "intentId": null,
+      "question": "Le calendrier peut-il encore changer ?",
+      "answer": "Le calendrier est stabilisé, mais certaines dates intermédiaires (ateliers, visites) peuvent être ajustées en fonction de l’avancement."
+    },
+    {
+      "entryId": "equinoxe-q004",
+      "intentId": null,
+      "question": "Quand aura lieu la semaine de préparation ?",
+      "answer": "La semaine de préparation est prévue le 11 janvier 2027, juste avant l’emménagement."
+    },
+    {
+      "entryId": "equinoxe-q005",
+      "intentId": null,
+      "question": "Est-ce que je peux visiter Cobalt avant le déménagement ?",
+      "answer": "Oui, des visites sont prévues fin novembre 2026 -- les créneaux seront communiqués par les ambassadeurs."
+    },
+    {
+      "entryId": "equinoxe-q006",
+      "intentId": null,
+      "question": "Quand le plateau témoin a-t-il ouvert ?",
+      "answer": "Le plateau témoin a ouvert ses portes le 27 juillet 2026."
+    },
+    {
+      "entryId": "equinoxe-q007",
+      "intentId": null,
+      "question": "On aura combien de temps pour préparer notre déménagement personnel ?",
+      "answer": "Le guide des nouveaux usages sera disponible début octobre, plusieurs mois avant le déménagement."
+    },
+    {
+      "entryId": "equinoxe-q008",
+      "intentId": null,
+      "question": "Y a-t-il une date limite pour poser des questions sur le projet ?",
+      "answer": "Non, vous pouvez poser vos questions à tout moment via Storm."
+    },
+    {
+      "entryId": "equinoxe-q009",
+      "intentId": null,
+      "question": "Le déménagement se fera-t-il en une fois ou par étapes ?",
+      "answer": "Les modalités précises seront communiquées dans le guide des nouveaux usages, début octobre."
+    },
+    {
+      "entryId": "equinoxe-q010",
+      "intentId": null,
+      "question": "Aurai-je un bureau attitré ?",
+      "answer": "Non, vous aurez un quartier d’équipe mais pas de poste nominatif."
+    },
+    {
+      "entryId": "equinoxe-q011",
+      "intentId": null,
+      "question": "C’est quoi le flex office exactement ?",
+      "answer": "C’est un mode de travail où les postes ne sont pas attribués nominativement : chacun choisit sa place selon son activité du jour."
+    },
+    {
+      "entryId": "equinoxe-q012",
+      "intentId": null,
+      "question": "Je vais devoir changer de bureau tous les jours ?",
+      "answer": "Vous resterez principalement dans le quartier d’équipe qui vous est associé, avec la liberté de varier selon vos besoins."
+    },
+    {
+      "entryId": "equinoxe-q013",
+      "intentId": null,
+      "question": "Qu’est-ce qu’un quartier d’équipe ?",
+      "answer": "C’est une zone de référence d’une équipe, regroupant postes, petites salles et rangement."
+    },
+    {
+      "entryId": "equinoxe-q014",
+      "intentId": null,
+      "question": "Mon équipe aura-t-elle toujours la même zone ?",
+      "answer": "Oui, chaque équipe se voit attribuer un quartier de référence stable."
+    },
+    {
+      "entryId": "equinoxe-q015",
+      "intentId": null,
+      "question": "Est-ce que je choisis où je m’assois chaque matin ?",
+      "answer": "Oui, au sein de votre quartier d’équipe vous choisissez librement votre poste du jour."
+    },
+    {
+      "entryId": "equinoxe-q016",
+      "intentId": null,
+      "question": "Le flex office, ça veut dire moins de postes que de personnes ?",
+      "answer": "Le ratio prévu (0,82) reflète les usages observés -- présence simultanée rarement à 100 %, pas une pénurie organisée."
+    },
+    {
+      "entryId": "equinoxe-q017",
+      "intentId": null,
+      "question": "Pourquoi ne pas garder un bureau attitré pour tout le monde ?",
+      "answer": "Le flex office permet plus de choix entre concentration, collaboration et échanges, plutôt qu’un poste figé sous-utilisé une partie du temps."
+    },
+    {
+      "entryId": "equinoxe-q018",
+      "intentId": null,
+      "question": "Dois-je réserver un poste ?",
+      "answer": "Pas systématiquement en V1."
+    },
+    {
+      "entryId": "equinoxe-q019",
+      "intentId": null,
+      "question": "Comment je réserve une salle de réunion ?",
+      "answer": "Via l’outil de réservation habituel, qui reste inchangé pour les salles de réunion."
+    },
+    {
+      "entryId": "equinoxe-q020",
+      "intentId": null,
+      "question": "Faut-il réserver pour aller à la Bibliothèque ?",
+      "answer": "Non, la Bibliothèque fonctionne en accès libre."
+    },
+    {
+      "entryId": "equinoxe-q021",
+      "intentId": null,
+      "question": "Je dois prévenir si je viens un jour précis ?",
+      "answer": "Aucune obligation de déclarer sa présence n’est prévue pour le moment."
+    },
+    {
+      "entryId": "equinoxe-q022",
+      "intentId": null,
+      "question": "Peut-on réserver une Project Room à l’avance ?",
+      "answer": "Oui, les Project Rooms se réservent à la demi-journée ou à la journée."
+    },
+    {
+      "entryId": "equinoxe-q023",
+      "intentId": null,
+      "question": "Et les bulles, on les réserve aussi ?",
+      "answer": "Non, les bulles sont pensées pour un usage court et spontané, sans réservation."
+    },
+    {
+      "entryId": "equinoxe-q024",
+      "intentId": null,
+      "question": "Le Forum est-il réservable pour un événement d’équipe ?",
+      "answer": "Oui, le Forum peut être réservé pour des événements, sur demande auprès de l’équipe projet."
+    },
+    {
+      "entryId": "equinoxe-q025",
+      "intentId": null,
+      "question": "Où travailler au calme ?",
+      "answer": "À la Bibliothèque ou dans les espaces Focus."
+    },
+    {
+      "entryId": "equinoxe-q026",
+      "intentId": null,
+      "question": "C’est quoi la différence entre Focus et Bibliothèque ?",
+      "answer": "Les espaces Focus sont des postes individuels isolés ; la Bibliothèque est un espace collectif à silence renforcé, 24 places."
+    },
+    {
+      "entryId": "equinoxe-q027",
+      "intentId": null,
+      "question": "Où puis-je passer un appel rapide sans déranger personne ?",
+      "answer": "Utilisez une bulle, pensée pour les appels et visioconférences courtes."
+    },
+    {
+      "entryId": "equinoxe-q028",
+      "intentId": null,
+      "question": "Quelle est la capacité des salles de réunion ?",
+      "answer": "Les salles de réunion accueillent de 4 à 16 personnes, en présentiel ou hybride."
+    },
+    {
+      "entryId": "equinoxe-q029",
+      "intentId": null,
+      "question": "Le Forum, c’est pour quoi ?",
+      "answer": "Le Forum est un espace pour les événements et prises de parole, jusqu’à 120 personnes."
+    },
+    {
+      "entryId": "equinoxe-q030",
+      "intentId": null,
+      "question": "Il y aura un espace pour se détendre ?",
+      "answer": "Oui, un espace bien-être est prévu pour le repos, l’allaitement et la récupération."
+    },
+    {
+      "entryId": "equinoxe-q031",
+      "intentId": null,
+      "question": "Combien de personnes dans une Project Room ?",
+      "answer": "Les Project Rooms accueillent de 6 à 10 personnes."
+    },
+    {
+      "entryId": "equinoxe-q032",
+      "intentId": null,
+      "question": "Y a-t-il un espace pour les échanges informels ?",
+      "answer": "Oui, le Café central et la Terrasse sont pensés pour la convivialité et les échanges informels."
+    },
+    {
+      "entryId": "equinoxe-q033",
+      "intentId": null,
+      "question": "Les quartiers d’équipe ont-ils des petites salles dédiées ?",
+      "answer": "Oui, chaque quartier d’équipe regroupe postes, petites salles et rangement."
+    },
+    {
+      "entryId": "equinoxe-q034",
+      "intentId": null,
+      "question": "Combien de places vélos ?",
+      "answer": "Environ 160."
+    },
+    {
+      "entryId": "equinoxe-q035",
+      "intentId": null,
+      "question": "J’aurai un casier personnel ?",
+      "answer": "Oui, des casiers seront disponibles -- la réservation ouvrira début décembre 2026."
+    },
+    {
+      "entryId": "equinoxe-q036",
+      "intentId": null,
+      "question": "Où je mets mes affaires si je n’ai pas de bureau fixe ?",
+      "answer": "Dans votre casier personnel, réservable à partir de début décembre 2026."
+    },
+    {
+      "entryId": "equinoxe-q037",
+      "intentId": null,
+      "question": "Le local vélos a des douches à proximité ?",
+      "answer": "Oui, des casiers et des douches sont prévus à proximité du local vélos."
+    },
+    {
+      "entryId": "equinoxe-q038",
+      "intentId": null,
+      "question": "Y a-t-il des prises de recharge pour vélos électriques ?",
+      "answer": "Oui, le local vélos prévoit des prises de recharge."
+    },
+    {
+      "entryId": "equinoxe-q039",
+      "intentId": null,
+      "question": "Quand puis-je réserver mon casier ?",
+      "answer": "La réservation des casiers ouvre le 3 décembre 2026."
+    },
+    {
+      "entryId": "equinoxe-q040",
+      "intentId": null,
+      "question": "Le projet change-t-il le télétravail ?",
+      "answer": "Non."
+    },
+    {
+      "entryId": "equinoxe-q041",
+      "intentId": null,
+      "question": "Est-ce que je vais devoir venir plus souvent au bureau ?",
+      "answer": "Le projet ne modifie pas les règles de télétravail actuelles."
+    },
+    {
+      "entryId": "equinoxe-q042",
+      "intentId": null,
+      "question": "Les jours de télétravail restent-ils les mêmes ?",
+      "answer": "Oui, aucun changement n’est prévu sur l’organisation du télétravail."
+    },
+    {
+      "entryId": "equinoxe-q043",
+      "intentId": null,
+      "question": "Cobalt va-t-il imposer une présence minimale ?",
+      "answer": "Non, le projet Cobalt porte sur les espaces, pas sur les règles de présence."
+    },
+    {
+      "entryId": "equinoxe-q044",
+      "intentId": null,
+      "question": "Mon manager peut-il m’imposer des jours fixes au bureau ?",
+      "answer": "Les règles de télétravail restent celles en vigueur dans votre équipe, inchangées par le projet."
+    },
+    {
+      "entryId": "equinoxe-q045",
+      "intentId": null,
+      "question": "Quel matériel IT sera fourni sur les nouveaux postes ?",
+      "answer": "Les écrans et équipements standards seront disponibles sur les postes des quartiers d’équipe -- le détail est en cours de finalisation avec l’IT."
+    },
+    {
+      "entryId": "equinoxe-q046",
+      "intentId": null,
+      "question": "Puis-je garder mon ordinateur actuel ?",
+      "answer": "Oui, votre matériel personnel de travail n’est pas concerné par le déménagement."
+    },
+    {
+      "entryId": "equinoxe-q047",
+      "intentId": null,
+      "question": "Y aura-t-il du wifi partout dans le bâtiment ?",
+      "answer": "Oui, une couverture wifi est prévue sur l’ensemble des espaces de Cobalt."
+    },
+    {
+      "entryId": "equinoxe-q048",
+      "intentId": null,
+      "question": "Comment se passera le branchement de mon poste le premier jour ?",
+      "answer": "Une assistance IT sera présente lors de la semaine de préparation, début janvier 2027."
+    },
+    {
+      "entryId": "equinoxe-q049",
+      "intentId": null,
+      "question": "Les écrans seront-ils partagés entre plusieurs postes ?",
+      "answer": "Le détail de l’équipement par poste sera précisé dans le guide des nouveaux usages."
+    },
+    {
+      "entryId": "equinoxe-q050",
+      "intentId": null,
+      "question": "Comment garantir la confidentialité dans un open space ?",
+      "answer": "Les salles de réunion et bulles sont prévues pour les échanges nécessitant de la confidentialité."
+    },
+    {
+      "entryId": "equinoxe-q051",
+      "intentId": null,
+      "question": "Puis-je passer un entretien RH confidentiel sur site ?",
+      "answer": "Oui, utilisez une salle de réunion ou une bulle pour ce type d’échange."
+    },
+    {
+      "entryId": "equinoxe-q052",
+      "intentId": null,
+      "question": "Les Project Rooms sont-elles insonorisées ?",
+      "answer": "Les Project Rooms sont conçues pour le travail de projet en petit groupe, avec une bonne isolation sonore."
+    },
+    {
+      "entryId": "equinoxe-q053",
+      "intentId": null,
+      "question": "Comment réserver une salle pour un entretien annuel ?",
+      "answer": "Via l’outil de réservation habituel des salles de réunion."
+    },
+    {
+      "entryId": "equinoxe-q054",
+      "intentId": null,
+      "question": "Comment accéder à Cobalt en transport en commun ?",
+      "answer": "Cobalt est desservi par le métro et le RER -- le détail des accès sera communiqué avant l’emménagement."
+    },
+    {
+      "entryId": "equinoxe-q055",
+      "intentId": null,
+      "question": "Y a-t-il un accès facile en RER ?",
+      "answer": "Oui, Cobalt est situé à proximité d’une gare RER."
+    },
+    {
+      "entryId": "equinoxe-q056",
+      "intentId": null,
+      "question": "Puis-je venir en vélo ?",
+      "answer": "Oui, un local vélos de 160 places est prévu, avec prises de recharge et douches à proximité."
+    },
+    {
+      "entryId": "equinoxe-q057",
+      "intentId": null,
+      "question": "Comment accueillir un visiteur ?",
+      "answer": "Via l’accueil et la procédure dédiée aux visiteurs."
+    },
+    {
+      "entryId": "equinoxe-q058",
+      "intentId": null,
+      "question": "Y a-t-il un parking pour les visiteurs ?",
+      "answer": "Les modalités d’accès visiteurs, y compris le stationnement, seront précisées avant l’emménagement."
+    },
+    {
+      "entryId": "equinoxe-q059",
+      "intentId": null,
+      "question": "Le site est-il accessible facilement depuis le centre de Paris ?",
+      "answer": "Oui, Cobalt bénéficie d’un accès direct en RER et métro."
+    },
+    {
+      "entryId": "equinoxe-q060",
+      "intentId": null,
+      "question": "Y aura-t-il un restaurant ?",
+      "answer": "Oui."
+    },
+    {
+      "entryId": "equinoxe-q061",
+      "intentId": null,
+      "question": "Combien de places au restaurant ?",
+      "answer": "Le restaurant proposera environ 220 places."
+    },
+    {
+      "entryId": "equinoxe-q062",
+      "intentId": null,
+      "question": "Y aura-t-il une offre végétarienne ?",
+      "answer": "Oui, une offre chaude, végétarienne et rapide est prévue au restaurant."
+    },
+    {
+      "entryId": "equinoxe-q063",
+      "intentId": null,
+      "question": "Le café central sert-il aussi à manger ?",
+      "answer": "Le Café central est surtout pensé pour la convivialité -- l’offre précise sera communiquée avant l’ouverture."
+    },
+    {
+      "entryId": "equinoxe-q064",
+      "intentId": null,
+      "question": "Puis-je déjeuner dehors quand il fait beau ?",
+      "answer": "Oui, une terrasse d’environ 70 places est prévue."
+    },
+    {
+      "entryId": "equinoxe-q065",
+      "intentId": null,
+      "question": "Le restaurant sera-t-il ouvert dès le premier jour ?",
+      "answer": "L’ouverture des services (dont le restaurant) est prévue au moment de l’emménagement, le 18 janvier 2027."
+    },
+    {
+      "entryId": "equinoxe-q066",
+      "intentId": null,
+      "question": "Comment demander un poste adapté ?",
+      "answer": "Via les circuits RH/santé habituels."
+    },
+    {
+      "entryId": "equinoxe-q067",
+      "intentId": null,
+      "question": "Cobalt est-il accessible aux personnes à mobilité réduite ?",
+      "answer": "Oui, l’accessibilité fait partie des principes du projet, avec une attention portée à tous."
+    },
+    {
+      "entryId": "equinoxe-q068",
+      "intentId": null,
+      "question": "Y a-t-il une salle d’allaitement ?",
+      "answer": "Oui, l’espace bien-être prévoit un espace dédié à l’allaitement."
+    },
+    {
+      "entryId": "equinoxe-q069",
+      "intentId": null,
+      "question": "Qui contacter pour un besoin spécifique d’ergonomie ?",
+      "answer": "Les circuits RH/santé habituels restent le point d’entrée pour toute demande d’adaptation de poste."
+    },
+    {
+      "entryId": "equinoxe-q070",
+      "intentId": null,
+      "question": "L’acoustique a-t-elle été pensée pour les personnes sensibles au bruit ?",
+      "answer": "Oui, l’acoustique fait partie des points d’attention explicites du projet, au même titre que l’ergonomie et la qualité de l’air."
+    },
+    {
+      "entryId": "equinoxe-q071",
+      "intentId": null,
+      "question": "Y a-t-il un espace de récupération en cas de besoin ?",
+      "answer": "Oui, l’espace bien-être prévoit repos et récupération."
+    },
+    {
+      "entryId": "equinoxe-q072",
+      "intentId": null,
+      "question": "Et pour manger le midi, on fait comment ?",
+      "answer": "Vous pourrez utiliser le restaurant (environ 220 places), le Café central ou la Terrasse selon vos envies."
+    },
+    {
+      "entryId": "equinoxe-q073",
+      "intentId": null,
+      "question": "Je peux amener mon vélo à l’intérieur ?",
+      "answer": "Non, un local vélos dédié de 160 places est prévu, avec douches et casiers à proximité."
+    },
+    {
+      "entryId": "equinoxe-q074",
+      "intentId": null,
+      "question": "C’est loin de la gare ?",
+      "answer": "Cobalt est situé à Saint-Denis Pleyel, avec un accès direct en RER et métro."
+    },
+    {
+      "entryId": "equinoxe-q075",
+      "intentId": null,
+      "question": "Il y a combien d’étages ?",
+      "answer": "Le bâtiment compte 8 niveaux."
+    },
+    {
+      "entryId": "equinoxe-q076",
+      "intentId": null,
+      "question": "Combien de personnes vont travailler à Cobalt ?",
+      "answer": "Environ 640 collaborateurs sont concernés par le projet."
+    },
+    {
+      "entryId": "equinoxe-q077",
+      "intentId": null,
+      "question": "Qui sont les ambassadeurs, ils servent à quoi ?",
+      "answer": "Les ambassadeurs sont des relais de proximité dans chaque service, pour répondre à vos questions au quotidien."
+    },
+    {
+      "entryId": "equinoxe-q078",
+      "intentId": null,
+      "question": "On peut suivre l’avancement du projet quelque part ?",
+      "answer": "Oui, les actualités et les jalons du projet sont mis à jour régulièrement dans Storm."
+    },
+    {
+      "entryId": "equinoxe-q079",
+      "intentId": null,
+      "question": "Le mobilier du plateau témoin, c’est celui qu’on aura à Cobalt ?",
+      "answer": "Le plateau témoin permet de tester les mobiliers et futurs usages envisagés pour Cobalt."
+    },
+    {
+      "entryId": "equinoxe-q080",
+      "intentId": null,
+      "question": "Est-ce que les ateliers équipes sont obligatoires ?",
+      "answer": "Ils sont fortement recommandés pour préparer au mieux votre quartier d’équipe, mais organisés avec votre manager."
+    },
+    {
+      "entryId": "equinoxe-q081",
+      "intentId": null,
+      "question": "Qui décide de la composition des quartiers d’équipe ?",
+      "answer": "Chaque équipe choisit son quartier lors des ateliers dédiés, en lien avec l’équipe projet."
+    },
+    {
+      "entryId": "equinoxe-q082",
+      "intentId": null,
+      "question": "Le projet prévoit-il des espaces pour les stagiaires et alternants ?",
+      "answer": "Les quartiers d’équipe accueillent l’ensemble des collaborateurs, y compris stagiaires et alternants rattachés à une équipe."
+    },
+    {
+      "entryId": "equinoxe-q083",
+      "intentId": null,
+      "question": "Y a-t-il un contact si j’ai une question qui n’est pas dans Storm ?",
+      "answer": "Vous pouvez contacter un ambassadeur de votre service ou l’équipe projet directement."
+    },
+    {
+      "entryId": "equinoxe-q084",
+      "intentId": null,
+      "question": "Le guide des nouveaux usages, c’est quoi concrètement ?",
+      "answer": "Un document pratique qui explique comment fonctionneront les espaces et les usages quotidiens à Cobalt."
+    },
+    {
+      "entryId": "equinoxe-q085",
+      "intentId": null,
+      "question": "Est-ce qu’il y aura des points d’étape réguliers ?",
+      "answer": "Oui, des actualités et jalons sont publiés régulièrement dans Storm au fil de l’avancement."
+    },
+    {
+      "entryId": "equinoxe-q086",
+      "intentId": null,
+      "question": "Est-ce que je change d’équipe si mon quartier change ?",
+      "answer": "Non, le quartier d’équipe suit votre équipe, il ne modifie pas votre rattachement hiérarchique."
+    },
+    {
+      "entryId": "equinoxe-q087",
+      "intentId": null,
+      "question": "Les managers auront-ils un espace dédié ?",
+      "answer": "Non, les managers travaillent au sein du même quartier d’équipe que leur équipe, sans bureau à part."
+    },
+    {
+      "entryId": "equinoxe-q088",
+      "intentId": null,
+      "question": "Le flex office s’applique-t-il à tout le monde, y compris la direction ?",
+      "answer": "Oui, le principe du quartier d’équipe sans poste attribué s’applique à l’ensemble des collaborateurs."
+    },
+    {
+      "entryId": "equinoxe-q089",
+      "intentId": null,
+      "question": "Comment savoir si une salle est libre ?",
+      "answer": "L’outil de réservation habituel indique la disponibilité des salles en temps réel."
+    },
+    {
+      "entryId": "equinoxe-q090",
+      "intentId": null,
+      "question": "Peut-on annuler une réservation de Project Room ?",
+      "answer": "Oui, les réservations peuvent être annulées via l’outil de réservation."
+    },
+    {
+      "entryId": "equinoxe-q091",
+      "intentId": null,
+      "question": "Les espaces Focus sont-ils fermés ou ouverts ?",
+      "answer": "Ce sont des postes individuels isolés, pensés pour limiter les distractions sans être totalement cloisonnés."
+    },
+    {
+      "entryId": "equinoxe-q092",
+      "intentId": null,
+      "question": "Peut-on manger à son poste ?",
+      "answer": "Les espaces prévus pour la restauration sont le Café central, le Restaurant et la Terrasse, plutôt que les postes de travail."
+    },
+    {
+      "entryId": "equinoxe-q093",
+      "intentId": null,
+      "question": "Le café central est-il accessible toute la journée ?",
+      "answer": "Oui, le Café central est pensé comme un lieu de convivialité accessible tout au long de la journée."
+    },
+    {
+      "entryId": "equinoxe-q094",
+      "intentId": null,
+      "question": "Le casier est-il suffisant pour un carton de dossiers ?",
+      "answer": "Les casiers sont dimensionnés pour les effets personnels et documents courants -- le détail des tailles sera précisé avec l’ouverture des réservations."
+    },
+    {
+      "entryId": "equinoxe-q095",
+      "intentId": null,
+      "question": "Y a-t-il un casier par personne ou par équipe ?",
+      "answer": "Les casiers sont individuels, réservables par chaque collaborateur."
+    },
+    {
+      "entryId": "equinoxe-q096",
+      "intentId": null,
+      "question": "Cobalt va-t-il encourager plus de présence sur site ?",
+      "answer": "Le projet vise surtout à améliorer la qualité des espaces disponibles sur site, sans changer les règles de télétravail."
+    },
+    {
+      "entryId": "equinoxe-q097",
+      "intentId": null,
+      "question": "Faudra-t-il réinstaller mes logiciels le jour J ?",
+      "answer": "Non, la configuration de votre poste est prise en charge par l’IT en amont du déménagement."
+    },
+    {
+      "entryId": "equinoxe-q098",
+      "intentId": null,
+      "question": "Les imprimantes seront-elles disponibles dans chaque quartier ?",
+      "answer": "Le détail de l’implantation des équipements partagés sera précisé dans le guide des nouveaux usages."
+    },
+    {
+      "entryId": "equinoxe-q099",
+      "intentId": null,
+      "question": "Puis-je réserver une salle pour un appel client confidentiel ?",
+      "answer": "Oui, les salles de réunion et bulles conviennent à ce type d’échange."
+    },
+    {
+      "entryId": "equinoxe-q100",
+      "intentId": null,
+      "question": "Y a-t-il des bornes de recharge pour voitures électriques ?",
+      "answer": "Les modalités de stationnement et de recharge seront précisées avant l’emménagement."
+    },
+    {
+      "entryId": "equinoxe-q101",
+      "intentId": null,
+      "question": "Le site est-il proche d’un arrêt de bus ?",
+      "answer": "Les détails de desserte complète (bus, RER, métro) seront communiqués avant l’emménagement."
+    },
+    {
+      "entryId": "equinoxe-q102",
+      "intentId": null,
+      "question": "Y a-t-il des distributeurs si je veux juste un snack ?",
+      "answer": "L’offre précise de restauration rapide sera détaillée avant l’ouverture du site."
+    },
+    {
+      "entryId": "equinoxe-q103",
+      "intentId": null,
+      "question": "Le restaurant propose-t-il un menu différent chaque jour ?",
+      "answer": "Le Restaurant proposera une offre chaude, végétarienne et rapide -- le détail de la carte sera communiqué plus tard."
+    },
+    {
+      "entryId": "equinoxe-q104",
+      "intentId": null,
+      "question": "Qui puis-je contacter pour une question d’accessibilité avant même le déménagement ?",
+      "answer": "Vous pouvez vous adresser dès maintenant aux circuits RH/santé habituels ou à un ambassadeur."
+    },
+    {
+      "entryId": "equinoxe-q105",
+      "intentId": null,
+      "question": "Le Forum sera-t-il utilisé pour les réunions d’équipe classiques ?",
+      "answer": "Le Forum est plutôt réservé aux grands événements et prises de parole, jusqu’à 120 personnes."
+    },
+    {
+      "entryId": "equinoxe-q106",
+      "intentId": null,
+      "question": "Les ambassadeurs sont-ils dans mon service ?",
+      "answer": "Oui, chaque service dispose d’un ambassadeur qui sert de relais de proximité."
+    },
+    {
+      "entryId": "equinoxe-q107",
+      "intentId": null,
+      "question": "Comment sont choisis les ambassadeurs ?",
+      "answer": "Les ambassadeurs sont désignés au sein de chaque service comme relais de proximité pour le projet."
+    },
+    {
+      "entryId": "equinoxe-q108",
+      "intentId": null,
+      "question": "Le projet prévoit-il d’autres ateliers après le choix des quartiers ?",
+      "answer": "Oui, des visites et une semaine de préparation sont prévues avant l’emménagement."
+    },
+    {
+      "entryId": "equinoxe-q109",
+      "intentId": null,
+      "question": "Y aura-t-il une signalétique pour se repérer facilement ?",
+      "answer": "Des repères simples, via les quartiers de référence, sont prévus pour faciliter l’orientation."
+    },
+    {
+      "entryId": "equinoxe-q110",
+      "intentId": null,
+      "question": "Qui gère les premiers retours après l’ouverture du plateau témoin ?",
+      "answer": "L’équipe projet recueille les retours pour ajuster les choix avant le déménagement définitif."
+    },
+    {
+      "entryId": "equinoxe-q111",
+      "intentId": null,
+      "question": "Le projet est-il définitif ou peut-il encore évoluer ?",
+      "answer": "Le projet reste ajustable : les usages seront observés après l’emménagement et des ajustements resteront possibles."
+    },
+    {
+      "entryId": "equinoxe-q112",
+      "intentId": null,
+      "question": "Puis-je proposer une idée d’amélioration ?",
+      "answer": "Oui, vous pouvez transmettre vos idées à votre ambassadeur ou à l’équipe projet."
+    }
+  ]
+}
+

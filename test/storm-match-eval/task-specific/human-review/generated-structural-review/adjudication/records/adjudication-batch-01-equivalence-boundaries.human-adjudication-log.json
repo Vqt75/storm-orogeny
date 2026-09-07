@@ -1,0 +1,376 @@
+{
+  "schemaVersion": 1,
+  "logType": "STRUCTURAL_HUMAN_ADJUDICATION_LOG",
+  "batchId": "adjudication-batch-01-equivalence-boundaries",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  },
+  "status": "PENDING_HUMAN_REVIEW",
+  "generationAuthorized": false,
+  "appendOnly": true,
+  "authorizedSourceItemIds": [
+    "equivalence-comparison-01",
+    "equivalence-comparison-02",
+    "equivalence-comparison-03",
+    "equivalence-comparison-04",
+    "equivalence-comparison-05",
+    "boundary-arrival-preparation",
+    "boundary-communication-pilot",
+    "boundary-rooms-focus"
+  ],
+  "humanDoctrine": {
+    "provenance": "HUMAN_ADJUDICATION",
+    "preferredEntrySelectionMeaning": "BEST_CANONICAL_REPRESENTATION_OF_THE_SAME_SUBSTANTIVE_FACT",
+    "preferredEntrySelectionCriteria": [
+      "generality",
+      "standaloneWording",
+      "contextualCompleteness",
+      "wholeEquivalentGroupRepresentation"
+    ],
+    "externalBusinessPreferenceRuleRequired": false
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "eventId": "adjudication-batch-01-event-001",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "equivalence-comparison-01",
+      "sourceComparisonItemFingerprint": "a880f45dc853b8b43a9262b6d70e60c585b490bd308fe9096152883184d2a47f",
+      "decision": {
+        "substantiveEquivalencePartition": {
+          "value": "oneEquivalentGroup",
+          "canonicalPartition": [
+            [
+              "equinoxe-q001",
+              "equinoxe-q002"
+            ]
+          ]
+        },
+        "preferredEntrySelection": {
+          "value": "chooseOneDisplayedKnowledgeRef",
+          "preferredEntryId": "equinoxe-q002"
+        }
+      },
+      "humanRationale": "Même fait métier et même date. equinoxe-q002 est la représentation canonique la plus autonome et contextualisée : elle nomme explicitement l’emménagement à Cobalt ainsi que la date.",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": null,
+      "eventHash": "4350878040c97593274673c3995cc383abfc4ce79e25edfcad7c94a00b798545"
+    },
+    {
+      "sequence": 2,
+      "eventId": "adjudication-batch-01-event-002",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "equivalence-comparison-02",
+      "sourceComparisonItemFingerprint": "b5940ae65e722d5111fde3371deecb06e7957a395cd378248376dcb63ce331f3",
+      "decision": {
+        "substantiveEquivalencePartition": {
+          "value": "oneEquivalentGroup",
+          "canonicalPartition": [
+            [
+              "equinoxe-q019",
+              "equinoxe-q053"
+            ]
+          ]
+        },
+        "preferredEntrySelection": {
+          "value": "chooseOneDisplayedKnowledgeRef",
+          "preferredEntryId": "equinoxe-q019"
+        }
+      },
+      "humanRationale": "equinoxe-q019 formule la règle générale de réservation des salles de réunion et précise que l’outil habituel reste inchangé. equinoxe-q053 est un cas particulier appliqué à un entretien annuel.",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "4350878040c97593274673c3995cc383abfc4ce79e25edfcad7c94a00b798545",
+      "eventHash": "c1590971a0558e6cfbd3fde3e285d504b03dddc00373726b3e47b1660b76c74e"
+    },
+    {
+      "sequence": 3,
+      "eventId": "adjudication-batch-01-event-003",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "equivalence-comparison-03",
+      "sourceComparisonItemFingerprint": "4037d63533d1b60d417b70590f5e5eea2c3930e28e9c7fd423156087b6258648",
+      "decision": {
+        "substantiveEquivalencePartition": {
+          "value": "oneEquivalentGroup",
+          "canonicalPartition": [
+            [
+              "equinoxe-q050",
+              "equinoxe-q051",
+              "equinoxe-q099"
+            ]
+          ]
+        },
+        "preferredEntrySelection": {
+          "value": "chooseOneDisplayedKnowledgeRef",
+          "preferredEntryId": "equinoxe-q050"
+        }
+      },
+      "humanRationale": "equinoxe-q050 exprime la règle générale et autonome relative aux échanges confidentiels. Les cas RH et appel client sont des instanciations de cette même règle.",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "c1590971a0558e6cfbd3fde3e285d504b03dddc00373726b3e47b1660b76c74e",
+      "eventHash": "64f6e7140e7ddb64cb60567a4bafe30024d7a7ece96b93e0bc919e782c20d40d"
+    },
+    {
+      "sequence": 4,
+      "eventId": "adjudication-batch-01-event-004",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "equivalence-comparison-04",
+      "sourceComparisonItemFingerprint": "d588c50701c195f81b4c6e0d4de5a2a472600f533f0f33683eb6914d877c426f",
+      "decision": {
+        "substantiveEquivalencePartition": {
+          "value": "oneEquivalentGroup",
+          "canonicalPartition": [
+            [
+              "equinoxe-q066",
+              "equinoxe-q069"
+            ]
+          ]
+        },
+        "preferredEntrySelection": {
+          "value": "chooseOneDisplayedKnowledgeRef",
+          "preferredEntryId": "equinoxe-q069"
+        }
+      },
+      "humanRationale": "equinoxe-q069 formule explicitement la règle générale : les circuits RH/santé sont le point d’entrée pour toute demande d’adaptation de poste. Elle représente mieux l’ensemble du groupe.",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "64f6e7140e7ddb64cb60567a4bafe30024d7a7ece96b93e0bc919e782c20d40d",
+      "eventHash": "24970be8f6149ac122b611a2fecfc49fa2755eb3d8dd4946dd894034fffb1430"
+    },
+    {
+      "sequence": 5,
+      "eventId": "adjudication-batch-01-event-005",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "equivalence-comparison-05",
+      "sourceComparisonItemFingerprint": "818a21a7d9d03053ccff98624ed83b8b4707b363b2f68bf190d949798af87ab0",
+      "decision": {
+        "substantiveEquivalencePartition": {
+          "value": "oneEquivalentGroup",
+          "canonicalPartition": [
+            [
+              "equinoxe-q078",
+              "equinoxe-q085"
+            ]
+          ]
+        },
+        "preferredEntrySelection": {
+          "value": "chooseOneDisplayedKnowledgeRef",
+          "preferredEntryId": "equinoxe-q078"
+        }
+      },
+      "humanRationale": "equinoxe-q078 représente le besoin général de suivi de l’avancement du projet. equinoxe-q085 est une formulation plus spécifique portant sur l’existence de points d’étape réguliers.",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "24970be8f6149ac122b611a2fecfc49fa2755eb3d8dd4946dd894034fffb1430",
+      "eventHash": "0719e39d22ab3688cc25886459e5f954d745bdd6d21cb7dc385ac0b663b4a72f"
+    },
+    {
+      "sequence": 6,
+      "eventId": "adjudication-batch-01-event-006",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "boundary-arrival-preparation",
+      "sourceComparisonItemFingerprint": "8b49df8a923b4d486b6488e70e3d5a3c227c01fd94bb0404bc9a033c87bd2036",
+      "decision": {
+        "knowledgeComponentBoundary": {
+          "value": "partitionRequired",
+          "canonicalPartition": [
+            {
+              "componentId": "ARRIVAL",
+              "memberEntryIds": [
+                "equinoxe-q001",
+                "equinoxe-q002",
+                "equinoxe-q009"
+              ]
+            },
+            {
+              "componentId": "PREPARATION",
+              "memberEntryIds": [
+                "equinoxe-q004",
+                "equinoxe-q005",
+                "equinoxe-q007",
+                "equinoxe-q108"
+              ]
+            },
+            {
+              "componentId": "CALENDAR_STABILITY",
+              "memberEntryIds": [
+                "equinoxe-q003"
+              ]
+            }
+          ]
+        },
+        "futureCoverageBoundaryRules": [
+          {
+            "componentId": "ARRIVAL",
+            "rule": "date, timing ou phasage d’arrivée"
+          },
+          {
+            "componentId": "PREPARATION",
+            "rule": "visites, semaine, guide, accompagnement ou étapes préparatoires"
+          },
+          {
+            "componentId": "CALENDAR_STABILITY",
+            "rule": "caractère stabilisé, ajustable ou susceptible de changer du calendrier"
+          },
+          {
+            "componentId": "AMBIGUITY",
+            "rule": "une formulation insuffisamment précise peut rester ambiguë entre ces composantes"
+          }
+        ]
+      },
+      "humanRationale": "Le fait que ces connaissances appartiennent toutes au calendrier d’arrivée à Cobalt ne constitue pas un besoin métier unique.\n\nLa date, le timing et le phasage de l’emménagement forment un besoin ARRIVAL.\n\nLes visites, la semaine de préparation, le guide et les étapes précédant l’arrivée forment un besoin PREPARATION.\n\nLa stabilité ou la possibilité d’évolution du calendrier constitue un besoin distinct CALENDAR_STABILITY : equinoxe-q003 porte sur la fiabilité du calendrier dans son ensemble et ne doit pas être artificiellement absorbée par PREPARATION.",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "0719e39d22ab3688cc25886459e5f954d745bdd6d21cb7dc385ac0b663b4a72f",
+      "eventHash": "ce5fe8569a547989b8ecbf30748507f0cecaf5799ec5968bb2c296cb12fe8af9"
+    },
+    {
+      "sequence": 7,
+      "eventId": "adjudication-batch-01-event-007",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "boundary-communication-pilot",
+      "sourceComparisonItemFingerprint": "4e46f0b5245db79ab6c535cd1ebed62f48e3a016823de9cf2627e451a66e5624",
+      "decision": {
+        "knowledgeComponentBoundary": {
+          "value": "partitionRequired",
+          "canonicalPartition": [
+            {
+              "componentId": "EXPERIMENT_FEEDBACK",
+              "memberEntryIds": [
+                "equinoxe-q006",
+                "equinoxe-q079",
+                "equinoxe-q110",
+                "equinoxe-q111",
+                "equinoxe-q112"
+              ]
+            },
+            {
+              "componentId": "INFO_QUESTIONS",
+              "memberEntryIds": [
+                "equinoxe-q008",
+                "equinoxe-q078",
+                "equinoxe-q085"
+              ]
+            },
+            {
+              "componentId": "AMBASSADORS_CONTACTS",
+              "memberEntryIds": [
+                "equinoxe-q077",
+                "equinoxe-q083",
+                "equinoxe-q106",
+                "equinoxe-q107"
+              ]
+            }
+          ]
+        },
+        "futureCoverageBoundaryRules": [
+          {
+            "componentId": "INFO_QUESTIONS",
+            "rule": "information / questions projet"
+          },
+          {
+            "componentId": "AMBASSADORS_CONTACTS",
+            "rule": "acteurs humains / ambassadeurs / contacts"
+          },
+          {
+            "componentId": "EXPERIMENT_FEEDBACK",
+            "rule": "expérimentation / retours / contribution / évolution du projet"
+          }
+        ]
+      },
+      "humanRationale": "Conserver la structure Reviewer A.\n\nequinoxe-q083 appartient à AMBASSADORS_CONTACTS : la demande porte explicitement sur la personne à contacter lorsqu’une réponse n’est pas disponible, et la connaissance désigne un ambassadeur ou l’équipe projet.\n\nNe pas la rattacher au simple canal d’information au motif qu’elle contient le mot « question ».",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "ce5fe8569a547989b8ecbf30748507f0cecaf5799ec5968bb2c296cb12fe8af9",
+      "eventHash": "0b1e1519daaa578e0aae417b129c549dfac0a7933a6da8138e5adef4fc8a39cd"
+    },
+    {
+      "sequence": 8,
+      "eventId": "adjudication-batch-01-event-008",
+      "batchId": "adjudication-batch-01-equivalence-boundaries",
+      "sourceItemId": "boundary-rooms-focus",
+      "sourceComparisonItemFingerprint": "0e820bc8d5a569020ccba05b5380961f09f309aeb5ed93606a98ce3d52aaa7bf",
+      "decision": {
+        "knowledgeComponentBoundary": {
+          "value": "partitionRequired",
+          "canonicalPartition": [
+            {
+              "componentId": "MEETING_ROOMS",
+              "memberEntryIds": [
+                "equinoxe-q019",
+                "equinoxe-q028",
+                "equinoxe-q053",
+                "equinoxe-q089"
+              ]
+            },
+            {
+              "componentId": "PROJECT_ROOMS",
+              "memberEntryIds": [
+                "equinoxe-q022",
+                "equinoxe-q031",
+                "equinoxe-q052",
+                "equinoxe-q090"
+              ]
+            },
+            {
+              "componentId": "BUBBLES",
+              "memberEntryIds": [
+                "equinoxe-q023",
+                "equinoxe-q027"
+              ]
+            },
+            {
+              "componentId": "FORUM",
+              "memberEntryIds": [
+                "equinoxe-q024",
+                "equinoxe-q029",
+                "equinoxe-q105"
+              ]
+            },
+            {
+              "componentId": "FOCUS_LIBRARY",
+              "memberEntryIds": [
+                "equinoxe-q020",
+                "equinoxe-q025",
+                "equinoxe-q026",
+                "equinoxe-q091"
+              ]
+            },
+            {
+              "componentId": "CONFIDENTIALITY",
+              "memberEntryIds": [
+                "equinoxe-q050",
+                "equinoxe-q051",
+                "equinoxe-q099"
+              ]
+            }
+          ]
+        },
+        "futureCoverageBoundaryRules": [
+          {
+            "componentId": "IDENTIFIED_SPACE",
+            "rule": "si un type d’espace est explicitement identifié, rattacher la demande à sa famille d’espace"
+          },
+          {
+            "componentId": "CONFIDENTIALITY",
+            "rule": "besoin fonctionnel portant sur un échange confidentiel, lorsque plusieurs types d’espaces peuvent satisfaire ce besoin"
+          },
+          {
+            "componentId": "AMBIGUITY",
+            "rule": "une demande vague sur le fait de « s’isoler », « être au calme » ou « trouver un espace » peut rester ambiguë lorsque l’activité recherchée ne permet pas de distinguer Focus/Library, bulle, salle ou autre espace"
+          }
+        ]
+      },
+      "humanRationale": "Les différents types d’espaces ont des finalités, capacités et règles d’accès/réservation suffisamment distinctes pour ne pas être fusionnés dans un grand composant « espaces de collaboration ».\n\nLa confidentialité constitue en revanche un besoin fonctionnel transverse : les connaissances equinoxe-q050, equinoxe-q051 et equinoxe-q099 couvrent explicitement à la fois salles de réunion et bulles.\n\nElles ne doivent donc pas être rangées artificiellement dans le composant MEETING_ROOMS uniquement.",
+      "recordedAt": "2026-09-07T15:20:25.766Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "0b1e1519daaa578e0aae417b129c549dfac0a7933a6da8138e5adef4fc8a39cd",
+      "eventHash": "d84d9de36ec940c4ba1f700a579a7ea9c85db063ff09e0a5f1100a2cff386c32"
+    }
+  ],
+  "logFingerprint": "fb334571e0fdc4b8d982a1d4d2640f5c6b7ab67cd0cdb65ba931d4faf186de76"
+}

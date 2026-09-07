@@ -1,0 +1,17 @@
+{
+  "batchId": "adjudication-batch-01-equivalence-boundaries",
+  "eventCount": 8,
+  "finalEventHash": "d84d9de36ec940c4ba1f700a579a7ea9c85db063ff09e0a5f1100a2cff386c32",
+  "journalCanonicalSha256": "f6bcbef0b81be5a101f04fbb369da883c5ea6e61b669b676a242ea02894e7bb7",
+  "journalFingerprint": "fb334571e0fdc4b8d982a1d4d2640f5c6b7ab67cd0cdb65ba931d4faf186de76",
+  "journalPath": "adjudication-batch-01-equivalence-boundaries.human-adjudication-log.json",
+  "schemaVersion": 1,
+  "sealHash": "1adf0fb5526aea6fc8837328a8dff5f56eb44d9d010a7d29f1f0deb4df33f704",
+  "sealType": "STRUCTURAL_ADJUDICATION_BATCH_SEAL",
+  "sealedAt": "2026-09-07T15:32:51.958Z",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  }
+}

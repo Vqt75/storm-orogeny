@@ -61,6 +61,13 @@ h1{margin:0;font-size:clamp(56px,7vw,102px);line-height:.9;letter-spacing:-.067e
 <div class="toast" id="toast"></div>
 <script>
 const CAP={CONTROL:'control.access',VIEW_ALL:'projects.view_all',MEMBERS:'organization.members.manage',MANAGE_MEMBERSHIPS:'projects.manage_memberships',LIFECYCLE:'projects.manage_lifecycle',DELETE:'projects.delete_permanently',EXTERNAL:'organization.external_identity.manage'};
+// Data & Privacy V1 -- page documentaire read-only, réutilise VIEW_ALL
+// (même capability que la vue Projets, déjà la porte d'entrée
+// "gouvernance organisation" de Storm Control). Aucune nouvelle
+// capability créée, aucun nouveau mécanisme backend -- contenu
+// entièrement statique, les seules données réellement variables
+// (nom de l'organisation) viennent de /api/me déjà chargé pour
+// tout Storm Control.
 const app=document.getElementById('app'),commandState=document.getElementById('commandState'),commandLayer=document.getElementById('commandLayer'),toast=document.getElementById('toast'),modal=document.getElementById('modalBackdrop'),avatarBtn=document.getElementById('avatarBtn'),accountPopover=document.getElementById('accountPopover'),accountName=document.getElementById('accountName'),accountOrg=document.getElementById('accountOrg');
 
 function devHeaders(){const d=new URLSearchParams(location.search).get('devUser');return d?{'X-Storm-Dev-User':d}:{}}
@@ -144,6 +151,47 @@ function renderAccess(){
     <section class="section"><div class="section-head"><div><h2>Identité externe</h2><p>Fournisseur renseigné pour les accès automatisés existants -- aucune synchronisation en direct n’est branchée à ce stade.</p></div></div>${mappings.length?`<div class="cell provider-cell"><span class="provider-mark">${esc(initials(mappings[0].provider))}</span><span><strong>${esc(mappings[0].provider)}</strong><p>Renseigné pour ${mappings.length} accès automatisé${mappings.length>1?'s':''} -- gestion réservée aux permissions organisationnelles dédiées.</p></span></div>`:emptyState('Aucun fournisseur d’identité renseigné.','Un mapping groupe externe précisera ici le fournisseur utilisé.')}</section>`;
 }
 
+function privacyRow(label,rule,detail){return `<div class="info-card"><small>${esc(label)}</small><strong>${esc(rule)}</strong><p>${esc(detail)}</p></div>`}
+
+function renderPrivacy(){
+  const body=`
+    <section class="section"><div class="section-head"><div><h2>Connexion et accès</h2><p>Ce qui identifie une personne et lui donne accès à Storm.</p></div></div>
+      <div class="info-grid">
+        ${privacyRow('Sessions de connexion','Supprimées 7 jours après leur expiration ou leur révocation.','Une session est supprimée 7 jours après être devenue invalide, qu’elle ait expiré ou été révoquée.')}
+        ${privacyRow('Invitations','En attente 90 jours, conservées 12 mois une fois traitées.','Une invitation non acceptée expire après 90 jours. Une fois acceptée, révoquée ou expirée, elle reste 12 mois avant d’être supprimée.')}
+        ${privacyRow('Adresse e-mail de connexion','Retirée après 90 jours.','L’adresse e-mail utilisée lors de la première connexion est retirée après 90 jours ; le compte continue de fonctionner normalement.')}
+      </div>
+    </section>
+    <section class="section"><div class="section-head"><div><h2>Utilisation et tendances</h2><p>Ce que Storm observe sur l’utilisation des sites publiés, sans jamais identifier qui que ce soit.</p></div></div>
+      <div class="info-grid">
+        ${privacyRow('Activité détaillée','Conservée 40 jours.','Les événements de navigation, pseudonymes, sont supprimés automatiquement après 40 jours.')}
+        ${privacyRow('Tendances d’utilisation','Conservées avec le projet.','Les statistiques agrégées ne contiennent aucun identifiant individuel ; elles restent disponibles tant que le projet existe, y compris archivé.')}
+      </div>
+    </section>
+    <section class="section"><div class="section-head"><div><h2>Quand un projet est supprimé</h2><p>L’archivage et la suppression définitive sont deux choses distinctes.</p></div></div>
+      <div class="info-grid">
+        ${privacyRow('Archiver conserve le projet','Rien n’est supprimé.','L’archivage conserve les données et l’historique du projet -- aucune suppression n’est déclenchée automatiquement.')}
+        ${privacyRow('La suppression définitive laisse 7 jours pour changer d’avis','Délai de grâce de 7 jours.','Une demande de suppression définitive peut être annulée pendant ce délai.')}
+        ${privacyRow('Fichiers du projet','Retirés avant la suppression du projet.','Storm termine la suppression uniquement après le retrait des fichiers du projet -- si le processus est interrompu, il peut reprendre en toute sécurité.')}
+      </div>
+    </section>
+    <section class="section"><div class="section-head"><div><h2>Versions publiées</h2><p>L’historique de ce qui a été publié.</p></div></div>
+      <div class="info-grid">
+        ${privacyRow('Versions publiées','Conservées avec le projet.','La version en ligne et les versions précédentes restent disponibles tant que le projet existe ; elles disparaissent avec la suppression définitive du projet.')}
+      </div>
+    </section>
+    <section class="section"><div class="section-head"><div><h2>Historique des actions</h2><p>Les actions administratives sensibles laissent une trace.</p></div></div>
+      <div class="info-grid">
+        ${privacyRow('Historique','Conservé 12 mois.','Distinct des journaux techniques de l’application.')}
+      </div>
+    </section>
+    <section class="section"><div class="section-head"><div><h2>Hébergement et protections</h2><p>Ce que Storm gère, et ce qui dépend de l’environnement d’hébergement.</p></div></div>
+      <div class="notice"><strong>Géré par l’hébergement</strong><br>Storm gère le cycle de vie des données dans l’application. Certaines protections, comme les sauvegardes, leur durée de conservation, la localisation de l’hébergement ou le chiffrement de l’infrastructure, dépendent de l’environnement d’hébergement.</div>
+    </section>`;
+  app.innerHTML=hero('Données et confidentialité.','Comment Storm conserve et supprime les données.')+
+    `<section class="section"><p class="hero-copy" style="max-width:640px">Storm applique des règles de conservation et de suppression définies pour chaque catégorie de données. Certaines garanties sont assurées par l’application elle-même ; d’autres dépendent de l’hébergement.</p></section>`+body;
+}
+
 function projectSourcesBody(access){
   return access.people.map(p=>{
     const order=['project_admin','editor','pilot','contributor'];
@@ -216,7 +264,8 @@ function renderCommand(){
   if(has(state.me,CAP.VIEW_ALL))views.push('projects');
   if(has(state.me,CAP.MEMBERS))views.push('members');
   if(has(state.me,CAP.MANAGE_MEMBERSHIPS)||has(state.me,CAP.EXTERNAL))views.push('access');
-  setCommand(views.map(v=>`<button class="command-button ${state.view===v?'active':''}" type="button" data-root="${v}">${v==='projects'?'Projets':v==='members'?'Membres':'Accès'}</button>`).join(''));
+  if(has(state.me,CAP.CONTROL))views.push('privacy');
+  setCommand(views.map(v=>`<button class="command-button ${state.view===v?'active':''}" type="button" data-root="${v}">${v==='projects'?'Projets':v==='members'?'Membres':v==='access'?'Accès':'Données'}</button>`).join(''));
 }
 function wireCommand(){
   commandState.querySelectorAll('[data-root]').forEach(b=>b.onclick=()=>goRoot(b.dataset.root));
@@ -250,6 +299,7 @@ function render(){
   else if(state.detail && state.members.data.some(m=>m.id===state.detail))renderMemberDetail();
   else if(state.view==='members')renderMembers();
   else if(state.view==='access')renderAccess();
+  else if(state.view==='privacy')renderPrivacy();
   else renderProjects();
   renderCommand();
   wire();

@@ -36,10 +36,21 @@ export function ssoAuth({ pool, config }) {
     }
 
     const { rows: [user] } = await pool.query(
-      'select id, email, display_name from users where id = $1',
+      'select id, email, display_name, status from users where id = $1',
       [session.user_id]
     );
     if (!user) {
+      next(Errors.unauthenticated());
+      return;
+    }
+    // Invariant de sécurité obligatoire (Privacy V1, user lifecycle) :
+    // un user non 'active' ne doit JAMAIS pouvoir utiliser une session,
+    // même si une ligne auth_sessions valide existe par anomalie (ex.
+    // désactivation entre la création de la session et cette requête,
+    // avant que la révocation explicite n'ait pu s'appliquer). Fail
+    // closed systématique, jamais une confiance dans la seule
+    // révocation déjà effectuée à la désactivation.
+    if (user.status !== 'active') {
       next(Errors.unauthenticated());
       return;
     }

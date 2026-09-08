@@ -20,7 +20,7 @@
 // une confiance silencieuse accordée à un email vérifié seul.
 
 import { findExternalIdentityByIssuerSubject, createExternalIdentity } from './repository.js';
-import { findUserByEmail, insertUser } from '../users/repository.js';
+import { findUserByEmail, insertUser, findUserById } from '../users/repository.js';
 import { listPendingInvitationsForEmail, acceptProjectInvitation } from '../memberships/repository.js';
 
 export async function resolveOrLinkIdentity(pool, { providerType, issuer, subject, email, emailVerified, displayName, issuerTrusted }) {
@@ -31,13 +31,34 @@ export async function resolveOrLinkIdentity(pool, { providerType, issuer, subjec
     }
     // Déjà liée : résolution strictement par (issuer, subject), l'email
     // n'intervient plus jamais à ce stade, vérifié ou non -- et donc
-    // aucun scan d'invitation n'a jamais lieu ici non plus.
+    // aucun scan d'invitation n'a jamais lieu ici non plus. Mais le
+    // STATUT DU USER lui-même doit toujours être revérifié ici --
+    // l'identité externe peut rester active tout en pointant vers un
+    // user deactivated/anonymized (la désactivation ne supprime jamais
+    // l'identité, seule l'anonymisation le fait -- et dans ce cas
+    // l'identité n'existe même plus, on ne passerait jamais par cette
+    // branche). Aucune nouvelle session ne doit jamais être créée pour
+    // un user non actif, quel que soit l'état de son identité externe.
+    const user = await findUserById(pool, existing.user_id);
+    if (!user || user.status !== 'active') {
+      return { ok: false, code: 'USER_NOT_ACTIVE' };
+    }
     return { ok: true, userId: existing.user_id, externalIdentityId: existing.id };
   }
 
   // Pas encore liée -- un email NON vérifié ne peut servir ni à
   // chercher une collision ni à créer un compte : on ne peut pas s'y
   // fier assez pour l'une ou l'autre décision (doctrine validée).
+  //
+  // Cas re-création après anonymisation (doctrine V1 explicite) :
+  // l'anonymisation supprime physiquement l'external_identity ET
+  // remplace l'email du user par une valeur synthétique -- une
+  // personne revenant avec le même (issuer, subject)/email historique
+  // ne matche donc plus RIEN ici (ni l'identité, ni l'email) et suit
+  // naturellement ce même chemin de création normale. Un NOUVEAU
+  // users.id est créé, jamais le tombstone réactivé, aucun ancien
+  // grant/membership ne revient -- comportement correct par
+  // construction, jamais un cas spécial à coder séparément.
   if (!email || emailVerified !== true) {
     return { ok: false, code: 'EMAIL_NOT_VERIFIED' };
   }

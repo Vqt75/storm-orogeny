@@ -18,13 +18,26 @@ import { projectCapabilitiesForBundle, organizationCapabilitiesForBundle, Projec
 // excludingGrantIds, il resterait encore au moins un grant actif dont
 // les capabilities effectives incluent la capability administrative
 // demandée -- pour un projet OU une organisation, jamais mélangés.
+//
+// GÉNÉRALISATION (Privacy V1, user lifecycle) : un grant administratif
+// porté par un utilisateur `deactivated` ou `anonymized` ne constitue
+// plus une autorité utilisable -- jamais compté comme une autorité de
+// secours valide. Le JOIN vers users et le filtre status='active'
+// s'appliquent donc systématiquement ici, jamais comme une seconde
+// vérification séparée ailleurs : une seule notion cohérente de
+// "dernier administrateur" dans tout Storm, que la révocation
+// provienne d'un grant individuel, d'une désactivation de mapping, ou
+// d'une désactivation d'utilisateur elle-même.
 export async function hasAdministrativeCapabilityRemaining(pool, { targetType, targetId, excludingGrantIds, capability }) {
   const excluded = excludingGrantIds && excludingGrantIds.length > 0 ? excludingGrantIds : [null];
 
   if (targetType === 'project') {
     const { rows } = await pool.query(
-      `select permission_bundle from project_grants
-       where project_id = $1 and status = 'active' and not (id = any($2::uuid[]))`,
+      `select pg.permission_bundle from project_grants pg
+       join project_memberships pm on pm.id = pg.project_membership_id
+       join users u on u.id = pm.user_id
+       where pg.project_id = $1 and pg.status = 'active' and u.status = 'active'
+         and not (pg.id = any($2::uuid[]))`,
       [targetId, excluded]
     );
     return rows.some(r => projectCapabilitiesForBundle(r.permission_bundle).includes(capability));
@@ -33,7 +46,10 @@ export async function hasAdministrativeCapabilityRemaining(pool, { targetType, t
   if (targetType === 'organization') {
     const { rows } = await pool.query(
       `select og.permission_bundle from organization_grants og
-       where og.tenant_id = $1 and og.status = 'active' and not (og.id = any($2::uuid[]))`,
+       join tenant_memberships tm on tm.id = og.organization_membership_id
+       join users u on u.id = tm.user_id
+       where og.tenant_id = $1 and og.status = 'active' and u.status = 'active'
+         and not (og.id = any($2::uuid[]))`,
       [targetId, excluded]
     );
     return rows.some(r => organizationCapabilitiesForBundle(r.permission_bundle).includes(capability));

@@ -27,9 +27,10 @@ export async function recordAuditEvent(client, {
   );
 }
 
-// Registre canonique des event types -- un seul ajouté dans ce batch,
-// jamais une liste anticipée de types futurs non encore produits par
-// aucun code réel.
+// Registre canonique des event types.
 export const AuditEventType = Object.freeze({
-  EXTERNAL_GROUP_MAPPING_DISABLED: 'external_group_mapping.disabled'
+  EXTERNAL_GROUP_MAPPING_DISABLED: 'external_group_mapping.disabled',
+  USER_DEACTIVATED: 'user.deactivated',
+  USER_REACTIVATED: 'user.reactivated',
+  USER_ANONYMIZED: 'user.anonymized'
 });

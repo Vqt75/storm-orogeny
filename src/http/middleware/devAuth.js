@@ -57,6 +57,17 @@ export function devAuth({ pool, config }) {
       next(Errors.unauthenticated());
       return;
     }
+    // Même invariant que ssoAuth (Privacy V1, user lifecycle) : un
+    // user non 'active' ne doit jamais s'authentifier, développement/
+    // démo compris -- devAuth reste par ailleurs impossible en
+    // production réelle par construction (voir garde plus haut), mais
+    // laisser ce contrôle absent ici aurait constitué une porte de
+    // contournement silencieuse de la doctrine en dev/démo, jamais
+    // identifiée comme telle. Fermée ici explicitement.
+    if (user.status !== 'active') {
+      next(Errors.unauthenticated());
+      return;
+    }
 
     req.user = user;
     next();

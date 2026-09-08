@@ -73,3 +73,16 @@ export async function revokeExternalIdentity(pool, { externalIdentityId }) {
   );
   return row ?? null;
 }
+
+// Suppression PHYSIQUE de toutes les identités externes d'un
+// utilisateur -- réservée à l'anonymisation (userLifecycle.js),
+// jamais à une simple désactivation réversible. Contrairement à
+// revokeExternalIdentity ci-dessus (status='revoked', conservée pour
+// audit), l'anonymisation retire réellement ces lignes : l'audit de
+// l'anonymisation elle-même (audit_events, target=user) suffit à
+// prouver qu'une action d'identité a eu lieu, sans jamais devenir une
+// archive secondaire de l'IdP (issuer/subject/email_at_linking).
+export async function deleteExternalIdentitiesForUser(client, userId) {
+  const { rowCount } = await client.query('delete from external_identities where user_id = $1', [userId]);
+  return rowCount;
+}

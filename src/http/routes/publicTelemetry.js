@@ -35,30 +35,29 @@ function setVisitorCookie(res, visitorRef) {
   res.setHeader('Set-Cookie', `${VISITOR_COOKIE}=${visitorRef}; Path=/; Max-Age=${VISITOR_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax; HttpOnly`);
 }
 
-// FERMETURE (Privacy V1, Batch 8) : path est un champ texte fourni par
-// le client -- audité, la chaîne réelle vient du hash SPA d'Ivory
-// (window.location.hash côté runtime.js/ivory.js), normalisée pour
-// les routes news-/space- mais transmise TELLE QUELLE pour toute
-// autre valeur -- un visiteur naviguant manuellement vers un hash
-// arbitraire (#texte-libre, #email@exemple.com, etc.) verrait cette
-// chaîne arbitraire atteindre ce endpoint. Un simple .slice(0,80) ne
-// bornait que la longueur, jamais la structure -- normalisation
-// structurelle stricte ici, jamais une allowlist exhaustive des
-// routes connues :
-//   - toute URL absolue (http://, https://, //) refusée entièrement;
-//   - query string et fragment retirés (ne conserve que ce qui
-//     précède le premier ? ou #, défense en profondeur même si le
-//     hash SPA ne devrait déjà plus en contenir à ce stade);
-//   - uniquement lettres/chiffres/tiret/underscore/slash acceptés --
-//     jamais un espace, une arobase, ou tout caractère pouvant porter
-//     un texte libre/PII;
-//   - longueur bornée à 80 caractères, appliquée APRÈS validation
-//     structurelle (jamais un simple tronquage d'un texte libre qui
-//     laisserait jusqu'à 80 caractères de PII passer).
-// Toute valeur ne respectant pas cette structure est refusée
-// (retourne null, jamais persistée) plutôt que neutralisée/déformée en
-// une valeur plausible mais fausse.
-const SAFE_TELEMETRY_PATH_PATTERN = /^[a-zA-Z0-9\-_/]+$/;
+// FERMETURE (Privacy V1, Batch 8, seconde passe) : une whitelist de
+// caractères n'est jamais une whitelist sémantique -- des chaînes
+// comme "julien-dupont" ou "monproblemeconfidentiel" respectaient la
+// précédente grammaire [a-zA-Z0-9\-_/]+ sans être des routes
+// légitimes. Univers réel confirmé EXHAUSTIVEMENT par audit direct du
+// template Ivory (public/ivory/renderers/ivory.js) : les pages sont
+// exactement les 7 sections top-level `.tct-main > .tct-section`
+// existant dans le template (id="home", "timeline", "spaces", "news",
+// "questions", "ambassadors", "team" -- comptées et vérifiées une par
+// une, aucune autre section top-level n'existe). Le client collapse
+// déjà les routes dynamiques news-<slug>/space-<slug> vers
+// 'news'/'spaces' AVANT d'appeler trackPageView -- mais SEULEMENT ces
+// deux préfixes ; toute AUTRE valeur de hash (y compris un hash
+// arbitraire jamais rendu, qui retombe visuellement sur #home) est
+// transmise TELLE QUELLE à trackPageView. Le serveur ne dépend donc
+// jamais du fait que le frontend ait déjà canonicalisé -- même
+// canonicalisation reproduite ici, en defense in depth.
+//
+// Toute valeur hors de cet univers connu -> null, jamais stockée sous
+// une forme partielle/déformée (jamais "other:<raw>").
+const CANONICAL_TELEMETRY_PATH_CATEGORIES = new Set([
+  'home', 'timeline', 'spaces', 'news', 'questions', 'ambassadors', 'team'
+]);
 
 export function normalizeTelemetryPath(rawPath) {
   if (typeof rawPath !== 'string') return null;
@@ -68,9 +67,21 @@ export function normalizeTelemetryPath(rawPath) {
 
   const withoutQueryOrFragment = trimmed.split('?')[0].split('#')[0];
   if (withoutQueryOrFragment.length === 0) return null;
-  if (!SAFE_TELEMETRY_PATH_PATTERN.test(withoutQueryOrFragment)) return null;
 
-  return withoutQueryOrFragment.slice(0, 80);
+  // Tolère un éventuel slash de tête (le client actuel n'en envoie
+  // jamais, mais rien n'empêche structurellement une valeur "/home") --
+  // jamais une nouvelle catégorie inventée, uniquement une variante de
+  // format des mêmes catégories réelles.
+  let candidate = withoutQueryOrFragment.replace(/^\/+/, '');
+
+  // Canonicalisation des routes dynamiques réelles -- reproduit
+  // exactement la même règle que le client (defense in depth, jamais
+  // une dépendance à ce que le client l'ait déjà fait).
+  if (candidate.startsWith('news-')) candidate = 'news';
+  else if (candidate.startsWith('space-')) candidate = 'spaces';
+
+  if (!CANONICAL_TELEMETRY_PATH_CATEGORIES.has(candidate)) return null;
+  return candidate;
 }
 
 export function createPublicTelemetryRouter({ pool }) {

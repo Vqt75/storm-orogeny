@@ -250,43 +250,63 @@ test('PRIVACY -- structure de telemetry_events ne porte aucun champ raw/user_id'
   );
 });
 
-// ── FERMETURE -- contrat telemetry_events.path ───────────────────────
 
-test('path -- /faq conservé tel quel', () => {
-  assert.equal(normalizeTelemetryPath('/faq'), '/faq');
+// ── FERMETURE -- contrat telemetry_events.path (allowlist sémantique) ──
+// Univers réel confirmé exhaustivement par audit direct du template
+// Ivory (public/ivory/renderers/ivory.js) : exactement 7 sections
+// top-level (.tct-main > .tct-section), comptées une par une.
+
+test('path -- catégories canoniques réelles conservées telles quelles', () => {
+  for (const cat of ['home', 'timeline', 'spaces', 'news', 'questions', 'ambassadors', 'team']) {
+    assert.equal(normalizeTelemetryPath(cat), cat);
+  }
 });
 
-test('path -- /faq?email=a@b.com -- aucune query persistée', () => {
-  assert.equal(normalizeTelemetryPath('/faq?email=a@b.com'), '/faq');
+test('path -- routes dynamiques réelles (news-<slug>, space-<slug>) canonicalisées', () => {
+  assert.equal(normalizeTelemetryPath('news-my-article'), 'news');
+  assert.equal(normalizeTelemetryPath('news-2026-annual-report'), 'news');
+  assert.equal(normalizeTelemetryPath('space-paris-team'), 'spaces');
+  assert.equal(normalizeTelemetryPath('space-tours-agence'), 'spaces');
 });
 
-test('path -- /foo#secret -- aucun fragment persisté', () => {
-  assert.equal(normalizeTelemetryPath('/foo#secret'), '/foo');
+test('path -- query supprimée/refusée (categorie valide + query)', () => {
+  assert.equal(normalizeTelemetryPath('home?email=a@b.com'), 'home');
 });
 
-test('path -- URL absolue -- refusée entièrement', () => {
+test('path -- fragment supprimé/refusé (categorie valide + fragment)', () => {
+  assert.equal(normalizeTelemetryPath('home#secret'), 'home');
+});
+
+test('path -- URL absolue refusée entièrement', () => {
   assert.equal(normalizeTelemetryPath('https://evil.example/x'), null);
   assert.equal(normalizeTelemetryPath('http://evil.example/x'), null);
   assert.equal(normalizeTelemetryPath('//evil.example/x'), null);
 });
 
-test('path -- chaîne libre non-path -- refusée', () => {
-  assert.equal(normalizeTelemetryPath('mon probleme personnel'), null);
-  assert.equal(normalizeTelemetryPath('contact moi a x@y.com'), null);
+test('path -- TEXTE ARBITRAIRE ALPHANUMÉRIQUE VALIDE SYNTAXIQUEMENT -- jamais persisté (aurait survécu à la simple regex précédente)', () => {
+  // Ces chaînes respectent [a-zA-Z0-9\-_/]+ mais ne sont PAS des
+  // catégories réelles -- exactement ce que l'ancienne whitelist de
+  // caractères laissait passer à tort.
+  const arbitraryButSyntacticallyValid = [
+    'monproblemeconfidentiel',
+    'julien-dupont',
+    'private-note',
+    'johnsmith',
+    'project-secret'
+  ];
+  for (const value of arbitraryButSyntacticallyValid) {
+    assert.equal(normalizeTelemetryPath(value), null, `"${value}" ne doit jamais être persisté`);
+  }
 });
 
-test('path -- longueur max conservée après validation structurelle', () => {
-  const longSegment = 'a'.repeat(200);
-  const result = normalizeTelemetryPath(`/${longSegment}`);
-  assert.ok(result.length <= 80);
+test('path -- email jamais persisté, sous aucune forme', () => {
+  assert.equal(normalizeTelemetryPath('contact@exemple.com'), null);
+  assert.equal(normalizeTelemetryPath('home?email=attaquant@exemple.com'), 'home');
 });
 
-test('path -- valeurs bare existantes du client Ivory (home, ivory, faq) inchangées', () => {
-  assert.equal(normalizeTelemetryPath('home'), 'home');
-  assert.equal(normalizeTelemetryPath('ivory'), 'ivory');
-  assert.equal(normalizeTelemetryPath('faq'), 'faq');
-  assert.equal(normalizeTelemetryPath('news'), 'news');
-  assert.equal(normalizeTelemetryPath('spaces'), 'spaces');
+test('path -- longueur bornée -- sans objet ici, l\'allowlist élimine déjà toute chaîne hors univers connu', () => {
+  const longUnknown = 'a'.repeat(200);
+  assert.equal(normalizeTelemetryPath(longUnknown), null);
 });
 
 test('path -- valeurs non-string ou vides -- refusées proprement', () => {
@@ -297,11 +317,11 @@ test('path -- valeurs non-string ou vides -- refusées proprement', () => {
   assert.equal(normalizeTelemetryPath('   '), null);
 });
 
-test('path -- BOUT EN BOUT HTTP -- POST /telemetry avec path arbitraire -- jamais persisté tel quel', async () => {
+test('path -- BOUT EN BOUT HTTP -- route canonique réelle acceptée et persistée', async () => {
   const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event: 'page_view', path: '/faq?email=attaquant@exemple.com#secret-libre' })
+    body: JSON.stringify({ event: 'page_view', path: 'news' })
   });
   assert.equal(res.status, 204);
 
@@ -309,13 +329,64 @@ test('path -- BOUT EN BOUT HTTP -- POST /telemetry avec path arbitraire -- jamai
     "select path from telemetry_events where project_id=$1 and event_type='page_view' order by occurred_at desc limit 1",
     [project]
   );
-  assert.equal(rows[0].path, '/faq', 'ni la query ni le fragment ne doivent jamais atteindre la base');
+  assert.equal(rows[0].path, 'news');
+
+  await pool.query('delete from telemetry_events where project_id=$1', [project]);
+});
+
+test('path -- BOUT EN BOUT HTTP -- query+fragment supprimés sur une catégorie valide', async () => {
+  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'page_view', path: 'home?email=attaquant@exemple.com#secret-libre' })
+  });
+  assert.equal(res.status, 204);
+
+  const { rows } = await pool.query(
+    "select path from telemetry_events where project_id=$1 and event_type='page_view' order by occurred_at desc limit 1",
+    [project]
+  );
+  assert.equal(rows[0].path, 'home', 'ni la query ni le fragment ne doivent jamais atteindre la base');
   assert.ok(!rows[0].path.includes('@'), 'aucune trace d\'email persistée');
 
   await pool.query('delete from telemetry_events where project_id=$1', [project]);
 });
 
-test('path -- BOUT EN BOUT HTTP -- texte libre non-path -- jamais persisté (path devient null)', async () => {
+test('path -- BOUT EN BOUT HTTP -- chaîne arbitraire alphanumérique valide syntaxiquement n\'arrive jamais en DB', async () => {
+  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'page_view', path: 'julien-dupont' })
+  });
+  assert.equal(res.status, 204);
+
+  const { rows } = await pool.query(
+    "select path from telemetry_events where project_id=$1 and event_type='page_view' order by occurred_at desc limit 1",
+    [project]
+  );
+  assert.equal(rows[0].path, null, 'une chaîne hors de l\'univers canonique connu ne doit jamais atteindre la base telle quelle');
+
+  await pool.query('delete from telemetry_events where project_id=$1', [project]);
+});
+
+test('path -- BOUT EN BOUT HTTP -- route dynamique réelle (news-<slug>) canonicalisée en DB', async () => {
+  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'page_view', path: 'news-mon-article-confidentiel' })
+  });
+  assert.equal(res.status, 204);
+
+  const { rows } = await pool.query(
+    "select path from telemetry_events where project_id=$1 and event_type='page_view' order by occurred_at desc limit 1",
+    [project]
+  );
+  assert.equal(rows[0].path, 'news', 'jamais le slug, uniquement la catégorie coarse');
+
+  await pool.query('delete from telemetry_events where project_id=$1', [project]);
+});
+
+test('path -- BOUT EN BOUT HTTP -- texte libre non-canonique -- jamais persisté', async () => {
   const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -327,24 +398,16 @@ test('path -- BOUT EN BOUT HTTP -- texte libre non-path -- jamais persisté (pat
     "select path from telemetry_events where project_id=$1 and event_type='page_view' order by occurred_at desc limit 1",
     [project]
   );
-  assert.equal(rows[0].path, null, 'texte libre refusé entièrement, jamais neutralisé en une valeur plausible mais fausse');
+  assert.equal(rows[0].path, null);
 
   await pool.query('delete from telemetry_events where project_id=$1', [project]);
 });
 
-test('path -- BOUT EN BOUT HTTP -- télémétrie normale existante inchangée', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event: 'page_view', path: 'ivory' })
-  });
-  assert.equal(res.status, 204);
-
-  const { rows } = await pool.query(
-    "select path from telemetry_events where project_id=$1 and event_type='page_view' order by occurred_at desc limit 1",
-    [project]
+test('path -- aucun raw Match/user text -- structure de telemetry_events inchangée par cette fermeture', async () => {
+  const { rows: columns } = await pool.query(
+    "select column_name from information_schema.columns where table_name='telemetry_events'"
   );
-  assert.equal(rows[0].path, 'ivory', 'la télémétrie existante normale ne doit jamais être affectée par cette fermeture');
-
-  await pool.query('delete from telemetry_events where project_id=$1', [project]);
+  const columnNames = columns.map(c => c.column_name);
+  assert.ok(!columnNames.includes('raw_path'), 'aucune colonne supplémentaire de contournement introduite');
+  assert.equal(columnNames.length, 12, 'schéma inchangé par cette fermeture -- uniquement le contrat applicatif de path renforcé');
 });

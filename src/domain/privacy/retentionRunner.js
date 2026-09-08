@@ -1,11 +1,10 @@
-// Retention runner -- Privacy & Data Lifecycle V1, Batch 2.
-//
-// Point d'entrée unique et déterministe pour toutes les politiques de
-// rétention V1. Batch 2 n'en confie que deux : sessions et
-// invitations. Pilotage, external identities, user lifecycle,
-// project deletion, publications restent explicitement hors scope --
-// chacun rejoindra ce même runner dans un batch ultérieur, jamais un
-// second orchestrateur parallèle.
+// Retention runner -- Privacy & Data Lifecycle V1. Point d'entrée
+// unique et déterministe pour toutes les politiques de rétention V1.
+// Batch 2 : sessions et invitations. Batch 3 : + audit_events.
+// Pilotage, external identities, user lifecycle, project deletion,
+// publications restent explicitement hors scope -- chacun rejoindra
+// ce même runner dans un batch ultérieur, jamais un second
+// orchestrateur parallèle.
 //
 // `now` est injectable -- jamais une dépendance implicite à l'horloge
 // du process ni au fuseau horaire local du serveur. Toute
@@ -32,6 +31,7 @@
 
 import { purgeExpiredSessions } from './sessionRetention.js';
 import { expirePendingInvitations, purgeTerminalInvitations } from './invitationRetention.js';
+import { purgeOldAuditEvents } from './auditRetention.js';
 
 async function runPolicyInOwnTransaction(pool, { logger, policyName, work }) {
   const client = await pool.connect();
@@ -72,7 +72,13 @@ export async function runRetentionPolicies(pool, { now = new Date(), logger }) {
     }
   });
 
-  const result = { sessions, invitations };
+  const auditEvents = await runPolicyInOwnTransaction(pool, {
+    logger,
+    policyName: 'audit_events',
+    work: async (client) => ({ purged: await purgeOldAuditEvents(client, { now }) })
+  });
+
+  const result = { sessions, invitations, auditEvents };
   logger.info({ result }, 'retention.completed');
   return result;
 }

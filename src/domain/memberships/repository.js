@@ -3,6 +3,7 @@
 
 import { organizationCapabilitiesForBundle, projectCapabilitiesForBundle } from '../permissions/capabilities.js';
 import { hasAdministrativeCapabilityRemaining, ADMINISTRATIVE_CAPABILITY } from '../permissions/lastAdministrator.js';
+import { recordAuditEvent, AuditEventType } from '../audit/auditEvents.js';
 
 export async function findTenantMembershipForUser(pool, userId) {
   // Le schéma autorise déjà plusieurs OrganizationMembership par
@@ -310,7 +311,19 @@ export async function listExternalGroupMappings(pool, tenantId) {
 // jamais une seconde définition -- si la cascade laisserait la cible
 // (projet ou organisation) sans plus aucune capability administrative
 // effective, toute l'opération est annulée, atomiquement.
-export async function disableExternalGroupMapping(pool, { tenantId, mappingId }) {
+// Désactivation d'un mapping -- action ADMINISTRATIVE HUMAINE, jamais
+// un événement système. actorUserId est donc OBLIGATOIRE, jamais
+// optionnel/déduit -- distinct de recordAuditEvent (primitive
+// générique, dont actorUserId reste nullable pour de futurs
+// événements réellement système). Absence d'actor : fail fast avant
+// toute connexion/transaction, aucune mutation, aucune désactivation,
+// aucun grant révoqué, aucun audit event -- jamais une action humaine
+// transformée silencieusement en actor_user_id=null.
+export async function disableExternalGroupMapping(pool, { tenantId, mappingId, actorUserId }) {
+  if (!actorUserId) {
+    return { ok: false, code: 'ACTOR_REQUIRED' };
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -358,6 +371,19 @@ export async function disableExternalGroupMapping(pool, { tenantId, mappingId })
       );
     }
     await client.query("update external_group_mappings set status = 'disabled' where id = $1", [mappingId]);
+
+    // Audit -- même transaction métier, après validation, avant commit :
+    // soit mapping + grants + trace d'audit sont cohérents ensemble,
+    // soit rien n'est committé (une erreur technique ici fait échouer
+    // toute l'opération, jamais un mapping désactivé sans sa trace).
+    await recordAuditEvent(client, {
+      eventType: AuditEventType.EXTERNAL_GROUP_MAPPING_DISABLED,
+      actorUserId,
+      targetType: 'external_group_mapping',
+      targetId: mappingId,
+      tenantId,
+      projectId: mapping.target_type === 'project' ? mapping.target_id : null
+    });
 
     await client.query('COMMIT');
     return { ok: true, revokedGrantCount: grantsToRevoke.length };

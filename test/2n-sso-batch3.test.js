@@ -219,7 +219,7 @@ test('désactivation de mapping -- révoque tous ses grants actifs, transactionn
   const mappingId = await makeMapping({ targetType: 'project', targetId: project, groupId: 'batch3-grp-disable', bundle: 'contributor', issuer: ISSUER });
   await reconcileGroupsToGrants(pool, { userId, issuer: ISSUER, groups: { kind: 'complete', groupIds: ['batch3-grp-disable'] } });
 
-  const result = await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId });
+  const result = await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId, actorUserId: inviterUserId });
   assert.equal(result.ok, true);
   assert.equal(result.revokedGrantCount, 1);
 
@@ -241,7 +241,7 @@ test('désactivation de mapping -- ne touche jamais un autre mapping ni un grant
   await reconcileGroupsToGrants(pool, { userId: userA, issuer: ISSUER, groups: { kind: 'complete', groupIds: ['batch3-grp-isolation-1'] } });
   await reconcileGroupsToGrants(pool, { userId: userB, issuer: ISSUER, groups: { kind: 'complete', groupIds: ['batch3-grp-isolation-2'] } });
 
-  await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId: mappingToDisable });
+  await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId: mappingToDisable, actorUserId: inviterUserId });
 
   const { rows: [otherGrant] } = await pool.query('select status from project_grants where mapping_id=$1', [otherMapping]);
   assert.equal(otherGrant.status, 'active', 'le grant issu de l\'AUTRE mapping ne doit jamais être touché');
@@ -249,8 +249,8 @@ test('désactivation de mapping -- ne touche jamais un autre mapping ni un grant
 
 test('désactivation d\'un mapping déjà désactivé -- ALREADY_DISABLED, jamais une double révocation', async () => {
   const mappingId = await makeMapping({ targetType: 'project', targetId: project, groupId: 'batch3-grp-already', bundle: 'contributor', issuer: ISSUER });
-  await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId });
-  const second = await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId });
+  await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId, actorUserId: inviterUserId });
+  const second = await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId, actorUserId: inviterUserId });
   assert.equal(second.ok, false);
   assert.equal(second.code, 'ALREADY_DISABLED');
 });
@@ -272,7 +272,7 @@ test('garde-fou dernier administrateur -- désactivation de mapping refusée si 
   );
   assert.equal(n, 1);
 
-  const result = await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId });
+  const result = await disableExternalGroupMapping(pool, { tenantId: tenant, mappingId, actorUserId: inviterUserId });
   assert.equal(result.ok, false);
   assert.equal(result.code, 'LAST_ADMIN');
 
@@ -582,11 +582,11 @@ test('garde-fou organisationnel réel -- révoquer le dernier organization_admin
   await reconcileGroupsToGrants(pool, { userId: userMember, issuer: ISSUER, groups: { kind: 'complete', groupIds: ['batch3-grp-org-member-real'] } });
 
   // Retirer le member -- jamais bloqué, ce n'est pas une capability administrative.
-  const memberResult = await disableExternalGroupMapping(pool, { tenantId: dedicatedTenant.id, mappingId: memberMapping });
+  const memberResult = await disableExternalGroupMapping(pool, { tenantId: dedicatedTenant.id, mappingId: memberMapping, actorUserId: inviterUserId });
   assert.equal(memberResult.ok, true, 'retirer un accès member ne doit jamais être bloqué par le garde-fou administratif');
 
   // Retirer le SEUL organization_admin -- doit être bloqué.
-  const adminResult = await disableExternalGroupMapping(pool, { tenantId: dedicatedTenant.id, mappingId: adminMapping });
+  const adminResult = await disableExternalGroupMapping(pool, { tenantId: dedicatedTenant.id, mappingId: adminMapping, actorUserId: inviterUserId });
   assert.equal(adminResult.ok, false);
   assert.equal(adminResult.code, 'LAST_ADMIN');
 

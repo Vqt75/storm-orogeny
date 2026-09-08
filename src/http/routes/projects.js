@@ -18,6 +18,7 @@ import {
 import { Errors } from '../../errors/AppError.js';
 import { ALLOWED_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
 import { ALLOWED_FONT_MIME_TO_EXTENSION, MAX_FONT_BYTES, detectFontExtension, FONT_EXTENSION_TO_CANONICAL_MIME } from '../../domain/assets/fontValidation.js';
+import { withProjectDeletionGuard } from '../../domain/projects/deletionJobs.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
 const uploadFont = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FONT_BYTES } });
@@ -171,18 +172,34 @@ export function createProjectsRouter({ pool, storageAdapter }) {
       }
 
       try {
-        const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
-        const assetId = await insertAsset(pool, {
-          tenantId: req.project.tenant_id,
-          projectId: req.project.id,
-          kind: 'logo',
-          storageKey,
-          contentType: req.file.mimetype,
-          byteSize: req.file.size
+        const guard = await withProjectDeletionGuard(pool, {
+          projectId: req.params.projectId,
+          storageAdapter,
+          work: async (client, trackSavedKey) => {
+            const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
+            trackSavedKey(storageKey);
+            const assetId = await insertAsset(client, {
+              tenantId: req.project.tenant_id,
+              projectId: req.project.id,
+              kind: 'logo',
+              storageKey,
+              contentType: req.file.mimetype,
+              byteSize: req.file.size
+            });
+            await updateProjectIdentityLogo(client, { projectId: req.project.id, logoAssetId: assetId });
+            return { assetId };
+          }
         });
-        await updateProjectIdentityLogo(pool, { projectId: req.project.id, logoAssetId: assetId });
+        if (!guard.ok) {
+          if (guard.code === 'PROJECT_DELETION_IN_PROGRESS') {
+            next(Errors.forbidden('Ce projet fait l\'objet d\'une demande de suppression définitive en cours -- aucun nouvel objet ne peut être ajouté.'));
+          } else {
+            next(Errors.notFound('Projet'));
+          }
+          return;
+        }
 
-        res.status(201).json({ assetId, url: `/api/assets/${assetId}` });
+        res.status(201).json({ assetId: guard.result.assetId, url: `/api/assets/${guard.result.assetId}` });
       } catch (err) {
         next(err);
       }
@@ -210,17 +227,33 @@ export function createProjectsRouter({ pool, storageAdapter }) {
       }
       const fontName = String(req.body.fontName || '').trim() || req.file.originalname.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
       try {
-        const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
-        const assetId = await insertAsset(pool, {
-          tenantId: req.project.tenant_id,
-          projectId: req.project.id,
-          kind: 'font',
-          storageKey,
-          contentType: FONT_EXTENSION_TO_CANONICAL_MIME[extension],
-          byteSize: req.file.size
+        const guard = await withProjectDeletionGuard(pool, {
+          projectId: req.params.projectId,
+          storageAdapter,
+          work: async (client, trackSavedKey) => {
+            const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
+            trackSavedKey(storageKey);
+            const assetId = await insertAsset(client, {
+              tenantId: req.project.tenant_id,
+              projectId: req.project.id,
+              kind: 'font',
+              storageKey,
+              contentType: FONT_EXTENSION_TO_CANONICAL_MIME[extension],
+              byteSize: req.file.size
+            });
+            await updateProjectIdentityFontAsset(client, { projectId: req.project.id, role, assetId, fontName });
+            return { assetId };
+          }
         });
-        await updateProjectIdentityFontAsset(pool, { projectId: req.project.id, role, assetId, fontName });
-        res.status(201).json({ assetId, fontName, url: `/api/assets/${assetId}` });
+        if (!guard.ok) {
+          if (guard.code === 'PROJECT_DELETION_IN_PROGRESS') {
+            next(Errors.forbidden('Ce projet fait l\'objet d\'une demande de suppression définitive en cours -- aucun nouvel objet ne peut être ajouté.'));
+          } else {
+            next(Errors.notFound('Projet'));
+          }
+          return;
+        }
+        res.status(201).json({ assetId: guard.result.assetId, fontName, url: `/api/assets/${guard.result.assetId}` });
       } catch (err) {
         next(err);
       }

@@ -32,5 +32,7 @@ export const AuditEventType = Object.freeze({
   EXTERNAL_GROUP_MAPPING_DISABLED: 'external_group_mapping.disabled',
   USER_DEACTIVATED: 'user.deactivated',
   USER_REACTIVATED: 'user.reactivated',
-  USER_ANONYMIZED: 'user.anonymized'
+  USER_ANONYMIZED: 'user.anonymized',
+  PROJECT_DELETION_REQUESTED: 'project.deletion_requested',
+  PROJECT_DELETION_CANCELLED: 'project.deletion_cancelled'
 });

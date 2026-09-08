@@ -8,7 +8,9 @@ import {
   listMemberProjectAccess
 } from '../../domain/memberships/repository.js';
 import { insertProjectInvitation, listSupportedLocales } from '../../domain/project-setup/repository.js';
+import { requestProjectDeletion, cancelProjectDeletion } from '../../domain/projects/deletionJobs.js';
 import { Errors } from '../../errors/AppError.js';
+import { AppError } from '../../errors/AppError.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -88,26 +90,58 @@ export function createControlRouter({ pool }) {
   // implémentée à ce stade (voir handoff, point 11 et 9 des consignes
   // de suivi : aucun DELETE physique, aucune purge CASCADE, jamais une
   // fausse réussite frontend tant que le chantier Storm Privacy & Data
-  // Lifecycle n'a pas déterminé catégories de données/rétention/
-  // anonymisation/audit survivant). La capability existe et est
-  // vérifiée -- prouve que la garde d'autorisation est déjà en place
-  // et distincte du lifecycle -- mais l'action elle-même répond
-  // explicitement "non implémentée", jamais un 200 silencieux.
+  // Lifecycle n'avait pas déterminé catégories de données/rétention/
+  // anonymisation/audit survivant). Batch 5 : la DEMANDE elle-même est
+  // désormais réelle -- capture immédiate du manifest, garde-fou
+  // lifecycle/last-active-job, audit transactionnel. La PURGE physique
+  // reste un futur batch (Batch 6) -- jamais exécutée ici.
   router.post(
     '/projects/:projectId/delete-permanently',
     requireOrganizationCapability(pool, OrganizationCapability.PROJECTS_DELETE_PERMANENTLY),
-    (req, res, next) => {
+    async (req, res, next) => {
       if (!UUID_PATTERN.test(req.params.projectId)) {
         next(Errors.notFound('Projet'));
         return;
       }
-      res.status(501).json({
-        ok: false,
-        error: {
-          code: 'NOT_IMPLEMENTED',
-          message: 'La suppression définitive n\'est pas encore implémentée. Ce chantier attend Storm Privacy & Data Lifecycle (catégories de données, rétention, anonymisation, purge, audit survivant).'
-        }
+      const result = await requestProjectDeletion(pool, {
+        tenantId: req.tenantMembership.tenant_id,
+        projectId: req.params.projectId,
+        actorUserId: req.user.id
       });
+      if (!result.ok) {
+        const status = result.code === 'NOT_FOUND' ? 404
+          : result.code === 'PROJECT_NOT_ARCHIVED' ? 409
+          : result.code === 'DELETION_ALREADY_REQUESTED' ? 409
+          : 400;
+        next(new AppError(result.code, 'Demande de suppression définitive refusée.', { status }));
+        return;
+      }
+      // Jamais de storage key révélée -- uniquement les métadonnées du
+      // job lui-même.
+      res.status(202).json({
+        ok: true,
+        jobId: result.jobId,
+        purgeAfter: result.purgeAfter,
+        cancellable: result.cancellable
+      });
+    }
+  );
+
+  router.post(
+    '/projects/:projectId/delete-permanently/cancel',
+    requireOrganizationCapability(pool, OrganizationCapability.PROJECTS_DELETE_PERMANENTLY),
+    async (req, res, next) => {
+      if (!UUID_PATTERN.test(req.params.projectId) || !UUID_PATTERN.test(req.body?.jobId || '')) {
+        next(Errors.invalid('jobId requis et valide.'));
+        return;
+      }
+      const result = await cancelProjectDeletion(pool, { jobId: req.body.jobId, actorUserId: req.user.id });
+      if (!result.ok) {
+        const status = result.code === 'NOT_FOUND' ? 404 : 409;
+        next(new AppError(result.code, 'Annulation refusée.', { status }));
+        return;
+      }
+      res.status(200).json({ ok: true });
     }
   );
 

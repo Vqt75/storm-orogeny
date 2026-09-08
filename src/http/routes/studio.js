@@ -6,6 +6,7 @@ import { Errors } from '../../errors/AppError.js';
 import * as repo from '../../domain/studio/repository.js';
 import * as validate from '../../domain/studio/validation.js';
 import { insertAsset } from '../../domain/project-setup/repository.js';
+import { withProjectDeletionGuard } from '../../domain/projects/deletionJobs.js';
 import { ALLOWED_MIME_TO_EXTENSION, ALLOWED_DOCUMENT_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
 
 // Allowlist serveur des kinds acceptés par cet endpoint générique —
@@ -110,13 +111,34 @@ export function createStudioRouter({ pool, storageAdapter }) {
         return;
       }
 
-      const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
-      const assetId = await insertAsset(pool, {
-        tenantId: req.project.tenant_id, projectId: req.project.id,
-        kind, storageKey, contentType: req.file.mimetype, byteSize: req.file.size
+      // Sérialisation réelle (Privacy V1, Batch 5 -- fermeture TOCTOU) :
+      // storage.save + insertAsset s'exécutent PENDANT que le verrou
+      // sur la ligne projects est tenu, même verrou que
+      // requestProjectDeletion -- exclusion mutuelle réelle, jamais un
+      // simple check-then-act.
+      const guard = await withProjectDeletionGuard(pool, {
+        projectId: req.params.projectId,
+        storageAdapter,
+        work: async (client, trackSavedKey) => {
+          const { storageKey } = await storageAdapter.save(req.file.buffer, { extension });
+          trackSavedKey(storageKey);
+          const assetId = await insertAsset(client, {
+            tenantId: req.project.tenant_id, projectId: req.project.id,
+            kind, storageKey, contentType: req.file.mimetype, byteSize: req.file.size
+          });
+          return { assetId };
+        }
       });
+      if (!guard.ok) {
+        if (guard.code === 'PROJECT_DELETION_IN_PROGRESS') {
+          next(Errors.forbidden('Ce projet fait l\'objet d\'une demande de suppression définitive en cours -- aucun nouvel objet ne peut être ajouté.'));
+        } else {
+          next(Errors.notFound('Projet'));
+        }
+        return;
+      }
 
-      res.status(201).json({ assetId });
+      res.status(201).json({ assetId: guard.result.assetId });
     })
   );
 

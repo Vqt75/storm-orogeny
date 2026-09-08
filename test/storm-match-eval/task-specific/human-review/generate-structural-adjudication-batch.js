@@ -15,6 +15,19 @@ export const ADJUDICATION_BATCH_01_ITEM_IDS = Object.freeze([
   'boundary-rooms-focus'
 ]);
 
+export const ADJUDICATION_BATCH_02_ITEM_IDS = Object.freeze([
+  'ambiguity-capacity-01',
+  'ambiguity-capacity-03',
+  'ambiguity-capacity-05',
+  'ambiguity-capacity-06',
+  'ambiguity-capacity-07',
+  'ambiguity-capacity-10',
+  'ambiguity-capacity-11',
+  'ambiguity-capacity-13',
+  'ambiguity-capacity-14',
+  'ambiguity-capacity-16'
+]);
+
 export const EXPECTED_COMPARISON_MATRIX_FINGERPRINT = '2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd';
 export const DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT = join(import.meta.dirname, 'generated-structural-review');
 export const DEFAULT_ADJUDICATION_BATCH_01_PATH = join(
@@ -23,11 +36,25 @@ export const DEFAULT_ADJUDICATION_BATCH_01_PATH = join(
   'batches',
   'adjudication-batch-01-equivalence-boundaries.md'
 );
+export const DEFAULT_ADJUDICATION_BATCH_02_PATH = join(
+  DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  'adjudication',
+  'batches',
+  'adjudication-batch-02-ambiguities-01.md'
+);
 
 const PACKET_BASENAME_BY_KIND = Object.freeze({
   EQUIVALENCE_AND_PREFERRED: '01-equivalence-preferred',
-  KNOWLEDGE_BOUNDARIES: '02-knowledge-boundaries'
+  KNOWLEDGE_BOUNDARIES: '02-knowledge-boundaries',
+  AMBIGUITY_CAPACITY_FAMILIES: '03-ambiguity-families'
 });
+
+const AMBIGUITY_DECISION_FIELDS = Object.freeze([
+  'ambiguityFamilyDisposition.value',
+  'ambiguityMechanism.value',
+  'substantiallyDifferentCoveredGroups.value',
+  'substantiallyDifferentCoveredGroups.canonicalPartition'
+]);
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -52,12 +79,31 @@ function assertMatrixContract(matrix) {
 
 function loadPacket(generatedRoot, packetKind, reviewerSlot) {
   const basename = PACKET_BASENAME_BY_KIND[packetKind];
-  if (!basename) throw new Error(`Packet kind is outside adjudication batch 01: ${packetKind}`);
+  if (!basename) throw new Error(`Packet kind is outside supported structural adjudication batches: ${packetKind}`);
   return readJson(join(
     generatedRoot,
     `reviewer-${reviewerSlot.toLowerCase()}`,
     `${basename}.fr.json`
   ));
+}
+
+function reviewItemMetadataForReviewer(source, packet, reviewerKey) {
+  const reviewItemRef = source[reviewerKey].reviewItemRef;
+  const reviewItem = packet.reviewItems.find(candidate => candidate.reviewItemRef === reviewItemRef);
+  if (!reviewItem) throw new Error(`Missing source review item: ${source.canonicalReviewItemId}/${reviewerKey}/${reviewItemRef}`);
+  return {
+    title: reviewItem.title,
+    businessContext: reviewItem.businessContext
+  };
+}
+
+function valueAtPath(value, path) {
+  return path.split('.').reduce((current, key) => current?.[key], value);
+}
+
+function strictAgreementFields(source) {
+  return AMBIGUITY_DECISION_FIELDS.filter(path => canonicalJson(valueAtPath(source.reviewerA.decisions, path))
+    === canonicalJson(valueAtPath(source.reviewerB.decisions, path)));
 }
 
 function knowledgeContentForReviewer(item, packet, reviewerKey) {
@@ -133,6 +179,91 @@ export function buildStructuralAdjudicationBatch01({ generatedRoot = DEFAULT_GEN
   });
 }
 
+export function buildStructuralAdjudicationBatch02({ generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT } = {}) {
+  const matrixPath = join(
+    generatedRoot,
+    'adjudication',
+    'reviewer-ab-comparison-matrix.json'
+  );
+  const matrix = readJson(matrixPath);
+  assertMatrixContract(matrix);
+  const byId = new Map(matrix.items.map(item => [item.canonicalReviewItemId, item]));
+  const items = ADJUDICATION_BATCH_02_ITEM_IDS.map(sourceItemId => {
+    const source = byId.get(sourceItemId);
+    if (!source) throw new Error(`Missing adjudication batch item: ${sourceItemId}`);
+    if (source.packetKind !== 'AMBIGUITY_CAPACITY_FAMILIES'
+      || !source.requiresAdjudication
+      || source.completeAgreement) {
+      throw new Error(`Batch 02 item is not a pending ambiguity adjudication: ${sourceItemId}`);
+    }
+    const packetA = loadPacket(generatedRoot, source.packetKind, 'A');
+    const packetB = loadPacket(generatedRoot, source.packetKind, 'B');
+    const readableA = knowledgeContentForReviewer(source, packetA, 'reviewerA');
+    const readableB = knowledgeContentForReviewer(source, packetB, 'reviewerB');
+    if (canonicalJson(readableA) !== canonicalJson(readableB)) {
+      throw new Error(`Reviewer source knowledge differs for ${sourceItemId}`);
+    }
+    const metadataA = reviewItemMetadataForReviewer(source, packetA, 'reviewerA');
+    const metadataB = reviewItemMetadataForReviewer(source, packetB, 'reviewerB');
+    if (canonicalJson(metadataA) !== canonicalJson(metadataB)) {
+      throw new Error(`Reviewer source family metadata differs for ${sourceItemId}`);
+    }
+    return {
+      sourceItemId,
+      packetKind: source.packetKind,
+      sourceFamily: {
+        title: metadataA.title,
+        businessContext: metadataA.businessContext,
+        scenarioFamilyId: null
+      },
+      knowledge: readableA,
+      reviewerA: {
+        decisions: structuredClone(source.reviewerA.decisions),
+        rationales: structuredClone(source.reviewerA.rationales)
+      },
+      reviewerB: {
+        decisions: structuredClone(source.reviewerB.decisions),
+        rationales: structuredClone(source.reviewerB.rationales)
+      },
+      comparison: {
+        status: source.comparisonStatus,
+        firstLevelAgreement: source.firstLevelAgreement,
+        completeAgreement: source.completeAgreement,
+        strictAgreementFields: strictAgreementFields(source),
+        findings: structuredClone(source.comparisonFindings),
+        crosswalk: {
+          reviewerA: {
+            reviewItemRef: source.reviewerA.reviewItemRef,
+            knowledgeRefMappings: structuredClone(source.reviewerA.knowledgeRefMappings)
+          },
+          reviewerB: {
+            reviewItemRef: source.reviewerB.reviewItemRef,
+            knowledgeRefMappings: structuredClone(source.reviewerB.knowledgeRefMappings)
+          }
+        }
+      },
+      humanDecision: {
+        decision: 'PENDING',
+        rationale: 'PENDING',
+        futureRule: 'PENDING'
+      }
+    };
+  });
+  return Object.freeze({
+    batchId: 'adjudication-batch-02-ambiguities-01',
+    sourceMatrixFingerprint: matrix.matrixFingerprint,
+    sourceReviewerSeals: {
+      reviewerA: matrix.sourceReviews.reviewerA.sealHash,
+      reviewerB: matrix.sourceReviews.reviewerB.sealHash
+    },
+    status: matrix.status,
+    generationAuthorized: false,
+    adjudicationPerformed: false,
+    itemCount: items.length,
+    items
+  });
+}
+
 function escapeTableCell(value) {
   return value.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>');
 }
@@ -175,6 +306,36 @@ function renderReviewer(lines, item, reviewerKey, label) {
   }
 }
 
+function renderAmbiguityGroups(lines, decision) {
+  const partition = decision.substantiallyDifferentCoveredGroups.canonicalPartition;
+  if (partition === null) {
+    lines.push('- Groupes couverts substantiellement différents : non applicables dans cette décision.');
+    return;
+  }
+  lines.push('- Groupes couverts substantiellement différents :');
+  partition.forEach((group, index) => lines.push(`  - Groupe ${index + 1} : ${group.map(entryId => `\`${entryId}\``).join(', ')}`));
+}
+
+function renderAmbiguityReviewer(lines, item, reviewerKey, label) {
+  const reviewer = item[reviewerKey];
+  const decisions = reviewer.decisions;
+  lines.push(`### Reviewer ${label}`, '');
+  lines.push(`- Classification : \`${decisions.ambiguityFamilyDisposition.value}\``);
+  lines.push(`- Mécanisme : ${decisions.ambiguityMechanism.value === null ? 'non applicable' : `\`${decisions.ambiguityMechanism.value}\``}`);
+  renderAmbiguityGroups(lines, decisions);
+  lines.push('', `Rationales Reviewer ${label} :`, '');
+  for (const [decisionType, rationale] of Object.entries(reviewer.rationales)) {
+    lines.push(`- \`${decisionType}\``, '', quotedRationale(rationale), '');
+  }
+}
+
+function renderCrosswalk(lines, label, crosswalk) {
+  lines.push(`- Reviewer ${label} : item local \`${crosswalk.reviewItemRef}\``);
+  for (const mapping of crosswalk.knowledgeRefMappings) {
+    lines.push(`  - \`${mapping.localKnowledgeRef}\` → \`${mapping.entryId}\``);
+  }
+}
+
 export function renderStructuralAdjudicationBatch01(batch) {
   const lines = [
     '# Adjudication structurelle — Batch 01 : équivalence et frontières métier',
@@ -209,6 +370,68 @@ export function renderStructuralAdjudicationBatch01(batch) {
   return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
 }
 
+export function renderStructuralAdjudicationBatch02(batch) {
+  const lines = [
+    '# Adjudication structurelle — Batch 02 : ambiguïtés 01',
+    '',
+    `- Batch : \`${batch.batchId}\``,
+    `- Matrice source : \`${batch.sourceMatrixFingerprint}\``,
+    `- Seal Reviewer A : \`${batch.sourceReviewerSeals.reviewerA}\``,
+    `- Seal Reviewer B : \`${batch.sourceReviewerSeals.reviewerB}\``,
+    `- Statut : \`${batch.status}\``,
+    `- Autorisation de génération : \`${batch.generationAuthorized}\``,
+    `- Adjudication effectuée : \`${batch.adjudicationPerformed}\``,
+    `- Items : ${batch.itemCount}`,
+    '',
+    '## Doctrine de revue',
+    '',
+    '- Liquid Core évalue l’answerability et le retrieval à partir du contenu publié.',
+    '- Liquid Core ne génère aucune vérité projet.',
+    '- Une formulation peut relever d’une ambiguïté structurelle avec alternatives, être sous-spécifiée, mettre en concurrence plusieurs connaissances, être artificielle ou manquer de preuves suffisantes.',
+    '- L’arbitrage humain doit établir la structure de vérité nécessaire à la future génération du corpus.',
+    '- `generationAuthorized` reste `false`.',
+    '',
+    '> Les artefacts sources ne contiennent encore ni formulation utilisateur générée ni `scenarioFamilyId`. Chaque section restitue donc la famille candidate, son contexte métier source et ses Q&A canoniques, sans compléter ces absences.',
+    '> Aucune des entries de ce batch ne relève des groupes d’équivalence ou sélections `preferredEntryId` déjà scellés dans le Batch 01.',
+    '> Ce paquet ne contient aucune adjudication : les blocs de décision restent explicitement à `PENDING`.',
+    ''
+  ];
+
+  batch.items.forEach((item, index) => {
+    lines.push(`## ${index + 1}. ${item.sourceItemId} — ${item.sourceFamily.title}`, '');
+    lines.push('### Identification', '');
+    lines.push(`- Item canonique : \`${item.sourceItemId}\``);
+    lines.push(`- Type : \`${item.packetKind}\``);
+    lines.push(`- Famille source : ${item.sourceFamily.title}`);
+    lines.push(`- Formulation source disponible — contexte métier : ${item.sourceFamily.businessContext}`);
+    lines.push('- `scenarioFamilyId` : non attribué dans les artefacts sources.', '');
+
+    renderAmbiguityReviewer(lines, item, 'reviewerA', 'A');
+    renderAmbiguityReviewer(lines, item, 'reviewerB', 'B');
+
+    lines.push('### Comparaison A/B', '');
+    lines.push(`- Statut exact de la matrice : \`${item.comparison.status}\``);
+    lines.push(`- Accord de premier niveau : ${item.comparison.firstLevelAgreement ? 'oui' : 'non'}`);
+    lines.push(`- Accord complet : ${item.comparison.completeAgreement ? 'oui' : 'non'}`);
+    lines.push(`- Dimensions strictement égales : ${item.comparison.strictAgreementFields.length === 0 ? 'aucune' : item.comparison.strictAgreementFields.map(field => `\`${field}\``).join(', ')}`);
+    lines.push(`- Dimensions en désaccord consignées par la matrice : ${item.comparison.findings.map(finding => `\`${finding.field}\` (\`${finding.status}\`)`).join(', ')}`);
+    lines.push('', 'Crosswalk curator-only utilisé :', '');
+    renderCrosswalk(lines, 'A', item.comparison.crosswalk.reviewerA);
+    renderCrosswalk(lines, 'B', item.comparison.crosswalk.reviewerB);
+    lines.push('');
+
+    lines.push('### Connaissances publiées nécessaires', '');
+    lines.push('| q-id canonique | Question canonique | Réponse canonique |', '|---|---|---|');
+    for (const knowledge of item.knowledge) {
+      lines.push(`| \`${knowledge.entryId}\` | ${escapeTableCell(knowledge.canonicalQuestion)} | ${escapeTableCell(knowledge.canonicalAnswer)} |`);
+    }
+    lines.push('');
+
+    lines.push('### Décision humaine — à remplir', '', '```text', 'HUMAN_ADJUDICATION:', 'decision: PENDING', 'rationale: PENDING', 'future_rule: PENDING', '```', '');
+  });
+  return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
+}
+
 export function materialiseStructuralAdjudicationBatch01({
   generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
   outputPath = DEFAULT_ADJUDICATION_BATCH_01_PATH,
@@ -233,7 +456,36 @@ export function materialiseStructuralAdjudicationBatch01({
   };
 }
 
+export function materialiseStructuralAdjudicationBatch02({
+  generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  outputPath = DEFAULT_ADJUDICATION_BATCH_02_PATH,
+  checkOnly = false
+} = {}) {
+  const batch = buildStructuralAdjudicationBatch02({ generatedRoot });
+  const expected = renderStructuralAdjudicationBatch02(batch);
+  if (checkOnly) {
+    const actual = readFileSync(outputPath, 'utf8').replace(/\r\n/g, '\n');
+    if (actual !== expected.replace(/\r\n/g, '\n')) throw new Error(`Stale adjudication batch: ${outputPath}`);
+  } else {
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, expected, 'utf8');
+  }
+  return {
+    batchId: batch.batchId,
+    checkOnly,
+    generationAuthorized: batch.generationAuthorized,
+    itemCount: batch.itemCount,
+    sourceMatrixFingerprint: batch.sourceMatrixFingerprint,
+    status: batch.status
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const result = materialiseStructuralAdjudicationBatch01({ checkOnly: process.argv.includes('--check') });
+  const batchArgument = process.argv.find(argument => argument.startsWith('--batch='))?.split('=')[1] ?? '01';
+  const materialise = batchArgument === '02'
+    ? materialiseStructuralAdjudicationBatch02
+    : materialiseStructuralAdjudicationBatch01;
+  if (!['01', '02'].includes(batchArgument)) throw new Error(`Unsupported adjudication batch: ${batchArgument}`);
+  const result = materialise({ checkOnly: process.argv.includes('--check') });
   process.stdout.write(`${canonicalJson(result)}\n`);
 }

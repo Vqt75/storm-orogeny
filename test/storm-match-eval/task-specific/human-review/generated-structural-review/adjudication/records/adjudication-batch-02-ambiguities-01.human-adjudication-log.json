@@ -1,0 +1,331 @@
+{
+  "schemaVersion": 1,
+  "logType": "STRUCTURAL_HUMAN_ADJUDICATION_LOG",
+  "batchId": "adjudication-batch-02-ambiguities-01",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  },
+  "status": "PENDING_HUMAN_REVIEW",
+  "generationAuthorized": false,
+  "appendOnly": true,
+  "authorizedSourceItemIds": [
+    "ambiguity-capacity-01",
+    "ambiguity-capacity-03",
+    "ambiguity-capacity-05",
+    "ambiguity-capacity-06",
+    "ambiguity-capacity-07",
+    "ambiguity-capacity-10",
+    "ambiguity-capacity-11",
+    "ambiguity-capacity-13",
+    "ambiguity-capacity-14",
+    "ambiguity-capacity-16"
+  ],
+  "humanDoctrine": {
+    "provenance": "HUMAN_ADJUDICATION",
+    "decisionTask": "STRUCTURAL_AMBIGUITY_FAMILY_ADJUDICATION",
+    "futureRuleRequired": true,
+    "generatedUserFormulationsAvailable": false,
+    "generationAuthorized": false
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "eventId": "adjudication-batch-02-event-001",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-01",
+      "sourceComparisonItemFingerprint": "1827c66ebf0ad58e23de5a0f881774eb288122a17982942c09aaee718edff966",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "underspecifiedReference"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q010",
+              "equinoxe-q012",
+              "equinoxe-q015"
+            ],
+            [
+              "equinoxe-q014"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "La stabilité du quartier d’équipe et la permanence d’un poste individuel sont deux réalités distinctes. L’ambiguïté vient surtout du référent insuffisamment précisé d’une « place » ou « position stable » : le quartier est stable, le poste individuel reste non nominatif et choisi quotidiennement.",
+      "futureRule": "Quand une même notion spatiale peut désigner le poste individuel ou la zone d’équipe, traiter comme `underspecifiedReference`; ne jamais confondre stabilité du quartier et attribution nominative du poste.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": null,
+      "eventHash": "9e1f44802a88b5bcd6b8b719b845860a067a64ac0223ced354d9d0102e8efd3b"
+    },
+    {
+      "sequence": 2,
+      "eventId": "adjudication-batch-02-event-002",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-03",
+      "sourceComparisonItemFingerprint": "068dfedbe6ffc163b4d7183b4c120b96ffb54e0afee56c766ce08641378fba68",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Wifi et branchement physique du poste sont deux sujets IT distincts rapprochés principalement par le terme générique « connexion ». En l’absence d’une formulation utilisateur réelle qui crée effectivement cette hésitation, la famille fabrique une ambiguïté lexicale plutôt qu’une ambiguïté métier.",
+      "futureRule": "Une proximité lexicale seule ne suffit pas à créer une famille d’ambiguïté : les lectures doivent correspondre à une ambiguïté métier plausible, pas simplement partager un mot générique.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "9e1f44802a88b5bcd6b8b719b845860a067a64ac0223ced354d9d0102e8efd3b",
+      "eventHash": "ab203684f2ebbd24609ac9b0345710d8be0673956ee91dce727ccb8cba822d5c"
+    },
+    {
+      "sequence": 3,
+      "eventId": "adjudication-batch-02-event-003",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-05",
+      "sourceComparisonItemFingerprint": "cb511f2715c54f59c1baac678835ec022913845ca7c7658d97dd5a61fb140f4b",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "blockedTemporalInstability"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "La recharge des vélos électriques est confirmée, tandis que les modalités de stationnement/recharge automobile restent explicitement à préciser. Les deux branches ne constituent donc pas encore deux groupes métier suffisamment stabilisés pour générer une ambiguïté fiable.",
+      "futureRule": "Une branche dont la connaissance substantielle est encore explicitement reportée ne constitue pas un groupe couvert stable pour générer une ambiguïté, sauf si « l’information n’est pas encore disponible » est elle-même la vérité canonique recherchée.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "ab203684f2ebbd24609ac9b0345710d8be0673956ee91dce727ccb8cba822d5c",
+      "eventHash": "4e49dd207535fe6333b6b754443bc690f1a701909d4d6aba301e4a58804459d3"
+    },
+    {
+      "sequence": 4,
+      "eventId": "adjudication-batch-02-event-004",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-06",
+      "sourceComparisonItemFingerprint": "fc041bdf39dd9fcb2f6aaa85ff968bb7596152e4b81ae2508d09a25790371fd8",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "underspecifiedReference"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q035",
+              "equinoxe-q036",
+              "equinoxe-q094",
+              "equinoxe-q095"
+            ],
+            [
+              "equinoxe-q037",
+              "equinoxe-q073"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Le corpus distingue réellement deux objets : les casiers personnels associés aux effets personnels et les casiers situés à proximité du local vélos. Une référence générique à un « casier » ou rangement sans contexte peut viser l’un ou l’autre.",
+      "futureRule": "Lorsqu’un même nom d’équipement désigne plusieurs objets physiques distincts selon leur localisation ou leur usage, exiger le contexte et traiter comme `underspecifiedReference`.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "4e49dd207535fe6333b6b754443bc690f1a701909d4d6aba301e4a58804459d3",
+      "eventHash": "9b44300275798fed6c4de97f942e2694c43b7c235caf3b61a02ee158c2e88fc2"
+    },
+    {
+      "sequence": 5,
+      "eventId": "adjudication-batch-02-event-005",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-07",
+      "sourceComparisonItemFingerprint": "fec5a23970c1d082b7b5f0f6e02d98dc82507b9529d90b972ebb148153d90636",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "underspecifiedReference"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q003"
+            ],
+            [
+              "equinoxe-q004",
+              "equinoxe-q005",
+              "equinoxe-q007",
+              "equinoxe-q108"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q003` porte sur la stabilité générale du calendrier. Les quatre autres entrées décrivent ensemble le parcours de préparation avant déménagement : semaine de préparation, visites, anticipation et autres étapes. Les éclater en groupes distincts par jalon serait une granularité artificiellement fine.",
+      "futureRule": "Partitionner au niveau de l’intention métier, pas automatiquement au niveau de chaque date ou jalon : plusieurs étapes peuvent constituer un même groupe « préparation », distinct de la question de stabilité générale du calendrier.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "9b44300275798fed6c4de97f942e2694c43b7c235caf3b61a02ee158c2e88fc2",
+      "eventHash": "5b1bb9b151e96628b31da036d6e2b6540bf73e3ffd1b9b8ad8fc9d146d862871"
+    },
+    {
+      "sequence": 6,
+      "eventId": "adjudication-batch-02-event-006",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-10",
+      "sourceComparisonItemFingerprint": "19962e475f9a85e4b03ac1a962a1b309005847213be1f4fd6b395894b2d9da8b",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Finalité conviviale, offre alimentaire et accessibilité tout au long de la journée sont des attributs complémentaires du même Café central. Ils peuvent être restitués ensemble et ne forcent pas un choix entre des réponses substantiellement différentes.",
+      "futureRule": "Des facettes complémentaires d’un même lieu ne constituent pas une ambiguïté structurelle si elles peuvent être restituées ensemble sans contradiction ni choix d’intention exclusif.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "5b1bb9b151e96628b31da036d6e2b6540bf73e3ffd1b9b8ad8fc9d146d862871",
+      "eventHash": "16b2e9e9f19c7388435ebadecfa85b5a212634970cbef06d67b2831bf08a3c1b"
+    },
+    {
+      "sequence": 7,
+      "eventId": "adjudication-batch-02-event-007",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-11",
+      "sourceComparisonItemFingerprint": "bddc6524babded887e00a292af7207cd771ae390aa40d7c2b77a5669d7e6a635",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "alternativeIntentReadings"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q032"
+            ],
+            [
+              "equinoxe-q064"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "La terrasse peut servir aux échanges informels et au déjeuner extérieur. Ces connaissances ne sont pas concurrentes ou contradictoires. Elles représentent deux intentions compatibles mais différentes qu’une formulation insuffisamment spécifique sur « l’usage de la terrasse » peut viser.",
+      "futureRule": "Des usages compatibles ne sont jamais `competingPublishedKnowledge`; s’ils représentent des intentions distinctes sous une formulation réellement ambiguë, utiliser `alternativeIntentReadings`.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "16b2e9e9f19c7388435ebadecfa85b5a212634970cbef06d67b2831bf08a3c1b",
+      "eventHash": "e44a53b17d8fcfd1777cf0918ded01536b9c64404f6a010a9f923f53dfc8c190"
+    },
+    {
+      "sequence": 8,
+      "eventId": "adjudication-batch-02-event-008",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-13",
+      "sourceComparisonItemFingerprint": "58657d1e7885900de0317fb28fc08e0f7c5868fcf270e1119f2d5b20a6f6e196",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "blockedTemporalInstability"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "L’existence d’une offre chaude/végétarienne/rapide est confirmée, mais le détail du menu et l’offre précise de snack/restauration rapide restent explicitement reportés. La famille mélange donc un fait stable avec des branches dont la connaissance substantielle n’est pas encore stabilisée.",
+      "futureRule": "Ne construire une famille multi-branche d’offre que lorsque chaque branche possède une connaissance substantielle suffisamment stabilisée ; une promesse de précision future ne vaut pas automatiquement couverture stable.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "e44a53b17d8fcfd1777cf0918ded01536b9c64404f6a010a9f923f53dfc8c190",
+      "eventHash": "956f29c6ba487c1e340ae1c1d94cfcfd7e3e570968d8450f9a004901270bdf40"
+    },
+    {
+      "sequence": 9,
+      "eventId": "adjudication-batch-02-event-009",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-14",
+      "sourceComparisonItemFingerprint": "8ec204fbf6c5c8e709b2459360c6cb08cc60a4ccdc4fc0c0bc3e8dff6d6fd900",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "`q072` couvre déjà l’intention générale de choix d’un lieu de déjeuner. `q064` affine le cas spécifique du déjeuner en terrasse et `q092` ajoute une contrainte d’usage concernant les postes de travail. Il s’agit d’une structure général → cas particulier → règle, pas de trois lectures qu’il faudrait nécessairement départager.",
+      "futureRule": "Lorsqu’une entrée générale couvre l’intention et que les autres sont des raffinements ou contraintes, ne pas fabriquer une ambiguïté simplement parce que plusieurs Q&A concernent le même domaine.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "956f29c6ba487c1e340ae1c1d94cfcfd7e3e570968d8450f9a004901270bdf40",
+      "eventHash": "f2f20a50df556c1f719400edde6a274ff434f16cb094b4422dc73b49fbdc6087"
+    },
+    {
+      "sequence": 10,
+      "eventId": "adjudication-batch-02-event-010",
+      "batchId": "adjudication-batch-02-ambiguities-01",
+      "sourceItemId": "ambiguity-capacity-16",
+      "sourceComparisonItemFingerprint": "3a79224b878dea5625d7ac1c7cb1fa4341855cfe96601a6704125af1ce61e2e9",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "alternativeIntentReadings"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q040",
+              "equinoxe-q042",
+              "equinoxe-q043"
+            ],
+            [
+              "equinoxe-q044"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q040`, `q042` et `q043` expriment une même vérité de portée projet : Cobalt ne modifie pas les règles de télétravail ni n’impose de présence minimale. `q044` relève d’une autre source d’autorité : les règles en vigueur dans l’équipe et l’autorité managériale. La bonne partition est donc la source de la règle, pas la formulation de surface.",
+      "futureRule": "Pour les règles d’organisation du travail, partitionner d’abord par source d’autorité : règle du projet vs règle de l’équipe/du manager, plutôt que par vocabulaire de surface.",
+      "recordedAt": "2026-09-08T09:54:21.040Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "f2f20a50df556c1f719400edde6a274ff434f16cb094b4422dc73b49fbdc6087",
+      "eventHash": "47df16e1d24c43916d4f2fb6a7d1e923df290b02de196358e799debae748e516"
+    }
+  ],
+  "logFingerprint": "5b21e15c178661c29a498e43484eea5ae95680f6b28a5ab6dac027740ac83547"
+}

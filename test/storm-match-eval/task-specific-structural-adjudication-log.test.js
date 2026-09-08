@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import {
   ADJUDICATION_BATCH_01_ITEM_IDS,
+  ADJUDICATION_BATCH_02_ITEM_IDS,
+  DEFAULT_ADJUDICATION_BATCH_01_PATH,
+  DEFAULT_ADJUDICATION_BATCH_02_PATH,
   DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
   EXPECTED_COMPARISON_MATRIX_FINGERPRINT
 } from './task-specific/human-review/generate-structural-adjudication-batch.js';
@@ -17,9 +20,19 @@ import {
   STRUCTURAL_ADJUDICATION_BATCH_01_EVENTS
 } from './task-specific/human-review/record-structural-adjudication-batch-01.js';
 import {
+  buildStructuralAdjudicationBatch02Log,
+  DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_02_LOG_PATH,
+  materialiseStructuralAdjudicationBatch02Log,
+  STRUCTURAL_ADJUDICATION_BATCH_02_EVENTS,
+  STRUCTURAL_ADJUDICATION_BATCH_02_RECORDED_AT
+} from './task-specific/human-review/record-structural-adjudication-batch-02.js';
+import {
   canonicaliseAdjudicatedPartition,
   constructStructuralAdjudicationLogWithEvent,
+  createEmptyStructuralAdjudicationLog,
+  evaluateStructuralAdjudicationCompleteness,
   HUMAN_ADJUDICATION_PROVENANCE,
+  structuralAdjudicationSealPathForJournal,
   validateStructuralAdjudicationLog
 } from './task-specific/human-review/structural-adjudication-log.js';
 import { canonicalJson } from './task-specific/human-review/review-packets.js';
@@ -61,6 +74,19 @@ const EXPECTED_BOUNDARY_PARTITIONS = Object.freeze({
   ]
 });
 
+const EXPECTED_BATCH_02_CLASSIFICATIONS = Object.freeze({
+  'ambiguity-capacity-01': ['structuralAmbiguity', 'underspecifiedReference'],
+  'ambiguity-capacity-03': ['artificialOrMalformed', null],
+  'ambiguity-capacity-05': ['blockedTemporalInstability', null],
+  'ambiguity-capacity-06': ['structuralAmbiguity', 'underspecifiedReference'],
+  'ambiguity-capacity-07': ['structuralAmbiguity', 'underspecifiedReference'],
+  'ambiguity-capacity-10': ['artificialOrMalformed', null],
+  'ambiguity-capacity-11': ['structuralAmbiguity', 'alternativeIntentReadings'],
+  'ambiguity-capacity-13': ['blockedTemporalInstability', null],
+  'ambiguity-capacity-14': ['artificialOrMalformed', null],
+  'ambiguity-capacity-16': ['structuralAmbiguity', 'alternativeIntentReadings']
+});
+
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
@@ -74,6 +100,25 @@ function immutableSourcePaths() {
       filename
     ))),
     join(DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT, 'adjudication', 'reviewer-ab-comparison-matrix.json')
+  ];
+}
+
+function priorBatchArtifactPaths() {
+  return [
+    DEFAULT_ADJUDICATION_BATCH_01_PATH,
+    DEFAULT_ADJUDICATION_BATCH_02_PATH,
+    join(
+      DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+      'adjudication',
+      'records',
+      'adjudication-batch-01-equivalence-boundaries.human-adjudication-log.json'
+    ),
+    join(
+      DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+      'adjudication',
+      'records',
+      'adjudication-batch-01-equivalence-boundaries.human-adjudication-seal.json'
+    )
   ];
 }
 
@@ -176,4 +221,118 @@ test('the adjudication layer contains no implicit gold and the versioned log is 
   assert.equal(result.eventCount, 8);
   assert.equal(result.generationAuthorized, false);
   assert.equal(result.status, 'PENDING_HUMAN_REVIEW');
+});
+
+test('batch 02 transcription is one valid complete ten-event HUMAN_ADJUDICATION chain', () => {
+  const matrix = loadMatrix();
+  const log = buildStructuralAdjudicationBatch02Log();
+  const validation = validateStructuralAdjudicationLog(log, matrix);
+  const completeness = evaluateStructuralAdjudicationCompleteness(log, matrix);
+  assert.equal(validation.ok, true);
+  assert.equal(validation.eventCount, 10);
+  assert.equal(completeness.complete, true);
+  assert.deepEqual(completeness.missingSourceItemIds, []);
+  assert.deepEqual(log.events.map(event => event.sourceItemId), ADJUDICATION_BATCH_02_ITEM_IDS);
+  assert.equal(log.events.every(event => event.provenance === HUMAN_ADJUDICATION_PROVENANCE), true);
+  assert.equal(log.events.every(event => event.recordedAt === STRUCTURAL_ADJUDICATION_BATCH_02_RECORDED_AT), true);
+  assert.equal(log.sourceMatrixFingerprint, EXPECTED_COMPARISON_MATRIX_FINGERPRINT);
+  assert.equal(log.status, 'PENDING_HUMAN_REVIEW');
+  assert.equal(log.generationAuthorized, false);
+  assert.equal(log.appendOnly, true);
+});
+
+test('batch 02 effective ambiguity decisions, rationales and future rules are transcribed exactly', () => {
+  const log = buildStructuralAdjudicationBatch02Log();
+  const byId = new Map(log.events.map(event => [event.sourceItemId, event]));
+  for (const source of STRUCTURAL_ADJUDICATION_BATCH_02_EVENTS) {
+    const event = byId.get(source.sourceItemId);
+    const expected = EXPECTED_BATCH_02_CLASSIFICATIONS[source.sourceItemId];
+    assert.equal(event.decision.ambiguityFamilyDisposition.value, expected[0]);
+    assert.equal(event.decision.ambiguityMechanism.value, expected[1]);
+    assert.equal(canonicalJson(event.decision), canonicalJson(source.decision));
+    assert.equal(event.humanRationale, source.humanRationale);
+    assert.equal(event.futureRule, source.futureRule);
+  }
+  assert.deepEqual(byId.get('ambiguity-capacity-07').decision.substantiallyDifferentCoveredGroups.canonicalPartition, [
+    ['equinoxe-q003'],
+    ['equinoxe-q004', 'equinoxe-q005', 'equinoxe-q007', 'equinoxe-q108']
+  ]);
+  assert.deepEqual(byId.get('ambiguity-capacity-16').decision.substantiallyDifferentCoveredGroups.canonicalPartition, [
+    ['equinoxe-q040', 'equinoxe-q042', 'equinoxe-q043'],
+    ['equinoxe-q044']
+  ]);
+});
+
+test('batch 02 rejects missing future rule, invalid mutation, duplication and automated provenance', () => {
+  const matrix = loadMatrix();
+  const completeLog = buildStructuralAdjudicationBatch02Log();
+  const emptyLog = createEmptyStructuralAdjudicationLog({
+    batchId: completeLog.batchId,
+    sourceMatrix: matrix,
+    sourceReviewerSeals: completeLog.sourceReviewerSeals,
+    authorizedSourceItemIds: completeLog.authorizedSourceItemIds,
+    humanDoctrine: completeLog.humanDoctrine
+  });
+  const first = STRUCTURAL_ADJUDICATION_BATCH_02_EVENTS[0];
+  const baseInput = {
+    eventId: 'adjudication-batch-02-event-001',
+    sourceItemId: first.sourceItemId,
+    decision: first.decision,
+    humanRationale: first.humanRationale,
+    recordedAt: STRUCTURAL_ADJUDICATION_BATCH_02_RECORDED_AT,
+    provenance: HUMAN_ADJUDICATION_PROVENANCE
+  };
+  assert.throws(
+    () => constructStructuralAdjudicationLogWithEvent(emptyLog, baseInput, matrix),
+    /requires futureRule/u
+  );
+  assert.throws(
+    () => constructStructuralAdjudicationLogWithEvent(emptyLog, {
+      ...baseInput,
+      futureRule: first.futureRule,
+      provenance: 'AUTOMATED'
+    }, matrix),
+    /provenance must be HUMAN_ADJUDICATION/u
+  );
+  assert.throws(
+    () => constructStructuralAdjudicationLogWithEvent(completeLog, {
+      ...baseInput,
+      eventId: 'adjudication-batch-02-event-011',
+      futureRule: first.futureRule
+    }, matrix),
+    /Duplicate structural adjudication sourceItemId/u
+  );
+  const tampered = structuredClone(completeLog);
+  tampered.events[0].decision.ambiguityMechanism.value = 'alternativeIntentReadings';
+  assert.equal(validateStructuralAdjudicationLog(tampered, matrix).ok, false);
+});
+
+test('batch 02 materialization is deterministic and never mutates sealed sources or Batch 01', () => {
+  const sourcePaths = [...immutableSourcePaths(), ...priorBatchArtifactPaths()];
+  const before = Object.fromEntries(sourcePaths.map(path => [path, sha256(path)]));
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'storm-structural-adjudication-02-'));
+  try {
+    const outputPath = join(temporaryRoot, 'log.json');
+    const first = materialiseStructuralAdjudicationBatch02Log({ outputPath });
+    const firstContent = readFileSync(outputPath, 'utf8');
+    const second = materialiseStructuralAdjudicationBatch02Log({ outputPath });
+    assert.deepEqual(second, first);
+    assert.equal(readFileSync(outputPath, 'utf8'), firstContent);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+  const after = Object.fromEntries(sourcePaths.map(path => [path, sha256(path)]));
+  assert.deepEqual(after, before);
+});
+
+test('versioned batch 02 log is current, sealed and remains pending', () => {
+  const result = materialiseStructuralAdjudicationBatch02Log({
+    outputPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_02_LOG_PATH,
+    checkOnly: true
+  });
+  assert.equal(result.checkOnly, true);
+  assert.equal(result.eventCount, 10);
+  assert.equal(result.generationAuthorized, false);
+  assert.equal(result.status, 'PENDING_HUMAN_REVIEW');
+  assert.equal(existsSync(structuralAdjudicationSealPathForJournal(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_02_LOG_PATH)), true);
 });

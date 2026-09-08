@@ -1,0 +1,18 @@
+{
+  "batchId": "adjudication-batch-02-ambiguities-01",
+  "eventCount": 10,
+  "finalEventHash": "47df16e1d24c43916d4f2fb6a7d1e923df290b02de196358e799debae748e516",
+  "journalCanonicalSha256": "898ce62a84ef8d03fe6ca00ea5f03365d2a94967fc30a5c1bb008d330b62d257",
+  "journalFingerprint": "5b21e15c178661c29a498e43484eea5ae95680f6b28a5ab6dac027740ac83547",
+  "journalPath": "adjudication-batch-02-ambiguities-01.human-adjudication-log.json",
+  "provenance": "HUMAN_ADJUDICATION",
+  "schemaVersion": 2,
+  "sealHash": "16d36d728b8bc809d0f5e21bfad487bfeeb7fbc6a688f26e060bec618ce06159",
+  "sealType": "STRUCTURAL_ADJUDICATION_BATCH_SEAL",
+  "sealedAt": "2026-09-08T10:04:12.877Z",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  }
+}

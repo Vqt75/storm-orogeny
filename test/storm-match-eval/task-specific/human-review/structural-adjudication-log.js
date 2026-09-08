@@ -35,6 +35,7 @@ const EVENT_KEYS = Object.freeze([
   'sourceComparisonItemFingerprint',
   'sourceItemId'
 ]);
+const AMBIGUITY_EVENT_KEYS = Object.freeze([...EVENT_KEYS, 'futureRule']);
 const INPUT_KEYS = Object.freeze([
   'decision',
   'eventId',
@@ -43,6 +44,7 @@ const INPUT_KEYS = Object.freeze([
   'recordedAt',
   'sourceItemId'
 ]);
+const AMBIGUITY_INPUT_KEYS = Object.freeze([...INPUT_KEYS, 'futureRule']);
 const SEAL_KEYS = Object.freeze([
   'batchId',
   'eventCount',
@@ -57,6 +59,7 @@ const SEAL_KEYS = Object.freeze([
   'sourceMatrixFingerprint',
   'sourceReviewerSeals'
 ]);
+const HUMAN_PROVENANCE_SEAL_KEYS = Object.freeze([...SEAL_KEYS, 'provenance']);
 
 function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -162,6 +165,69 @@ function assertBoundaryDecision(decision, sourceScope) {
   }
 }
 
+function assertAmbiguityPartitionCoversScope(partition, sourceScope) {
+  if (!Array.isArray(partition) || partition.length < 2) {
+    throw new Error('Structural ambiguity requires at least two covered groups');
+  }
+  const memberEntryIds = [];
+  for (const group of partition) {
+    if (!Array.isArray(group) || group.length === 0
+      || new Set(group).size !== group.length
+      || group.some(entryId => typeof entryId !== 'string' || entryId.trim() === '')) {
+      throw new Error('Invalid ambiguity canonicalPartition group');
+    }
+    memberEntryIds.push(...group);
+  }
+  if (new Set(memberEntryIds).size !== memberEntryIds.length
+    || canonicalJson([...memberEntryIds].sort()) !== canonicalJson([...sourceScope].sort())) {
+    throw new Error('Ambiguity canonicalPartition must partition the complete source knowledge scope');
+  }
+}
+
+function assertAmbiguityDecision(decision, sourceScope) {
+  if (!hasExactKeys(decision, [
+    'ambiguityFamilyDisposition',
+    'ambiguityMechanism',
+    'substantiallyDifferentCoveredGroups'
+  ])) {
+    throw new Error('Invalid ambiguity adjudication decision schema');
+  }
+  const disposition = decision.ambiguityFamilyDisposition;
+  const mechanism = decision.ambiguityMechanism;
+  const groups = decision.substantiallyDifferentCoveredGroups;
+  if (!hasExactKeys(disposition, ['value'])
+    || !hasExactKeys(mechanism, ['value'])
+    || !hasExactKeys(groups, ['canonicalPartition', 'value'])) {
+    throw new Error('Invalid ambiguity adjudication decision fields');
+  }
+  const allowedDispositions = new Set([
+    'structuralAmbiguity',
+    'notCovered',
+    'artificialOrMalformed',
+    'blockedTemporalInstability',
+    'insufficientEvidence'
+  ]);
+  if (!allowedDispositions.has(disposition.value)) {
+    throw new Error('Invalid ambiguity disposition');
+  }
+  if (disposition.value === 'structuralAmbiguity') {
+    const allowedMechanisms = new Set([
+      'underspecifiedReference',
+      'competingPublishedKnowledge',
+      'alternativeIntentReadings'
+    ]);
+    if (!allowedMechanisms.has(mechanism.value)
+      || groups.value !== 'reviewerDefinedPartitionOfDisplayedKnowledge') {
+      throw new Error('Structural ambiguity requires one supported mechanism and explicit covered groups');
+    }
+    assertAmbiguityPartitionCoversScope(groups.canonicalPartition, sourceScope);
+    return;
+  }
+  if (mechanism.value !== null || groups.value !== null || groups.canonicalPartition !== null) {
+    throw new Error('Non-structural ambiguity disposition cannot carry mechanism or covered groups');
+  }
+}
+
 function assertDecision(decision, comparisonItem) {
   if (comparisonItem.packetKind === 'EQUIVALENCE_AND_PREFERRED') {
     assertEquivalenceDecision(decision, comparisonItem.canonicalKnowledgeScope);
@@ -169,6 +235,10 @@ function assertDecision(decision, comparisonItem) {
   }
   if (comparisonItem.packetKind === 'KNOWLEDGE_BOUNDARIES') {
     assertBoundaryDecision(decision, comparisonItem.canonicalKnowledgeScope);
+    return;
+  }
+  if (comparisonItem.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES') {
+    assertAmbiguityDecision(decision, comparisonItem.canonicalKnowledgeScope);
     return;
   }
   throw new Error(`Structural adjudication packet kind is not supported: ${comparisonItem.packetKind}`);
@@ -234,7 +304,9 @@ export function createEmptyStructuralAdjudicationLog({
 export function constructStructuralAdjudicationLogWithEvent(log, input, sourceMatrix) {
   const validation = validateStructuralAdjudicationLog(log, sourceMatrix);
   if (!validation.ok) throw new Error(`Cannot append to invalid structural adjudication log: ${canonicalJson(validation.errors)}`);
-  if (!hasExactKeys(input, INPUT_KEYS)) throw new Error('Structural adjudication input fields differ from contract');
+  if (!hasExactKeys(input, INPUT_KEYS) && !hasExactKeys(input, AMBIGUITY_INPUT_KEYS)) {
+    throw new Error('Structural adjudication input fields differ from contract');
+  }
   requiredString(input.eventId, 'eventId');
   requiredString(input.sourceItemId, 'sourceItemId');
   requiredString(input.humanRationale, 'humanRationale');
@@ -245,6 +317,13 @@ export function constructStructuralAdjudicationLogWithEvent(log, input, sourceMa
   if (log.events.some(event => event.sourceItemId === input.sourceItemId)) throw new Error(`Duplicate structural adjudication sourceItemId: ${input.sourceItemId}`);
   const comparisonItem = sourceMatrix.items.find(item => item.canonicalReviewItemId === input.sourceItemId);
   if (!comparisonItem || !comparisonItem.requiresAdjudication) throw new Error('sourceItemId is not an unresolved matrix item');
+  const isAmbiguity = comparisonItem.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES';
+  if (isAmbiguity) {
+    if (!hasExactKeys(input, AMBIGUITY_INPUT_KEYS)) throw new Error('Ambiguity adjudication input requires futureRule');
+    requiredString(input.futureRule, 'futureRule');
+  } else if (!hasExactKeys(input, INPUT_KEYS)) {
+    throw new Error('Non-ambiguity adjudication input cannot carry futureRule');
+  }
   assertDecision(input.decision, comparisonItem);
   const previousEventHash = log.events.at(-1)?.eventHash ?? null;
   const eventWithoutHash = {
@@ -255,6 +334,7 @@ export function constructStructuralAdjudicationLogWithEvent(log, input, sourceMa
     sourceComparisonItemFingerprint: fingerprint(comparisonItem),
     decision: structuredClone(input.decision),
     humanRationale: input.humanRationale,
+    ...(isAmbiguity ? { futureRule: input.futureRule } : {}),
     recordedAt: input.recordedAt,
     provenance: input.provenance,
     previousEventHash
@@ -296,11 +376,16 @@ export function validateStructuralAdjudicationLog(log, sourceMatrix) {
   let previousEventHash = null;
   for (let index = 0; index < (log.events ?? []).length; index += 1) {
     const event = log.events[index];
-    if (!hasExactKeys(event, EVENT_KEYS)) {
+    if (!hasExactKeys(event, EVENT_KEYS) && !hasExactKeys(event, AMBIGUITY_EVENT_KEYS)) {
       errors.push({ code: 'INVALID_STRUCTURAL_ADJUDICATION_EVENT_SCHEMA', sequence: index + 1 });
       continue;
     }
     const comparisonItem = sourceMatrix?.items?.find(item => item.canonicalReviewItemId === event.sourceItemId);
+    const isAmbiguity = comparisonItem?.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES';
+    if ((isAmbiguity && !hasExactKeys(event, AMBIGUITY_EVENT_KEYS))
+      || (!isAmbiguity && !hasExactKeys(event, EVENT_KEYS))) {
+      errors.push({ code: 'STRUCTURAL_ADJUDICATION_EVENT_SCHEMA_KIND_MISMATCH', sequence: event.sequence });
+    }
     if (event.sequence !== index + 1) errors.push({ code: 'INVALID_EVENT_SEQUENCE', sequence: event.sequence });
     if (event.batchId !== log.batchId) errors.push({ code: 'EVENT_BATCH_MISMATCH', sequence: event.sequence });
     if (eventIds.has(event.eventId)) errors.push({ code: 'DUPLICATE_EVENT_ID', eventId: event.eventId });
@@ -312,6 +397,9 @@ export function validateStructuralAdjudicationLog(log, sourceMatrix) {
     if (event.provenance !== HUMAN_ADJUDICATION_PROVENANCE) errors.push({ code: 'INVALID_HUMAN_PROVENANCE', sequence: event.sequence });
     if (!isCanonicalTimestamp(event.recordedAt)) errors.push({ code: 'INVALID_RECORDED_AT', sequence: event.sequence });
     if (typeof event.humanRationale !== 'string' || event.humanRationale.trim() === '') errors.push({ code: 'MISSING_HUMAN_RATIONALE', sequence: event.sequence });
+    if (isAmbiguity && (typeof event.futureRule !== 'string' || event.futureRule.trim() === '')) {
+      errors.push({ code: 'MISSING_FUTURE_RULE', sequence: event.sequence });
+    }
     if (event.previousEventHash !== previousEventHash) errors.push({ code: 'PREVIOUS_EVENT_HASH_MISMATCH', sequence: event.sequence });
     if (!HASH_PATTERN.test(event.eventHash ?? '') || fingerprint(withoutField(event, 'eventHash')) !== event.eventHash) {
       errors.push({ code: 'INVALID_EVENT_HASH', sequence: event.sequence });
@@ -344,6 +432,19 @@ function completeBatch(log) {
     === canonicalJson([...log.authorizedSourceItemIds].sort());
 }
 
+export function evaluateStructuralAdjudicationCompleteness(log, sourceMatrix) {
+  const validation = validateStructuralAdjudicationLog(log, sourceMatrix);
+  const recordedSourceItemIds = new Set((log.events ?? []).map(event => event.sourceItemId));
+  const missingSourceItemIds = (log.authorizedSourceItemIds ?? [])
+    .filter(sourceItemId => !recordedSourceItemIds.has(sourceItemId));
+  return {
+    complete: validation.ok && missingSourceItemIds.length === 0
+      && recordedSourceItemIds.size === (log.authorizedSourceItemIds ?? []).length,
+    validation,
+    missingSourceItemIds
+  };
+}
+
 export function createStructuralAdjudicationSeal({
   log,
   sourceMatrix,
@@ -356,8 +457,9 @@ export function createStructuralAdjudicationSeal({
   }
   requiredString(journalPath, 'journalPath');
   if (!isCanonicalTimestamp(sealedAt)) throw new Error('sealedAt must be a canonical ISO-8601 timestamp');
+  const bindsHumanProvenance = log.events.some(event => Object.hasOwn(event, 'futureRule'));
   const sealWithoutHash = {
-    schemaVersion: 1,
+    schemaVersion: bindsHumanProvenance ? 2 : 1,
     sealType: STRUCTURAL_ADJUDICATION_BATCH_SEAL,
     batchId: log.batchId,
     sourceMatrixFingerprint: log.sourceMatrixFingerprint,
@@ -367,6 +469,7 @@ export function createStructuralAdjudicationSeal({
     journalCanonicalSha256: fingerprint(log),
     eventCount: validation.eventCount,
     finalEventHash: validation.finalEventHash,
+    ...(bindsHumanProvenance ? { provenance: HUMAN_ADJUDICATION_PROVENANCE } : {}),
     sealedAt
   };
   return deepFreeze({ ...sealWithoutHash, sealHash: fingerprint(sealWithoutHash) });
@@ -378,10 +481,14 @@ export function validateStructuralAdjudicationSeal(seal, {
   journalPath = null
 } = {}) {
   const errors = [];
-  if (!hasExactKeys(seal, SEAL_KEYS)) {
+  const legacySchema = hasExactKeys(seal, SEAL_KEYS);
+  const humanProvenanceSchema = hasExactKeys(seal, HUMAN_PROVENANCE_SEAL_KEYS);
+  if (!legacySchema && !humanProvenanceSchema) {
     return { ok: false, errors: [{ code: 'INVALID_STRUCTURAL_ADJUDICATION_SEAL_SCHEMA' }] };
   }
-  if (seal.schemaVersion !== 1 || seal.sealType !== STRUCTURAL_ADJUDICATION_BATCH_SEAL
+  if ((legacySchema && seal.schemaVersion !== 1)
+    || (humanProvenanceSchema && (seal.schemaVersion !== 2 || seal.provenance !== HUMAN_ADJUDICATION_PROVENANCE))
+    || seal.sealType !== STRUCTURAL_ADJUDICATION_BATCH_SEAL
     || typeof seal.batchId !== 'string' || seal.batchId.trim() === ''
     || !HASH_PATTERN.test(seal.sourceMatrixFingerprint ?? '')
     || !hasExactKeys(seal.sourceReviewerSeals, ['reviewerA', 'reviewerB'])
@@ -405,6 +512,10 @@ export function validateStructuralAdjudicationSeal(seal, {
     } else {
       const validation = validateStructuralAdjudicationLog(log, sourceMatrix);
       if (!validation.ok || !completeBatch(log)) errors.push({ code: 'SEALED_ADJUDICATION_LOG_INVALID_OR_INCOMPLETE' });
+      const logRequiresHumanProvenanceSeal = (log.events ?? []).some(event => Object.hasOwn(event, 'futureRule'));
+      if (logRequiresHumanProvenanceSeal !== humanProvenanceSchema) {
+        errors.push({ code: 'STRUCTURAL_ADJUDICATION_SEAL_PROVENANCE_SCHEMA_MISMATCH' });
+      }
       if (seal.batchId !== log.batchId
         || seal.sourceMatrixFingerprint !== log.sourceMatrixFingerprint
         || !canonicalEqual(seal.sourceReviewerSeals, log.sourceReviewerSeals)

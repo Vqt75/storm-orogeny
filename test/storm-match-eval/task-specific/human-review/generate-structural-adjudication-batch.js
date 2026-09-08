@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { canonicalJson, fingerprint } from './review-packets.js';
+import { validateStructuralAdjudicationSeal } from './structural-adjudication-log.js';
 
 export const ADJUDICATION_BATCH_01_ITEM_IDS = Object.freeze([
   'equivalence-comparison-01',
@@ -41,6 +42,19 @@ export const ADJUDICATION_BATCH_03_ITEM_IDS = Object.freeze([
   'ambiguity-capacity-33'
 ]);
 
+export const ADJUDICATION_BATCH_04_ITEM_IDS = Object.freeze([
+  'scenario-family-preflight-02',
+  'scenario-family-preflight-03',
+  'scenario-family-preflight-04',
+  'scenario-family-preflight-05',
+  'scenario-family-preflight-06',
+  'scenario-family-preflight-07',
+  'scenario-family-preflight-08',
+  'scenario-family-preflight-09',
+  'scenario-family-preflight-10',
+  'scenario-family-preflight-13'
+]);
+
 export const EXPECTED_COMPARISON_MATRIX_FINGERPRINT = '2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd';
 export const DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT = join(import.meta.dirname, 'generated-structural-review');
 export const DEFAULT_ADJUDICATION_BATCH_01_PATH = join(
@@ -61,11 +75,18 @@ export const DEFAULT_ADJUDICATION_BATCH_03_PATH = join(
   'batches',
   'adjudication-batch-03-ambiguities-02.md'
 );
+export const DEFAULT_ADJUDICATION_BATCH_04_PATH = join(
+  DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  'adjudication',
+  'batches',
+  'adjudication-batch-04-scenario-families-01.md'
+);
 
 const PACKET_BASENAME_BY_KIND = Object.freeze({
   EQUIVALENCE_AND_PREFERRED: '01-equivalence-preferred',
   KNOWLEDGE_BOUNDARIES: '02-knowledge-boundaries',
-  AMBIGUITY_CAPACITY_FAMILIES: '03-ambiguity-families'
+  AMBIGUITY_CAPACITY_FAMILIES: '03-ambiguity-families',
+  SCENARIO_FAMILY_PREFLIGHT: '04-scenario-family-preflight'
 });
 
 const AMBIGUITY_DECISION_FIELDS = Object.freeze([
@@ -73,6 +94,19 @@ const AMBIGUITY_DECISION_FIELDS = Object.freeze([
   'ambiguityMechanism.value',
   'substantiallyDifferentCoveredGroups.value',
   'substantiallyDifferentCoveredGroups.canonicalPartition'
+]);
+
+const SCENARIO_DECISION_FIELDS = Object.freeze([
+  'fragmentationAssessment.value',
+  'fragmentationAssessment.mergeCanonicalReviewItemIds',
+  'reviewerScenarioFamilyPartition.value',
+  'reviewerScenarioFamilyPartition.canonicalPartition'
+]);
+
+const SEALED_ADJUDICATION_RECORD_BASENAMES = Object.freeze([
+  'adjudication-batch-01-equivalence-boundaries',
+  'adjudication-batch-02-ambiguities-01',
+  'adjudication-batch-03-ambiguities-02'
 ]);
 
 function readJson(path) {
@@ -122,6 +156,11 @@ function valueAtPath(value, path) {
 
 function strictAgreementFields(source) {
   return AMBIGUITY_DECISION_FIELDS.filter(path => canonicalJson(valueAtPath(source.reviewerA.decisions, path))
+    === canonicalJson(valueAtPath(source.reviewerB.decisions, path)));
+}
+
+function strictScenarioAgreementFields(source) {
+  return SCENARIO_DECISION_FIELDS.filter(path => canonicalJson(valueAtPath(source.reviewerA.decisions, path))
     === canonicalJson(valueAtPath(source.reviewerB.decisions, path)));
 }
 
@@ -228,6 +267,35 @@ function sealedEquivalenceByEntryId(generatedRoot) {
   return byEntryId;
 }
 
+function loadSealedAdjudicationContexts(generatedRoot, matrix) {
+  const recordsRoot = join(generatedRoot, 'adjudication', 'records');
+  return SEALED_ADJUDICATION_RECORD_BASENAMES.flatMap(basename => {
+    const journalPath = join(recordsRoot, `${basename}.human-adjudication-log.json`);
+    const sealPath = join(recordsRoot, `${basename}.human-adjudication-seal.json`);
+    const log = readJson(journalPath);
+    const seal = readJson(sealPath);
+    const validation = validateStructuralAdjudicationSeal(seal, {
+      log,
+      sourceMatrix: matrix,
+      journalPath
+    });
+    if (!validation.ok) throw new Error(`Invalid sealed adjudication context: ${basename}`);
+    return log.events.map(event => {
+      const source = matrix.items.find(item => item.canonicalReviewItemId === event.sourceItemId);
+      if (!source) throw new Error(`Missing comparison source for sealed adjudication: ${event.sourceItemId}`);
+      return {
+        batchId: log.batchId,
+        sourceItemId: event.sourceItemId,
+        packetKind: source.packetKind,
+        sourceKnowledgeScope: [...source.canonicalKnowledgeScope],
+        decision: structuredClone(event.decision),
+        humanRationale: event.humanRationale,
+        ...(event.futureRule ? { futureRule: event.futureRule } : {})
+      };
+    });
+  });
+}
+
 function buildAmbiguityAdjudicationBatch({ generatedRoot, itemIds, batchId, includeSealedEquivalence = false }) {
   const matrixPath = join(
     generatedRoot,
@@ -325,6 +393,100 @@ export function buildStructuralAdjudicationBatch03({ generatedRoot = DEFAULT_GEN
     itemIds: ADJUDICATION_BATCH_03_ITEM_IDS,
     batchId: 'adjudication-batch-03-ambiguities-02',
     includeSealedEquivalence: true
+  });
+}
+
+export function buildStructuralAdjudicationBatch04({ generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT } = {}) {
+  const matrix = readJson(join(generatedRoot, 'adjudication', 'reviewer-ab-comparison-matrix.json'));
+  assertMatrixContract(matrix);
+  const byId = new Map(matrix.items.map(item => [item.canonicalReviewItemId, item]));
+  const equivalenceByEntryId = sealedEquivalenceByEntryId(generatedRoot);
+  const sealedContexts = loadSealedAdjudicationContexts(generatedRoot, matrix);
+  const items = ADJUDICATION_BATCH_04_ITEM_IDS.map(sourceItemId => {
+    const source = byId.get(sourceItemId);
+    if (!source) throw new Error(`Missing adjudication batch item: ${sourceItemId}`);
+    if (source.packetKind !== 'SCENARIO_FAMILY_PREFLIGHT'
+      || !source.requiresAdjudication
+      || source.completeAgreement) {
+      throw new Error(`Batch 04 item is not a pending scenario-family adjudication: ${sourceItemId}`);
+    }
+    const packetA = loadPacket(generatedRoot, source.packetKind, 'A');
+    const packetB = loadPacket(generatedRoot, source.packetKind, 'B');
+    const readableA = knowledgeContentForReviewer(source, packetA, 'reviewerA');
+    const readableB = knowledgeContentForReviewer(source, packetB, 'reviewerB');
+    if (canonicalJson(readableA) !== canonicalJson(readableB)) {
+      throw new Error(`Reviewer source knowledge differs for ${sourceItemId}`);
+    }
+    const metadataA = reviewItemMetadataForReviewer(source, packetA, 'reviewerA');
+    const metadataB = reviewItemMetadataForReviewer(source, packetB, 'reviewerB');
+    if (canonicalJson(metadataA) !== canonicalJson(metadataB)) {
+      throw new Error(`Reviewer source family metadata differs for ${sourceItemId}`);
+    }
+    const sourceScope = new Set(source.canonicalKnowledgeScope);
+    const existingAdjudicationContext = sealedContexts
+      .map(context => ({
+        ...context,
+        affectedEntryIds: context.sourceKnowledgeScope.filter(entryId => sourceScope.has(entryId))
+      }))
+      .filter(context => context.affectedEntryIds.length > 0);
+    return {
+      sourceItemId,
+      packetKind: source.packetKind,
+      sourceFamily: {
+        title: metadataA.title,
+        businessContext: metadataA.businessContext,
+        scenarioFamilyId: null
+      },
+      knowledge: readableA.map(knowledge => ({
+        ...knowledge,
+        sealedEquivalence: equivalenceByEntryId.get(knowledge.entryId) ?? null,
+        scenarioFamilyId: null
+      })),
+      reviewerA: {
+        decisions: structuredClone(source.reviewerA.decisions),
+        rationales: structuredClone(source.reviewerA.rationales)
+      },
+      reviewerB: {
+        decisions: structuredClone(source.reviewerB.decisions),
+        rationales: structuredClone(source.reviewerB.rationales)
+      },
+      comparison: {
+        status: source.comparisonStatus,
+        firstLevelAgreement: source.firstLevelAgreement,
+        completeAgreement: source.completeAgreement,
+        strictAgreementFields: strictScenarioAgreementFields(source),
+        findings: structuredClone(source.comparisonFindings),
+        crosswalk: {
+          reviewerA: {
+            reviewItemRef: source.reviewerA.reviewItemRef,
+            knowledgeRefMappings: structuredClone(source.reviewerA.knowledgeRefMappings)
+          },
+          reviewerB: {
+            reviewItemRef: source.reviewerB.reviewItemRef,
+            knowledgeRefMappings: structuredClone(source.reviewerB.knowledgeRefMappings)
+          }
+        }
+      },
+      existingAdjudicationContext,
+      humanDecision: {
+        decision: 'PENDING',
+        rationale: 'PENDING',
+        futureRule: 'PENDING'
+      }
+    };
+  });
+  return Object.freeze({
+    batchId: 'adjudication-batch-04-scenario-families-01',
+    sourceMatrixFingerprint: matrix.matrixFingerprint,
+    sourceReviewerSeals: {
+      reviewerA: matrix.sourceReviews.reviewerA.sealHash,
+      reviewerB: matrix.sourceReviews.reviewerB.sealHash
+    },
+    status: matrix.status,
+    generationAuthorized: false,
+    adjudicationPerformed: false,
+    itemCount: items.length,
+    items
   });
 }
 
@@ -567,6 +729,125 @@ export function renderStructuralAdjudicationBatch03(batch) {
   return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
 }
 
+function renderScenarioReviewer(lines, item, reviewerKey, label) {
+  const reviewer = item[reviewerKey];
+  const fragmentation = reviewer.decisions.fragmentationAssessment;
+  const familyPartition = reviewer.decisions.reviewerScenarioFamilyPartition;
+  lines.push(`### Reviewer ${label}`, '');
+  lines.push(`- Disposition : \`${fragmentation.value}\``);
+  lines.push(`- Structure de partition : \`${familyPartition.value}\``);
+  if (familyPartition.canonicalPartition === null) {
+    lines.push('- Groupes de scénario : non établis (`insufficientEvidence`).');
+  } else {
+    lines.push('- Groupes de scénario :');
+    familyPartition.canonicalPartition.forEach((group, index) => {
+      lines.push(`  - Groupe ${index + 1} : ${group.map(entryId => `\`${entryId}\``).join(', ')}`);
+    });
+  }
+  lines.push(`- Candidats de fusion : ${fragmentation.mergeCanonicalReviewItemIds.length === 0
+    ? 'aucun'
+    : fragmentation.mergeCanonicalReviewItemIds.map(itemId => `\`${itemId}\``).join(', ')}`);
+  lines.push('', `Rationales Reviewer ${label} :`, '');
+  lines.push(`- Disposition : ${reviewer.rationales.fragmentationAssessment}`);
+  lines.push(`- Partition : ${reviewer.rationales.reviewerScenarioFamilyPartition}`, '');
+}
+
+function renderExistingAdjudicationContext(lines, context) {
+  lines.push(`#### ${context.sourceItemId}`, '');
+  lines.push(`- Type : \`${context.packetKind}\``);
+  lines.push(`- q-ids du présent brief directement concernés : ${context.affectedEntryIds.map(entryId => `\`${entryId}\``).join(', ')}`);
+  const decision = context.decision;
+  if (context.packetKind === 'EQUIVALENCE_AND_PREFERRED') {
+    lines.push(`- Groupe d’équivalence scellé : ${decision.substantiveEquivalencePartition.canonicalPartition[0].map(entryId => `\`${entryId}\``).join(', ')}`);
+    lines.push(`- preferredEntryId scellé : \`${decision.preferredEntrySelection.preferredEntryId}\``);
+  } else if (context.packetKind === 'KNOWLEDGE_BOUNDARIES') {
+    lines.push('- Partition de frontière scellée :');
+    for (const group of decision.knowledgeComponentBoundary.canonicalPartition) {
+      lines.push(`  - \`${group.componentId}\` : ${group.memberEntryIds.map(entryId => `\`${entryId}\``).join(', ')}`);
+    }
+    lines.push('- Règles de frontière scellées :');
+    for (const rule of decision.futureCoverageBoundaryRules) {
+      lines.push(`  - \`${rule.componentId}\` : ${rule.rule}`);
+    }
+  } else if (context.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES') {
+    lines.push(`- Classification scellée : \`${decision.ambiguityFamilyDisposition.value}\``);
+    lines.push(`- Mécanisme scellé : ${decision.ambiguityMechanism.value === null ? 'non applicable' : `\`${decision.ambiguityMechanism.value}\``}`);
+    if (decision.substantiallyDifferentCoveredGroups.canonicalPartition !== null) {
+      lines.push('- Groupes scellés :');
+      decision.substantiallyDifferentCoveredGroups.canonicalPartition.forEach((group, index) => {
+        lines.push(`  - Groupe ${index + 1} : ${group.map(entryId => `\`${entryId}\``).join(', ')}`);
+      });
+    }
+  }
+  lines.push(`- Rationale humaine scellée : ${context.humanRationale}`);
+  if (context.futureRule) lines.push(`- Règle future scellée : ${context.futureRule}`);
+  lines.push('');
+}
+
+export function renderStructuralAdjudicationBatch04(batch) {
+  const lines = [
+    '# Adjudication structurelle — Batch 04 : scenario families 01',
+    '',
+    `- Batch : \`${batch.batchId}\``,
+    `- Statut : \`${batch.status}\``,
+    `- Autorisation de génération : \`${batch.generationAuthorized}\``,
+    `- Adjudication effectuée : \`${batch.adjudicationPerformed}\``,
+    `- Items : ${batch.itemCount}`,
+    '',
+    '## Doctrine de revue',
+    '',
+    '- Une scenario family n’est pas un groupe d’équivalence de réponses.',
+    '- Une scenario family peut regrouper des formulations proches sans que leurs réponses soient équivalentes.',
+    '- La famille doit néanmoins représenter un même scénario métier suffisamment stable.',
+    '- Une proximité seulement lexicale ou thématique ne suffit pas.',
+    '- Une famille trop large ne doit pas mélanger plusieurs décisions utilisateur.',
+    '- Les décisions humaines structurent la future génération du corpus.',
+    '- `generationAuthorized` reste `false`.',
+    '',
+    '> Question d’arbitrage : ces connaissances décrivent-elles le même scénario utilisateur suffisamment cohérent pour partager une famille de génération, ou faut-il les séparer ?',
+    '> Aucun `scenarioFamilyId` ni aucune formulation utilisateur générée n’existe encore dans les artefacts sources.',
+    ''
+  ];
+
+  batch.items.forEach((item, index) => {
+    lines.push(`## ${index + 1}. ${item.sourceItemId} — ${item.sourceFamily.title}`, '');
+    lines.push('### Identification', '');
+    lines.push(`- Item canonique : \`${item.sourceItemId}\``);
+    lines.push(`- Contexte métier réellement disponible : ${item.sourceFamily.businessContext}`);
+    lines.push('', 'generated user formulation: NOT AVAILABLE', '');
+
+    renderScenarioReviewer(lines, item, 'reviewerA', 'A');
+    renderScenarioReviewer(lines, item, 'reviewerB', 'B');
+
+    lines.push('### Comparaison A/B', '');
+    lines.push(`- Statut exact : \`${item.comparison.status}\``);
+    lines.push(`- Accord de premier niveau : ${item.comparison.firstLevelAgreement ? 'oui' : 'non'}`);
+    lines.push(`- Accord complet : ${item.comparison.completeAgreement ? 'oui' : 'non'}`);
+    lines.push(`- Accords stricts : ${item.comparison.strictAgreementFields.length === 0 ? 'aucun' : item.comparison.strictAgreementFields.map(field => `\`${field}\``).join(', ')}`);
+    lines.push(`- Désaccords consignés : ${item.comparison.findings.map(finding => `\`${finding.field}\` (\`${finding.status}\`)`).join(', ')}`);
+    lines.push('', 'Partition / crosswalk réel :', '');
+    renderCrosswalk(lines, 'A', item.comparison.crosswalk.reviewerA);
+    renderCrosswalk(lines, 'B', item.comparison.crosswalk.reviewerB);
+    lines.push('');
+
+    lines.push('### Candidate knowledge', '');
+    lines.push('| q-id canonique | Question canonique | Réponse canonique | Équivalence / preferred pertinente | Scenario family existante |', '|---|---|---|---|---|');
+    for (const knowledge of item.knowledge) {
+      lines.push(`| \`${knowledge.entryId}\` | ${escapeTableCell(knowledge.canonicalQuestion)} | ${escapeTableCell(knowledge.canonicalAnswer)} | ${renderSealedEquivalence(knowledge)} | non attribuée |`);
+    }
+    lines.push('');
+
+    if (item.existingAdjudicationContext.length > 0) {
+      lines.push('### Existing adjudication context', '');
+      for (const context of item.existingAdjudicationContext) renderExistingAdjudicationContext(lines, context);
+      lines.push('> Ce contexte scellé est restitué sans réinterprétation et ne préremplit pas la décision scenario-family.', '');
+    }
+
+    lines.push('### Human decision', '', '```text', 'decision: PENDING', 'rationale: PENDING', 'future_rule: PENDING', '```', '');
+  });
+  return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
+}
+
 export function materialiseStructuralAdjudicationBatch01({
   generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
   outputPath = DEFAULT_ADJUDICATION_BATCH_01_PATH,
@@ -639,12 +920,37 @@ export function materialiseStructuralAdjudicationBatch03({
   };
 }
 
+export function materialiseStructuralAdjudicationBatch04({
+  generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  outputPath = DEFAULT_ADJUDICATION_BATCH_04_PATH,
+  checkOnly = false
+} = {}) {
+  const batch = buildStructuralAdjudicationBatch04({ generatedRoot });
+  const expected = renderStructuralAdjudicationBatch04(batch);
+  if (checkOnly) {
+    const actual = readFileSync(outputPath, 'utf8').replace(/\r\n/g, '\n');
+    if (actual !== expected.replace(/\r\n/g, '\n')) throw new Error(`Stale adjudication batch: ${outputPath}`);
+  } else {
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, expected, 'utf8');
+  }
+  return {
+    batchId: batch.batchId,
+    checkOnly,
+    generationAuthorized: batch.generationAuthorized,
+    itemCount: batch.itemCount,
+    sourceMatrixFingerprint: batch.sourceMatrixFingerprint,
+    status: batch.status
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const batchArgument = process.argv.find(argument => argument.startsWith('--batch='))?.split('=')[1] ?? '01';
   const materialisers = {
     '01': materialiseStructuralAdjudicationBatch01,
     '02': materialiseStructuralAdjudicationBatch02,
-    '03': materialiseStructuralAdjudicationBatch03
+    '03': materialiseStructuralAdjudicationBatch03,
+    '04': materialiseStructuralAdjudicationBatch04
   };
   const materialise = materialisers[batchArgument];
   if (!materialise) throw new Error(`Unsupported adjudication batch: ${batchArgument}`);

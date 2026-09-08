@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 1,
+  "logType": "STRUCTURAL_HUMAN_ADJUDICATION_LOG",
+  "batchId": "adjudication-batch-04-scenario-families-01",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  },
+  "status": "PENDING_HUMAN_REVIEW",
+  "generationAuthorized": false,
+  "appendOnly": true,
+  "authorizedSourceItemIds": [
+    "scenario-family-preflight-02",
+    "scenario-family-preflight-03",
+    "scenario-family-preflight-04",
+    "scenario-family-preflight-05",
+    "scenario-family-preflight-06",
+    "scenario-family-preflight-07",
+    "scenario-family-preflight-08",
+    "scenario-family-preflight-09",
+    "scenario-family-preflight-10",
+    "scenario-family-preflight-13"
+  ],
+  "humanDoctrine": {
+    "provenance": "HUMAN_ADJUDICATION",
+    "decisionTask": "STRUCTURAL_SCENARIO_FAMILY_ADJUDICATION",
+    "futureRuleRequired": true,
+    "generatedUserFormulationsAvailable": false,
+    "generationAuthorized": false
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "eventId": "adjudication-batch-04-event-001",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-02",
+      "sourceComparisonItemFingerprint": "809c7e854114d2cb0167c9e69f91a7656ee08087bfce944ccbf11bc0950747df",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q018"
+            ],
+            [
+              "equinoxe-q021"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "La réservation d’un poste et la déclaration de présence sont deux actions opérationnelles distinctes. Leur rattachement abstrait à « l’organisation de sa venue » n’est pas suffisamment spécifique pour constituer un même scénario utilisateur de génération.",
+      "futureRule": "Une catégorie de parcours générale ne suffit pas à former une scenario family lorsque les formulations déclenchent des actions opérationnelles différentes.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": null,
+      "eventHash": "42d5777f1ef038bd7deeed53c1cd5a8b2e832fb4dab9236a8766e1833e49a1d1"
+    },
+    {
+      "sequence": 2,
+      "eventId": "adjudication-batch-04-event-002",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-03",
+      "sourceComparisonItemFingerprint": "b1f2b4c701ee0651e5f3b3bfcca82c1462b1953853d408d31cb0373299900f64",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q047"
+            ],
+            [
+              "equinoxe-q048"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "La couverture wifi et le branchement physique du poste sont deux situations techniques différentes, avec des objets et des réponses opérationnelles distincts. Leur rapprochement repose principalement sur la notion générique de « connexion ».\n\nCette décision est cohérente avec la décision scellée `ambiguity-capacity-03`.",
+      "futureRule": "Une proximité lexicale ou un domaine technique commun ne suffit pas à constituer une scenario family lorsque les actions, objets et réponses applicables diffèrent.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "42d5777f1ef038bd7deeed53c1cd5a8b2e832fb4dab9236a8766e1833e49a1d1",
+      "eventHash": "aff904bd4ea0caaead91046a3dc33c30667a3a8636e5d1388abe02ee0d96c00f"
+    },
+    {
+      "sequence": 3,
+      "eventId": "adjudication-batch-04-event-003",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-04",
+      "sourceComparisonItemFingerprint": "bfca13cfb6ad7694f8cafc58f5166a7cab8f83da95e4ba95c3dd3d608f829734",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q054",
+              "equinoxe-q055",
+              "equinoxe-q059",
+              "equinoxe-q074",
+              "equinoxe-q101"
+            ],
+            [
+              "equinoxe-q067"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q054`, `q055`, `q059`, `q074` et `q101` décrivent l’accès géographique et la desserte du site. `q067` concerne l’accessibilité PMR du bâtiment. Le terme « accessible » est commun, mais les scénarios utilisateur sont distincts.",
+      "futureRule": "Lorsque le même terme métier recouvre l’accès géographique et l’accessibilité fonctionnelle d’un lieu, partitionner selon la nature concrète du besoin utilisateur.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "aff904bd4ea0caaead91046a3dc33c30667a3a8636e5d1388abe02ee0d96c00f",
+      "eventHash": "4e8a4f88988617b7a8f3b1e6fcbdfce4687d06ea6eeb02c023ac0bb2387e743a"
+    },
+    {
+      "sequence": 4,
+      "eventId": "adjudication-batch-04-event-004",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-05",
+      "sourceComparisonItemFingerprint": "a90f3d10b0c324e7af3c9c134067f26f7d387567cfd2be2637f018e6bd286a74",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "distinct",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q038"
+            ],
+            [
+              "equinoxe-q100"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "La recharge électrique constitue un besoin utilisateur suffisamment cohérent pour former une famille de scénario, mais le type de véhicule est une variable structurante qui détermine la connaissance applicable : vélo électrique pour `q038`, automobile pour `q100`.\n\nLa branche automobile reste temporellement instable conformément à la décision scellée `ambiguity-capacity-05`; cette instabilité ne doit pas être transformée en fausse équivalence avec la branche vélo.",
+      "futureRule": "Une scenario family peut représenter un même besoin paramétré par un type de ressource, mais les branches doivent rester explicitement partitionnées lorsque ce paramètre change la connaissance applicable; une branche instable ne devient pas stable par simple appartenance à la famille.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "4e8a4f88988617b7a8f3b1e6fcbdfce4687d06ea6eeb02c023ac0bb2387e743a",
+      "eventHash": "37dfc504f99df947875030ecf0501309ab0ba56a9c233fc1b5bd1dbc50827b85"
+    },
+    {
+      "sequence": 5,
+      "eventId": "adjudication-batch-04-event-005",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-06",
+      "sourceComparisonItemFingerprint": "0aec4feb8fd05eaa754ab2a92a95e6a3657060c986f04d690fc7271a738feadb",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q035",
+              "equinoxe-q036",
+              "equinoxe-q094",
+              "equinoxe-q095"
+            ],
+            [
+              "equinoxe-q037",
+              "equinoxe-q073"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Le premier groupe concerne les casiers personnels destinés aux effets personnels et documents. Le second concerne les casiers et équipements situés à proximité du local vélos. Il s’agit de deux objets et contextes d’usage distincts.\n\nCette frontière est déjà établie par la décision scellée `ambiguity-capacity-06`.",
+      "futureRule": "Le partage d’un nom d’équipement ne suffit pas à former une scenario family lorsque l’objet physique, le lieu ou l’usage sont différents.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "37dfc504f99df947875030ecf0501309ab0ba56a9c233fc1b5bd1dbc50827b85",
+      "eventHash": "901346a44f1d56173bbf96011201bcfd466772afebdcc454385a9922e68875e0"
+    },
+    {
+      "sequence": 6,
+      "eventId": "adjudication-batch-04-event-006",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-07",
+      "sourceComparisonItemFingerprint": "4bd432f40f5d9e72f93f35e42b25464d156af293d42fed4f8775a12d1caf48b5",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q003"
+            ],
+            [
+              "equinoxe-q004",
+              "equinoxe-q005",
+              "equinoxe-q007",
+              "equinoxe-q108"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q003` porte sur la stabilité générale du calendrier. `q004`, `q005`, `q007` et `q108` constituent ensemble le parcours de préparation avant déménagement.\n\nCette partition est déjà établie par les décisions scellées `boundary-arrival-preparation` et `ambiguity-capacity-07`.\n\nLes jalons individuels du parcours de préparation ne doivent pas être séparés artificiellement en autant de scenario families.",
+      "futureRule": "Partitionner les scenario families au niveau du besoin métier cohérent, pas au niveau de chaque date ou jalon; un parcours de préparation peut réunir plusieurs étapes tout en restant distinct de la stabilité générale du calendrier.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "901346a44f1d56173bbf96011201bcfd466772afebdcc454385a9922e68875e0",
+      "eventHash": "57176a67adff3f5e8d25ed43cc8ca8efa37b27eaa9bd9dab76ebbf6e50da8c1a"
+    },
+    {
+      "sequence": 7,
+      "eventId": "adjudication-batch-04-event-007",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-08",
+      "sourceComparisonItemFingerprint": "dc8fab846f1d4ae3bf343b8543342c37e6242ed15e8fa659a9d9d5910662848f",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q066",
+              "equinoxe-q069",
+              "equinoxe-q104"
+            ],
+            [
+              "equinoxe-q067"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q066`, `q069` et `q104` relèvent d’un besoin individuel d’adaptation, d’accompagnement ou de contact en matière d’accessibilité, via les circuits RH/santé ou les relais appropriés. `q067` porte sur l’accessibilité générale du site aux personnes à mobilité réduite.\n\nLe groupe d’équivalence scellé `q066/q069` reste inchangé.",
+      "futureRule": "Séparer l’accessibilité générale d’un environnement et la démarche individuelle d’adaptation ou d’accompagnement, même lorsqu’elles appartiennent au même domaine d’inclusion.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "57176a67adff3f5e8d25ed43cc8ca8efa37b27eaa9bd9dab76ebbf6e50da8c1a",
+      "eventHash": "375179d895f607295e471316f3e57179b2586a7eef225525e975a68ef3f8ad81"
+    },
+    {
+      "sequence": 8,
+      "eventId": "adjudication-batch-04-event-008",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-09",
+      "sourceComparisonItemFingerprint": "7a55e362df4f26efcd54e90164d7513be05f3cb98e7167c0f26cb19debcc1bec",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "distinct",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q061"
+            ],
+            [
+              "equinoxe-q064"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Restaurant et Terrasse appartiennent au même univers d’usage lié au déjeuner, mais les questions portent sur deux ressources et deux besoins différents : capacité du restaurant pour `q061`, possibilité de déjeuner dehors sur la Terrasse pour `q064`.\n\nLa partition doit donc conserver le type de lieu comme variable structurante.",
+      "futureRule": "Une scenario family peut regrouper des besoins appartenant au même moment d’usage, mais les branches doivent rester séparées lorsque le lieu ou la ressource modifie substantiellement la question et la réponse.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "375179d895f607295e471316f3e57179b2586a7eef225525e975a68ef3f8ad81",
+      "eventHash": "fde36bce65ca92368b1a06e7b698df2ffffe26f054e01a0e9592da12166f42da"
+    },
+    {
+      "sequence": 9,
+      "eventId": "adjudication-batch-04-event-009",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-10",
+      "sourceComparisonItemFingerprint": "3136b6d0cf598614ac4169c8463bbc26275dc6732ceda6eadd9e6de580353f67",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q032"
+            ],
+            [
+              "equinoxe-q063"
+            ],
+            [
+              "equinoxe-q093"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Les trois connaissances portent sur le Café central mais répondent à trois besoins utilisateur différents : sa finalité comme espace de convivialité, la possibilité ou l’offre pour manger, et son accessibilité au cours de la journée.\n\nLa décision scellée `ambiguity-capacity-10` établit que ces facettes sont compatibles, mais leur compatibilité ne signifie pas qu’elles constituent un même scénario de génération.",
+      "futureRule": "Le fait que plusieurs connaissances décrivent le même lieu ou objet ne suffit pas à former une scenario family; la famille doit être structurée par le besoin utilisateur, pas seulement par l’entité concernée.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "fde36bce65ca92368b1a06e7b698df2ffffe26f054e01a0e9592da12166f42da",
+      "eventHash": "5b13750d93dff541efbe48d192f55ed9fc3cc0b5c345563fa15e9c7bc906e183"
+    },
+    {
+      "sequence": 10,
+      "eventId": "adjudication-batch-04-event-010",
+      "batchId": "adjudication-batch-04-scenario-families-01",
+      "sourceItemId": "scenario-family-preflight-13",
+      "sourceComparisonItemFingerprint": "2886159a0fdf9eb0ebfc859f521ddb86c1cbb9f1607a78f16e74c3cc43a4e98c",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q062",
+              "equinoxe-q103"
+            ],
+            [
+              "equinoxe-q102"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q062` et `q103` concernent l’offre proposée par le Restaurant. `q102` concerne le besoin d’un snack ou d’une offre de restauration rapide/distributeur et constitue un scénario différent.\n\nLa décision scellée `ambiguity-capacity-13` reste applicable : le détail de certaines offres est encore temporellement instable et cette instabilité ne doit pas être masquée par le regroupement.",
+      "futureRule": "Regrouper les formulations autour d’une même offre ou ressource lorsque le besoin utilisateur reste cohérent, mais séparer les modes de restauration substantiellement différents; l’appartenance à une scenario family ne transforme jamais une connaissance différée en connaissance stable.",
+      "recordedAt": "2026-09-08T15:15:13.437Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "5b13750d93dff541efbe48d192f55ed9fc3cc0b5c345563fa15e9c7bc906e183",
+      "eventHash": "9a92c50e36e5982d19b0b004fc6dc11ca0eafdc1c4b27c3e9403714a6344d60e"
+    }
+  ],
+  "logFingerprint": "4b610627e267f01276985ff6ac30f670dd2040a8498776a4064a88e0dca0817c"
+}

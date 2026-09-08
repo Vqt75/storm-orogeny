@@ -35,7 +35,7 @@ const EVENT_KEYS = Object.freeze([
   'sourceComparisonItemFingerprint',
   'sourceItemId'
 ]);
-const AMBIGUITY_EVENT_KEYS = Object.freeze([...EVENT_KEYS, 'futureRule']);
+const FUTURE_RULE_EVENT_KEYS = Object.freeze([...EVENT_KEYS, 'futureRule']);
 const INPUT_KEYS = Object.freeze([
   'decision',
   'eventId',
@@ -44,7 +44,7 @@ const INPUT_KEYS = Object.freeze([
   'recordedAt',
   'sourceItemId'
 ]);
-const AMBIGUITY_INPUT_KEYS = Object.freeze([...INPUT_KEYS, 'futureRule']);
+const FUTURE_RULE_INPUT_KEYS = Object.freeze([...INPUT_KEYS, 'futureRule']);
 const SEAL_KEYS = Object.freeze([
   'batchId',
   'eventCount',
@@ -228,6 +228,68 @@ function assertAmbiguityDecision(decision, sourceScope) {
   }
 }
 
+function assertScenarioPartitionCoversScope(partition, sourceScope) {
+  if (!Array.isArray(partition) || partition.length === 0) {
+    throw new Error('Scenario-family adjudication requires at least one family group');
+  }
+  const memberEntryIds = [];
+  for (const group of partition) {
+    if (!Array.isArray(group) || group.length === 0
+      || new Set(group).size !== group.length
+      || group.some(entryId => typeof entryId !== 'string' || entryId.trim() === '')) {
+      throw new Error('Invalid scenario-family canonicalPartition group');
+    }
+    memberEntryIds.push(...group);
+  }
+  if (new Set(memberEntryIds).size !== memberEntryIds.length
+    || canonicalJson([...memberEntryIds].sort()) !== canonicalJson([...sourceScope].sort())) {
+    throw new Error('Scenario-family canonicalPartition must partition the complete source knowledge scope');
+  }
+}
+
+function assertScenarioFamilyDecision(decision, sourceScope) {
+  if (!hasExactKeys(decision, [
+    'fragmentationAssessment',
+    'reviewerScenarioFamilyPartition'
+  ])) {
+    throw new Error('Invalid scenario-family adjudication decision schema');
+  }
+  const fragmentation = decision.fragmentationAssessment;
+  const partition = decision.reviewerScenarioFamilyPartition;
+  if (!hasExactKeys(fragmentation, ['mergeCanonicalReviewItemIds', 'value'])
+    || !hasExactKeys(partition, ['canonicalPartition', 'value'])) {
+    throw new Error('Invalid scenario-family adjudication decision fields');
+  }
+  const allowedDispositions = new Set([
+    'distinct',
+    'mergeWithAnotherDisplayedBrief',
+    'tooBroad',
+    'artificiallyFragmented',
+    'insufficientEvidence'
+  ]);
+  if (!allowedDispositions.has(fragmentation.value)
+    || !Array.isArray(fragmentation.mergeCanonicalReviewItemIds)
+    || new Set(fragmentation.mergeCanonicalReviewItemIds).size !== fragmentation.mergeCanonicalReviewItemIds.length
+    || fragmentation.mergeCanonicalReviewItemIds.some(itemId => typeof itemId !== 'string' || itemId.trim() === '')) {
+    throw new Error('Invalid scenario-family fragmentation assessment');
+  }
+  if (fragmentation.value === 'mergeWithAnotherDisplayedBrief') {
+    if (fragmentation.mergeCanonicalReviewItemIds.length === 0) {
+      throw new Error('Scenario-family merge disposition requires merge candidates');
+    }
+  } else if (fragmentation.mergeCanonicalReviewItemIds.length !== 0) {
+    throw new Error('Scenario-family non-merge disposition cannot carry merge candidates');
+  }
+  if (partition.value === 'reviewerDefinedFamilyGroups') {
+    assertScenarioPartitionCoversScope(partition.canonicalPartition, sourceScope);
+    return;
+  }
+  if (partition.value !== 'insufficientEvidence' || partition.canonicalPartition !== null
+    || fragmentation.value !== 'insufficientEvidence') {
+    throw new Error('Invalid scenario-family partition');
+  }
+}
+
 function assertDecision(decision, comparisonItem) {
   if (comparisonItem.packetKind === 'EQUIVALENCE_AND_PREFERRED') {
     assertEquivalenceDecision(decision, comparisonItem.canonicalKnowledgeScope);
@@ -239,6 +301,10 @@ function assertDecision(decision, comparisonItem) {
   }
   if (comparisonItem.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES') {
     assertAmbiguityDecision(decision, comparisonItem.canonicalKnowledgeScope);
+    return;
+  }
+  if (comparisonItem.packetKind === 'SCENARIO_FAMILY_PREFLIGHT') {
+    assertScenarioFamilyDecision(decision, comparisonItem.canonicalKnowledgeScope);
     return;
   }
   throw new Error(`Structural adjudication packet kind is not supported: ${comparisonItem.packetKind}`);
@@ -304,7 +370,7 @@ export function createEmptyStructuralAdjudicationLog({
 export function constructStructuralAdjudicationLogWithEvent(log, input, sourceMatrix) {
   const validation = validateStructuralAdjudicationLog(log, sourceMatrix);
   if (!validation.ok) throw new Error(`Cannot append to invalid structural adjudication log: ${canonicalJson(validation.errors)}`);
-  if (!hasExactKeys(input, INPUT_KEYS) && !hasExactKeys(input, AMBIGUITY_INPUT_KEYS)) {
+  if (!hasExactKeys(input, INPUT_KEYS) && !hasExactKeys(input, FUTURE_RULE_INPUT_KEYS)) {
     throw new Error('Structural adjudication input fields differ from contract');
   }
   requiredString(input.eventId, 'eventId');
@@ -317,12 +383,13 @@ export function constructStructuralAdjudicationLogWithEvent(log, input, sourceMa
   if (log.events.some(event => event.sourceItemId === input.sourceItemId)) throw new Error(`Duplicate structural adjudication sourceItemId: ${input.sourceItemId}`);
   const comparisonItem = sourceMatrix.items.find(item => item.canonicalReviewItemId === input.sourceItemId);
   if (!comparisonItem || !comparisonItem.requiresAdjudication) throw new Error('sourceItemId is not an unresolved matrix item');
-  const isAmbiguity = comparisonItem.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES';
-  if (isAmbiguity) {
-    if (!hasExactKeys(input, AMBIGUITY_INPUT_KEYS)) throw new Error('Ambiguity adjudication input requires futureRule');
+  const requiresFutureRule = comparisonItem.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES'
+    || comparisonItem.packetKind === 'SCENARIO_FAMILY_PREFLIGHT';
+  if (requiresFutureRule) {
+    if (!hasExactKeys(input, FUTURE_RULE_INPUT_KEYS)) throw new Error('This adjudication input requires futureRule');
     requiredString(input.futureRule, 'futureRule');
   } else if (!hasExactKeys(input, INPUT_KEYS)) {
-    throw new Error('Non-ambiguity adjudication input cannot carry futureRule');
+    throw new Error('This adjudication input cannot carry futureRule');
   }
   assertDecision(input.decision, comparisonItem);
   const previousEventHash = log.events.at(-1)?.eventHash ?? null;
@@ -334,7 +401,7 @@ export function constructStructuralAdjudicationLogWithEvent(log, input, sourceMa
     sourceComparisonItemFingerprint: fingerprint(comparisonItem),
     decision: structuredClone(input.decision),
     humanRationale: input.humanRationale,
-    ...(isAmbiguity ? { futureRule: input.futureRule } : {}),
+    ...(requiresFutureRule ? { futureRule: input.futureRule } : {}),
     recordedAt: input.recordedAt,
     provenance: input.provenance,
     previousEventHash
@@ -376,14 +443,15 @@ export function validateStructuralAdjudicationLog(log, sourceMatrix) {
   let previousEventHash = null;
   for (let index = 0; index < (log.events ?? []).length; index += 1) {
     const event = log.events[index];
-    if (!hasExactKeys(event, EVENT_KEYS) && !hasExactKeys(event, AMBIGUITY_EVENT_KEYS)) {
+    if (!hasExactKeys(event, EVENT_KEYS) && !hasExactKeys(event, FUTURE_RULE_EVENT_KEYS)) {
       errors.push({ code: 'INVALID_STRUCTURAL_ADJUDICATION_EVENT_SCHEMA', sequence: index + 1 });
       continue;
     }
     const comparisonItem = sourceMatrix?.items?.find(item => item.canonicalReviewItemId === event.sourceItemId);
-    const isAmbiguity = comparisonItem?.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES';
-    if ((isAmbiguity && !hasExactKeys(event, AMBIGUITY_EVENT_KEYS))
-      || (!isAmbiguity && !hasExactKeys(event, EVENT_KEYS))) {
+    const requiresFutureRule = comparisonItem?.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES'
+      || comparisonItem?.packetKind === 'SCENARIO_FAMILY_PREFLIGHT';
+    if ((requiresFutureRule && !hasExactKeys(event, FUTURE_RULE_EVENT_KEYS))
+      || (!requiresFutureRule && !hasExactKeys(event, EVENT_KEYS))) {
       errors.push({ code: 'STRUCTURAL_ADJUDICATION_EVENT_SCHEMA_KIND_MISMATCH', sequence: event.sequence });
     }
     if (event.sequence !== index + 1) errors.push({ code: 'INVALID_EVENT_SEQUENCE', sequence: event.sequence });
@@ -397,7 +465,7 @@ export function validateStructuralAdjudicationLog(log, sourceMatrix) {
     if (event.provenance !== HUMAN_ADJUDICATION_PROVENANCE) errors.push({ code: 'INVALID_HUMAN_PROVENANCE', sequence: event.sequence });
     if (!isCanonicalTimestamp(event.recordedAt)) errors.push({ code: 'INVALID_RECORDED_AT', sequence: event.sequence });
     if (typeof event.humanRationale !== 'string' || event.humanRationale.trim() === '') errors.push({ code: 'MISSING_HUMAN_RATIONALE', sequence: event.sequence });
-    if (isAmbiguity && (typeof event.futureRule !== 'string' || event.futureRule.trim() === '')) {
+    if (requiresFutureRule && (typeof event.futureRule !== 'string' || event.futureRule.trim() === '')) {
       errors.push({ code: 'MISSING_FUTURE_RULE', sequence: event.sequence });
     }
     if (event.previousEventHash !== previousEventHash) errors.push({ code: 'PREVIOUS_EVENT_HASH_MISMATCH', sequence: event.sequence });

@@ -1,0 +1,18 @@
+{
+  "batchId": "adjudication-batch-04-scenario-families-01",
+  "eventCount": 10,
+  "finalEventHash": "9a92c50e36e5982d19b0b004fc6dc11ca0eafdc1c4b27c3e9403714a6344d60e",
+  "journalCanonicalSha256": "01d3ea92cf996b83764ee5957c3ddad2347392cb6845edf28c01fab24dde786c",
+  "journalFingerprint": "4b610627e267f01276985ff6ac30f670dd2040a8498776a4064a88e0dca0817c",
+  "journalPath": "adjudication-batch-04-scenario-families-01.human-adjudication-log.json",
+  "provenance": "HUMAN_ADJUDICATION",
+  "schemaVersion": 2,
+  "sealHash": "99ee2f783135a56b65e0b306ee0550eda322dc8f7535802b513d6d03282e3043",
+  "sealType": "STRUCTURAL_ADJUDICATION_BATCH_SEAL",
+  "sealedAt": "2026-09-08T15:35:33.839Z",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  }
+}

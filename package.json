@@ -15,6 +15,7 @@
     "seed:demo": "node src/db/seedDemo.js",
     "retention:run": "node src/domain/privacy/runRetention.js",
     "privacy:purge-projects": "node src/domain/projects/runProjectDeletions.js",
+    "privacy:cleanup-storage": "node src/domain/privacy/runStorageCleanupSweep.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

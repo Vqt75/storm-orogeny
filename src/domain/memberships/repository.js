@@ -148,7 +148,7 @@ export async function listProjectInvitations(pool, { tenantId, projectId }) {
 
 export async function revokeProjectInvitation(pool, { tenantId, projectId, invitationId }) {
   const { rows } = await pool.query(
-    `update project_invitations set status = 'revoked'
+    `update project_invitations set status = 'revoked', revoked_at = now()
      where id = $1 and project_id = $2 and tenant_id = $3 and status = 'pending'
      returning id, status`,
     [invitationId, projectId, tenantId]

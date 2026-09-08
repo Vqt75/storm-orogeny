@@ -28,6 +28,19 @@ export const ADJUDICATION_BATCH_02_ITEM_IDS = Object.freeze([
   'ambiguity-capacity-16'
 ]);
 
+export const ADJUDICATION_BATCH_03_ITEM_IDS = Object.freeze([
+  'ambiguity-capacity-17',
+  'ambiguity-capacity-18',
+  'ambiguity-capacity-19',
+  'ambiguity-capacity-20',
+  'ambiguity-capacity-21',
+  'ambiguity-capacity-22',
+  'ambiguity-capacity-25',
+  'ambiguity-capacity-29',
+  'ambiguity-capacity-30',
+  'ambiguity-capacity-33'
+]);
+
 export const EXPECTED_COMPARISON_MATRIX_FINGERPRINT = '2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd';
 export const DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT = join(import.meta.dirname, 'generated-structural-review');
 export const DEFAULT_ADJUDICATION_BATCH_01_PATH = join(
@@ -41,6 +54,12 @@ export const DEFAULT_ADJUDICATION_BATCH_02_PATH = join(
   'adjudication',
   'batches',
   'adjudication-batch-02-ambiguities-01.md'
+);
+export const DEFAULT_ADJUDICATION_BATCH_03_PATH = join(
+  DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  'adjudication',
+  'batches',
+  'adjudication-batch-03-ambiguities-02.md'
 );
 
 const PACKET_BASENAME_BY_KIND = Object.freeze({
@@ -180,6 +199,36 @@ export function buildStructuralAdjudicationBatch01({ generatedRoot = DEFAULT_GEN
 }
 
 export function buildStructuralAdjudicationBatch02({ generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT } = {}) {
+  return buildAmbiguityAdjudicationBatch({
+    generatedRoot,
+    itemIds: ADJUDICATION_BATCH_02_ITEM_IDS,
+    batchId: 'adjudication-batch-02-ambiguities-01'
+  });
+}
+
+function sealedEquivalenceByEntryId(generatedRoot) {
+  const log = readJson(join(
+    generatedRoot,
+    'adjudication',
+    'records',
+    'adjudication-batch-01-equivalence-boundaries.human-adjudication-log.json'
+  ));
+  const byEntryId = new Map();
+  for (const event of log.events.filter(candidate => candidate.sourceItemId.startsWith('equivalence-comparison-'))) {
+    const partition = event.decision.substantiveEquivalencePartition.canonicalPartition;
+    const preferredEntryId = event.decision.preferredEntrySelection.preferredEntryId;
+    for (const memberEntryIds of partition) {
+      const sealedGroup = Object.freeze({
+        memberEntryIds: Object.freeze([...memberEntryIds]),
+        preferredEntryId: memberEntryIds.includes(preferredEntryId) ? preferredEntryId : null
+      });
+      for (const entryId of memberEntryIds) byEntryId.set(entryId, sealedGroup);
+    }
+  }
+  return byEntryId;
+}
+
+function buildAmbiguityAdjudicationBatch({ generatedRoot, itemIds, batchId, includeSealedEquivalence = false }) {
   const matrixPath = join(
     generatedRoot,
     'adjudication',
@@ -188,13 +237,14 @@ export function buildStructuralAdjudicationBatch02({ generatedRoot = DEFAULT_GEN
   const matrix = readJson(matrixPath);
   assertMatrixContract(matrix);
   const byId = new Map(matrix.items.map(item => [item.canonicalReviewItemId, item]));
-  const items = ADJUDICATION_BATCH_02_ITEM_IDS.map(sourceItemId => {
+  const equivalenceByEntryId = includeSealedEquivalence ? sealedEquivalenceByEntryId(generatedRoot) : null;
+  const items = itemIds.map(sourceItemId => {
     const source = byId.get(sourceItemId);
     if (!source) throw new Error(`Missing adjudication batch item: ${sourceItemId}`);
     if (source.packetKind !== 'AMBIGUITY_CAPACITY_FAMILIES'
       || !source.requiresAdjudication
       || source.completeAgreement) {
-      throw new Error(`Batch 02 item is not a pending ambiguity adjudication: ${sourceItemId}`);
+      throw new Error(`Ambiguity batch item is not a pending adjudication: ${sourceItemId}`);
     }
     const packetA = loadPacket(generatedRoot, source.packetKind, 'A');
     const packetB = loadPacket(generatedRoot, source.packetKind, 'B');
@@ -216,7 +266,12 @@ export function buildStructuralAdjudicationBatch02({ generatedRoot = DEFAULT_GEN
         businessContext: metadataA.businessContext,
         scenarioFamilyId: null
       },
-      knowledge: readableA,
+      knowledge: readableA.map(knowledge => ({
+        ...knowledge,
+        ...(includeSealedEquivalence
+          ? { sealedEquivalence: equivalenceByEntryId.get(knowledge.entryId) ?? null }
+          : {})
+      })),
       reviewerA: {
         decisions: structuredClone(source.reviewerA.decisions),
         rationales: structuredClone(source.reviewerA.rationales)
@@ -250,7 +305,7 @@ export function buildStructuralAdjudicationBatch02({ generatedRoot = DEFAULT_GEN
     };
   });
   return Object.freeze({
-    batchId: 'adjudication-batch-02-ambiguities-01',
+    batchId,
     sourceMatrixFingerprint: matrix.matrixFingerprint,
     sourceReviewerSeals: {
       reviewerA: matrix.sourceReviews.reviewerA.sealHash,
@@ -261,6 +316,15 @@ export function buildStructuralAdjudicationBatch02({ generatedRoot = DEFAULT_GEN
     adjudicationPerformed: false,
     itemCount: items.length,
     items
+  });
+}
+
+export function buildStructuralAdjudicationBatch03({ generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT } = {}) {
+  return buildAmbiguityAdjudicationBatch({
+    generatedRoot,
+    itemIds: ADJUDICATION_BATCH_03_ITEM_IDS,
+    batchId: 'adjudication-batch-03-ambiguities-02',
+    includeSealedEquivalence: true
   });
 }
 
@@ -432,6 +496,77 @@ export function renderStructuralAdjudicationBatch02(batch) {
   return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
 }
 
+function renderSealedEquivalence(knowledge) {
+  if (knowledge.sealedEquivalence === null) return '—';
+  const members = knowledge.sealedEquivalence.memberEntryIds
+    .map(entryId => `\`${entryId}\``)
+    .join(', ');
+  const preferred = knowledge.sealedEquivalence.preferredEntryId === null
+    ? 'aucun `preferredEntryId` applicable'
+    : `preferredEntryId : \`${knowledge.sealedEquivalence.preferredEntryId}\``;
+  return `Groupe scellé : ${members} ; ${preferred}`;
+}
+
+export function renderStructuralAdjudicationBatch03(batch) {
+  const lines = [
+    '# Adjudication structurelle — Batch 03 : ambiguïtés 02',
+    '',
+    `- Batch : \`${batch.batchId}\``,
+    `- Matrice source : \`${batch.sourceMatrixFingerprint}\``,
+    `- Seal Reviewer A : \`${batch.sourceReviewerSeals.reviewerA}\``,
+    `- Seal Reviewer B : \`${batch.sourceReviewerSeals.reviewerB}\``,
+    `- Statut : \`${batch.status}\``,
+    `- Autorisation de génération : \`${batch.generationAuthorized}\``,
+    `- Adjudication effectuée : \`${batch.adjudicationPerformed}\``,
+    `- Items : ${batch.itemCount}`,
+    '',
+    '## Doctrine de revue',
+    '',
+    '- Liquid Core évalue l’answerability et le retrieval à partir du contenu publié.',
+    '- Liquid Core ne génère aucune vérité projet.',
+    '- Catégories possibles : `structuralAmbiguity`, `artificialOrMalformed`, `blockedTemporalInstability`, `insufficientEvidence`.',
+    '- Mécanismes possibles avec `structuralAmbiguity` : `alternativeIntentReadings`, `underspecifiedReference`, `competingPublishedKnowledge`.',
+    '- L’arbitrage humain doit établir une structure de vérité propre pour la future génération du corpus.',
+    '- `generationAuthorized` reste `false`.',
+    '',
+    '> Le paquet restitue uniquement le contexte réellement présent dans les sources scellées. Il ne reconstruit aucune formulation utilisateur absente et ne propose aucune décision.',
+    ''
+  ];
+
+  batch.items.forEach((item, index) => {
+    lines.push(`## ${index + 1}. ${item.sourceItemId} — ${item.sourceFamily.title}`, '');
+    lines.push('### Identification', '');
+    lines.push(`- Item canonique : \`${item.sourceItemId}\``);
+    lines.push(`- Type : \`${item.packetKind}\``);
+    lines.push(`- Contexte métier réellement disponible : ${item.sourceFamily.businessContext}`);
+    lines.push('', 'generated user formulation: NOT AVAILABLE', '');
+
+    renderAmbiguityReviewer(lines, item, 'reviewerA', 'A');
+    renderAmbiguityReviewer(lines, item, 'reviewerB', 'B');
+
+    lines.push('### Comparaison A/B', '');
+    lines.push(`- Statut exact : \`${item.comparison.status}\``);
+    lines.push(`- Accord de premier niveau : ${item.comparison.firstLevelAgreement ? 'oui' : 'non'}`);
+    lines.push(`- Accord complet : ${item.comparison.completeAgreement ? 'oui' : 'non'}`);
+    lines.push(`- Accords stricts : ${item.comparison.strictAgreementFields.length === 0 ? 'aucun' : item.comparison.strictAgreementFields.map(field => `\`${field}\``).join(', ')}`);
+    lines.push(`- Désaccords consignés : ${item.comparison.findings.map(finding => `\`${finding.field}\` (\`${finding.status}\`)`).join(', ')}`);
+    lines.push('', 'Partition / crosswalk réel :', '');
+    renderCrosswalk(lines, 'A', item.comparison.crosswalk.reviewerA);
+    renderCrosswalk(lines, 'B', item.comparison.crosswalk.reviewerB);
+    lines.push('');
+
+    lines.push('### Candidate knowledge', '');
+    lines.push('| q-id canonique | Question canonique | Réponse canonique | Équivalence / preferred pertinente |', '|---|---|---|---|');
+    for (const knowledge of item.knowledge) {
+      lines.push(`| \`${knowledge.entryId}\` | ${escapeTableCell(knowledge.canonicalQuestion)} | ${escapeTableCell(knowledge.canonicalAnswer)} | ${renderSealedEquivalence(knowledge)} |`);
+    }
+    lines.push('');
+
+    lines.push('### Human decision', '', '```text', 'decision: PENDING', 'rationale: PENDING', 'future_rule: PENDING', '```', '');
+  });
+  return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
+}
+
 export function materialiseStructuralAdjudicationBatch01({
   generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
   outputPath = DEFAULT_ADJUDICATION_BATCH_01_PATH,
@@ -480,12 +615,39 @@ export function materialiseStructuralAdjudicationBatch02({
   };
 }
 
+export function materialiseStructuralAdjudicationBatch03({
+  generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  outputPath = DEFAULT_ADJUDICATION_BATCH_03_PATH,
+  checkOnly = false
+} = {}) {
+  const batch = buildStructuralAdjudicationBatch03({ generatedRoot });
+  const expected = renderStructuralAdjudicationBatch03(batch);
+  if (checkOnly) {
+    const actual = readFileSync(outputPath, 'utf8').replace(/\r\n/g, '\n');
+    if (actual !== expected.replace(/\r\n/g, '\n')) throw new Error(`Stale adjudication batch: ${outputPath}`);
+  } else {
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, expected, 'utf8');
+  }
+  return {
+    batchId: batch.batchId,
+    checkOnly,
+    generationAuthorized: batch.generationAuthorized,
+    itemCount: batch.itemCount,
+    sourceMatrixFingerprint: batch.sourceMatrixFingerprint,
+    status: batch.status
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const batchArgument = process.argv.find(argument => argument.startsWith('--batch='))?.split('=')[1] ?? '01';
-  const materialise = batchArgument === '02'
-    ? materialiseStructuralAdjudicationBatch02
-    : materialiseStructuralAdjudicationBatch01;
-  if (!['01', '02'].includes(batchArgument)) throw new Error(`Unsupported adjudication batch: ${batchArgument}`);
+  const materialisers = {
+    '01': materialiseStructuralAdjudicationBatch01,
+    '02': materialiseStructuralAdjudicationBatch02,
+    '03': materialiseStructuralAdjudicationBatch03
+  };
+  const materialise = materialisers[batchArgument];
+  if (!materialise) throw new Error(`Unsupported adjudication batch: ${batchArgument}`);
   const result = materialise({ checkOnly: process.argv.includes('--check') });
   process.stdout.write(`${canonicalJson(result)}\n`);
 }

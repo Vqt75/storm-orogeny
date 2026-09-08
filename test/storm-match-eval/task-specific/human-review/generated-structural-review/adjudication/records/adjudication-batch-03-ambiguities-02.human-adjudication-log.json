@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "logType": "STRUCTURAL_HUMAN_ADJUDICATION_LOG",
+  "batchId": "adjudication-batch-03-ambiguities-02",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  },
+  "status": "PENDING_HUMAN_REVIEW",
+  "generationAuthorized": false,
+  "appendOnly": true,
+  "authorizedSourceItemIds": [
+    "ambiguity-capacity-17",
+    "ambiguity-capacity-18",
+    "ambiguity-capacity-19",
+    "ambiguity-capacity-20",
+    "ambiguity-capacity-21",
+    "ambiguity-capacity-22",
+    "ambiguity-capacity-25",
+    "ambiguity-capacity-29",
+    "ambiguity-capacity-30",
+    "ambiguity-capacity-33"
+  ],
+  "humanDoctrine": {
+    "provenance": "HUMAN_ADJUDICATION",
+    "decisionTask": "STRUCTURAL_AMBIGUITY_FAMILY_ADJUDICATION",
+    "futureRuleRequired": true,
+    "generatedUserFormulationsAvailable": false,
+    "generationAuthorized": false
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "eventId": "adjudication-batch-03-event-001",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-17",
+      "sourceComparisonItemFingerprint": "b8d72baa35b10d4d2188253b10e7f42aadbb30a180f64c975852d0b63ffc7e06",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "La date d’ouverture, le rôle expérimental du plateau témoin et la collecte des retours sont des propriétés complémentaires du même dispositif. Elles peuvent être expliquées ensemble et ne forcent pas un choix entre plusieurs réponses substantiellement concurrentes.",
+      "futureRule": "Des attributs complémentaires d’un même dispositif ne forment pas une ambiguïté structurelle lorsqu’ils peuvent être expliqués ensemble sans contradiction ni choix exclusif.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": null,
+      "eventHash": "9c50a4694ba2adb787da611f988dbe7e900f036a85c7bc357d023f51a22ba4d2"
+    },
+    {
+      "sequence": 2,
+      "eventId": "adjudication-batch-03-event-002",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-18",
+      "sourceComparisonItemFingerprint": "2759fa80715d805fdd2b7d04990653da271b3858a73ec8f4b2a8588dc1e32248",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "alternativeIntentReadings"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q079",
+              "equinoxe-q110"
+            ],
+            [
+              "equinoxe-q111"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q079` et `q110` décrivent la phase d’essai et de collecte des retours avant le déménagement définitif. `q111` décrit l’observation et les ajustements possibles après l’emménagement. Une demande générale sur la possibilité de tester ou faire évoluer le projet peut donc viser deux phases métier différentes.",
+      "futureRule": "Quand une possibilité d’ajustement existe à plusieurs phases du projet, partitionner par phase métier si les mécanismes et temporalités de décision diffèrent substantiellement.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "9c50a4694ba2adb787da611f988dbe7e900f036a85c7bc357d023f51a22ba4d2",
+      "eventHash": "cd3a9ded6a05f94cf8b17216ce595ce314dcd5e5de04d8927df369194211c472"
+    },
+    {
+      "sequence": 3,
+      "eventId": "adjudication-batch-03-event-003",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-19",
+      "sourceComparisonItemFingerprint": "f64c35ee09ad3b8adc3fe188f755393684b08a21719e2ea358f0770802a17187",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Poser une question à tout moment et recevoir les actualités ou jalons sont deux flux de communication distincts dans Storm. Leur rapprochement provient du thème général de la communication projet, mais ils ne constituent pas des réponses concurrentes à une même lecture métier.",
+      "futureRule": "Le fait que plusieurs fonctions passent par le même canal ou outil ne suffit pas à créer une ambiguïté entre elles.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "cd3a9ded6a05f94cf8b17216ce595ce314dcd5e5de04d8927df369194211c472",
+      "eventHash": "e7240cbd154694abadd1caf54abb03fc4d941d0995921f84b58f4d96d416bec1"
+    },
+    {
+      "sequence": 4,
+      "eventId": "adjudication-batch-03-event-004",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-20",
+      "sourceComparisonItemFingerprint": "5e6acfe3d3f1204d671d63c3cb1c4ab5b10073f8f7d698487070d71ebbdb281a",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Le rôle des ambassadeurs, leur présence au sein des services et leur mode de désignation décrivent de manière compatible le même dispositif. Ces informations sont complémentaires et peuvent être restituées conjointement.",
+      "futureRule": "Des informations complémentaires décrivant identité, localisation, rôle ou mode de désignation d’un même acteur ne doivent pas être séparées en lectures concurrentes.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "e7240cbd154694abadd1caf54abb03fc4d941d0995921f84b58f4d96d416bec1",
+      "eventHash": "93f5208dcbf3bcd7e1b87e9a4ded4ce55eacf2130f56af90397fa3a14e34b9e4"
+    },
+    {
+      "sequence": 5,
+      "eventId": "adjudication-batch-03-event-005",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-21",
+      "sourceComparisonItemFingerprint": "d0bf106f4a4bd070913d8c9ad1070d8333616d71842849b37b592c27a4d84b29",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Poser une question non couverte et proposer une amélioration sont deux intentions différentes, mais elles conduisent ici à la même orientation opérationnelle : contacter un ambassadeur du service ou l’équipe projet. La bifurcation n’entraîne donc pas de réponse substantiellement différente.",
+      "futureRule": "Deux intentions lexicalement différentes ne forment pas une ambiguïté utile si elles conduisent à la même action ou réponse canonique.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "93f5208dcbf3bcd7e1b87e9a4ded4ce55eacf2130f56af90397fa3a14e34b9e4",
+      "eventHash": "2bb452d4db7760ec90cc75a8ed8819c8b7fb5f8c8468301529e4a99e61a7bbe4"
+    },
+    {
+      "sequence": 6,
+      "eventId": "adjudication-batch-03-event-006",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-22",
+      "sourceComparisonItemFingerprint": "7d7e9fa5443a2a6fddd51c3f8e1ae80402994875d92c486635a314bff8af5ffb",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Suivre les actualités, donner du feedback, constater l’évolution du projet et proposer une idée sont plusieurs formes d’interaction avec le projet agrégées sous un thème très large. Aucun référent ou intention unique ne crée ici une hésitation plausible entre réponses substantiellement différentes.",
+      "futureRule": "Ne pas transformer une catégorie thématique large en famille d’ambiguïté : il faut une formulation plausible pouvant réellement hésiter entre plusieurs réponses substantielles.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "2bb452d4db7760ec90cc75a8ed8819c8b7fb5f8c8468301529e4a99e61a7bbe4",
+      "eventHash": "fa1cdea9227513aecae2e07e0e84d4d498d6ca2e44fce1f1261799e484f9dadb"
+    },
+    {
+      "sequence": 7,
+      "eventId": "adjudication-batch-03-event-007",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-25",
+      "sourceComparisonItemFingerprint": "af980369a39fe6aab45547e8c6722140fd91b0b66fe8f5e8d06b9bd81a87a286",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "alternativeIntentReadings"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q028"
+            ],
+            [
+              "equinoxe-q029"
+            ],
+            [
+              "equinoxe-q031"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Un groupe de six à dix personnes entre dans la capacité d’une salle de réunion, d’une Project Room et d’un Forum. Ces connaissances ne sont pas concurrentes ou contradictoires : le bon choix dépend de la finalité du groupe — réunion, travail projet ou événement/prise de parole — qui n’est pas exprimée par la seule taille.",
+      "futureRule": "Quand plusieurs espaces satisfont une contrainte quantitative, l’ambiguïté porte sur l’usage recherché ; des capacités qui se recouvrent ne constituent pas une contradiction de connaissance.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "fa1cdea9227513aecae2e07e0e84d4d498d6ca2e44fce1f1261799e484f9dadb",
+      "eventHash": "9e965ce8d04647e1cc0dd4e17cb92b7800c983a53d1258dda336a7de46058b46"
+    },
+    {
+      "sequence": 8,
+      "eventId": "adjudication-batch-03-event-008",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-29",
+      "sourceComparisonItemFingerprint": "0ac9e99c469be14868b9ee4ae8d02a558f561e161e62ef65e30ddfb0be126905",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Le terme « libre/ouvert » recouvre ici trois significations portant sur trois objets différents : accès sans réservation à la Bibliothèque, disponibilité instantanée d’une salle, et degré d’ouverture physique d’un espace Focus. La proximité est lexicale, pas métier.",
+      "futureRule": "La polysémie d’un mot générique ne constitue pas une ambiguïté structurelle lorsque chaque sens porte sur un objet métier différent et clairement identifiable.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "9e965ce8d04647e1cc0dd4e17cb92b7800c983a53d1258dda336a7de46058b46",
+      "eventHash": "a511021d08002cd3de9d6f9ebd1a84fbeac0aabac277644c9fc315b14d60489f"
+    },
+    {
+      "sequence": 9,
+      "eventId": "adjudication-batch-03-event-009",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-30",
+      "sourceComparisonItemFingerprint": "19ca6bc0f69547b11287bb770f30c4b460c93f6a294b66ef0a96eee8e0b9d8c6",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "structuralAmbiguity"
+        },
+        "ambiguityMechanism": {
+          "value": "alternativeIntentReadings"
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": "reviewerDefinedPartitionOfDisplayedKnowledge",
+          "canonicalPartition": [
+            [
+              "equinoxe-q019",
+              "equinoxe-q053"
+            ],
+            [
+              "equinoxe-q022"
+            ],
+            [
+              "equinoxe-q089"
+            ],
+            [
+              "equinoxe-q090"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Le domaine réservation comprend plusieurs opérations distinctes : créer, vérifier une disponibilité et annuler. En outre, la création d’une réservation n’obéit pas aux mêmes règles pour une salle de réunion (`q019/q053`) et une Project Room (`q022`). La partition doit donc conserver cette différence métier plutôt que fusionner toutes les créations.",
+      "futureRule": "Dans un domaine transactionnel, partitionner d’abord par opération puis, si nécessaire, par type de ressource lorsque les règles opérationnelles diffèrent.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "a511021d08002cd3de9d6f9ebd1a84fbeac0aabac277644c9fc315b14d60489f",
+      "eventHash": "2e78ac60da62a3dc37b32fe51f6bd1e39423ef6191f8a0a6048ef9ad287b3572"
+    },
+    {
+      "sequence": 10,
+      "eventId": "adjudication-batch-03-event-010",
+      "batchId": "adjudication-batch-03-ambiguities-02",
+      "sourceItemId": "ambiguity-capacity-33",
+      "sourceComparisonItemFingerprint": "509991886865b566181d20754780c5b0acd16f62686b57c0597776fb511c9989",
+      "decision": {
+        "ambiguityFamilyDisposition": {
+          "value": "artificialOrMalformed"
+        },
+        "ambiguityMechanism": {
+          "value": null
+        },
+        "substantiallyDifferentCoveredGroups": {
+          "value": null,
+          "canonicalPartition": null
+        }
+      },
+      "humanRationale": "Le nombre de niveaux du bâtiment et le nombre de collaborateurs concernés sont deux quantités portant sur des objets métier sans rapport. Leur seule similarité est la structure interrogative de comptage.",
+      "futureRule": "Une structure interrogative ou quantitative commune ne suffit jamais à créer une ambiguïté lorsque les objets mesurés sont métierment distincts.",
+      "recordedAt": "2026-09-08T11:10:43.499Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "2e78ac60da62a3dc37b32fe51f6bd1e39423ef6191f8a0a6048ef9ad287b3572",
+      "eventHash": "ba01a92f34236acaa1f21a9aa87721bdc8548fd3dc65636e69f4ca9fb5b1c652"
+    }
+  ],
+  "logFingerprint": "76c955070ab59038780f086e9d338d25e8bfe42c310df81351d9207cdffcd1e3"
+}

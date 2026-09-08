@@ -1107,12 +1107,13 @@
     if (focusAction) requestAnimationFrame(() => card.querySelector('.card-action')?.focus());
   }
 
-  // Destinations pas encore construites côté serveur (Project Setup,
-  // Meet Storm, Storm Control, Project Shell) : jamais de navigation
-  // vers une route qui n'existe pas encore. L'interaction validée
-  // (sélection -> révélation de l'action) reste intacte ; seul le
-  // clic sur l'action affiche un feedback discret dans Home, sans
-  // navigation, sans changement de layout, sans déplacer le focus.
+  // Destinations encore pas construites côté serveur, le cas échéant :
+  // jamais de navigation vers une route qui n'existe pas encore.
+  // L'interaction validée (sélection -> révélation de l'action) reste
+  // intacte ; seul le clic sur l'action affiche un feedback discret
+  // dans Home, sans navigation, sans changement de layout, sans
+  // déplacer le focus. Meet Storm est désormais construit (voir
+  // data-action="discover" ci-dessus) -- retiré de cette liste.
   let toastTimer = null;
   function showComingSoon(){
     clearTimeout(toastTimer);
@@ -1140,6 +1141,10 @@
       }
       if (action.dataset.action === 'open') {
         navigateWithDevUser(ROUTES.project(action.dataset.projectId));
+        return;
+      }
+      if (action.dataset.action === 'discover') {
+        navigateWithDevUser(ROUTES.meetStorm);
         return;
       }
       showComingSoon();

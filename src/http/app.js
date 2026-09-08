@@ -49,6 +49,14 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'home.html'));
   });
 
+  // Meet Storm — même principe que / et /control : shell statique
+  // public, aucune donnée sensible, aucune capability dédiée. Tout
+  // utilisateur Storm authentifié pouvant accéder à Home peut accéder
+  // à Meet Storm -- contenu 100% éditorial, aucun appel API.
+  app.get('/meet', (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'meet.html'));
+  });
+
   // Project Setup — même principe : page statique publique, les
   // écritures réelles (POST /api/projects, upload de logo) restent
   // protégées par devAuth côté client.

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meet Storm — Orogeny</title>
+<link rel="stylesheet" href="/fonts/roboto.css" />
+<style>
+:root{
+  --canvas:#f6f6f3;--ink:#111;--graphite:#2f2f32;--muted:#77777b;--quiet:#96969a;
+  --gold:#c2af7e;--line:rgba(17,17,17,.08);--ease:cubic-bezier(.22,1,.36,1);
+  --shadow-soft:0 18px 50px rgba(17,17,17,.075);--radius-xl:30px;
+  --ivory-canvas:#faf9f6;
+}
+*{box-sizing:border-box}
+html{background:var(--canvas);scroll-behavior:auto}
+body{margin:0;overflow-x:hidden;background:var(--canvas);color:var(--ink);font-family:Roboto,"Helvetica Neue",Arial,sans-serif;transition:background .6s var(--ease)}
+body.on-ivory{background:var(--ivory-canvas)}
+button{font:inherit;color:inherit;border:0;cursor:pointer;background:transparent}
+[hidden]{display:none!important}
+
+/* Chrome -- topbar, disparaît perceptuellement pendant la séquence Ivory (jamais un vrai composant Storm masqué ailleurs, uniquement cette narration). */
+.topbar{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:60;width:min(1180px,92vw);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 20px;border:1px solid rgba(255,255,255,.72);background:rgba(255,255,255,.42);backdrop-filter:blur(24px) saturate(175%);-webkit-backdrop-filter:blur(24px) saturate(175%);border-radius:20px;box-shadow:0 10px 34px rgba(17,17,17,.07),inset 0 1px 0 rgba(255,255,255,.78);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:720;letter-spacing:-.035em;padding-left:6px}.brand span{color:var(--muted);font-weight:560}
+.home-link{padding:9px 14px;border-radius:12px;font-size:13px;font-weight:670}.home-link:hover,.home-link:focus-visible{background:rgba(255,255,255,.6)}
+.home-link:focus-visible,.cta:focus-visible{outline:3px solid rgba(17,17,17,.12);outline-offset:3px}
+
+/* Progress rail -- discret, fonctionnel (navigation), jamais décoratif. */
+.rail{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:60;display:flex;gap:6px;padding:8px;border-radius:999px;background:rgba(255,255,255,.4);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.6);transition:opacity .4s var(--ease)}
+.rail-dot{width:6px;height:6px;border-radius:50%;background:rgba(17,17,17,.16);transition:background .3s var(--ease),transform .3s var(--ease)}
+.rail-dot.active{background:var(--ink);transform:scale(1.5)}
+
+main{position:relative}
+.stage{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:60px 24px;position:relative}
+.stage-inner{width:min(760px,100%);text-align:center;opacity:0;transform:translateY(28px) scale(.985);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.stage.in .stage-inner{opacity:1;transform:translateY(0) scale(1)}
+
+/* SEQUENCE 1 — intro : très peu de texte, respire, aucun CTA. */
+.seq-intro{min-height:100vh}
+.seq-intro .stage-inner{max-width:640px}
+h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing:-.05em;font-weight:660}
+.seq-intro p{margin:22px 0 0;color:var(--muted);font-size:17px;line-height:1.6;max-width:460px;margin-inline:auto}
+.scroll-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--quiet);opacity:0;animation:hint-in 1s var(--ease) 1.2s forwards}
+@keyframes hint-in{to{opacity:1}}
+
+/* SEQUENCE 2 — le projet bouge : lignes qui s'enchaînent, causal. */
+.seq-move .stage-inner{max-width:600px}
+.move-line{font-size:clamp(22px,3.6vw,32px);line-height:1.4;font-weight:560;color:var(--graphite);margin:0 0 6px;opacity:0;transform:translateY(10px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.seq-move.in .move-line{opacity:1;transform:translateY(0)}
+.seq-move.in .move-line:nth-child(2){transition-delay:.12s}
+.seq-move.in .move-line:nth-child(3){transition-delay:.24s}
+.seq-move.in .move-line:nth-child(4){transition-delay:.36s}
+.move-answer{margin-top:26px;font-size:clamp(28px,4.4vw,42px);font-weight:680;letter-spacing:-.03em}
+
+/* Compositions UI-native -- abstraites, jamais des captures d'écran. */
+.composition{margin:0 auto 30px;width:min(520px,100%)}
+.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.home-tile{aspect-ratio:1;border-radius:16px;background:rgba(17,17,17,.06);transform:scale(.9);opacity:0;transition:transform .5s var(--ease),opacity .5s var(--ease)}
+.seq-home.in .home-tile{transform:scale(1);opacity:1}
+.home-tile:nth-child(1){transition-delay:0s;background:linear-gradient(145deg,#111,#2b2b2e)}
+.home-tile:nth-child(2){transition-delay:.06s}
+.home-tile:nth-child(3){transition-delay:.12s}
+.home-tile:nth-child(4){transition-delay:.18s}
+.home-tile:nth-child(5){transition-delay:.24s;background:rgba(194,175,126,.18)}
+.home-tile:nth-child(6){transition-delay:.3s}
+
+/* SEQUENCE 4 — enter a project : la géométrie se resserre. */
+.enter-frame{width:min(420px,84vw);margin:0 auto 28px;aspect-ratio:16/10;border-radius:26px;background:linear-gradient(150deg,#111,#232326);box-shadow:var(--shadow-soft);display:flex;align-items:flex-end;padding:24px;transform:scale(.86);opacity:0;transition:transform .9s var(--ease),opacity .9s var(--ease)}
+.seq-enter.in .enter-frame{transform:scale(1);opacity:1}
+.enter-frame span{color:#fff;font-size:15px;font-weight:680;letter-spacing:-.02em}
+
+/* SEQUENCE 5 — Studio : blocs qui prennent forme. */
+.studio-blocks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 auto 28px;width:min(520px,100%)}
+.studio-block{padding:16px 10px;border-radius:16px;background:rgba(255,255,255,.72);box-shadow:0 8px 22px rgba(17,17,17,.05);font-size:12px;font-weight:680;color:var(--graphite);opacity:0;transform:translateY(14px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.seq-studio.in .studio-block{opacity:1;transform:translateY(0)}
+.seq-studio.in .studio-block:nth-child(1){transition-delay:0s}
+.seq-studio.in .studio-block:nth-child(2){transition-delay:.05s}
+.seq-studio.in .studio-block:nth-child(3){transition-delay:.1s}
+.seq-studio.in .studio-block:nth-child(4){transition-delay:.15s}
+.seq-studio.in .studio-block:nth-child(5){transition-delay:.2s}
+.seq-studio.in .studio-block:nth-child(6){transition-delay:.25s}
+
+/* SEQUENCE 6 — publish : couches qui se superposent puis basculent. */
+.publish-layers{position:relative;width:min(360px,80vw);height:180px;margin:0 auto 30px}
+.publish-layer{position:absolute;inset:0;border-radius:22px;box-shadow:var(--shadow-soft);transition:transform .8s var(--ease),opacity .8s var(--ease)}
+.publish-layer.draft{background:rgba(17,17,17,.08);transform:translateY(18px) scale(.94);opacity:.6}
+.publish-layer.live{background:linear-gradient(150deg,#111,#2b2b2e);transform:translateY(0) scale(1)}
+.seq-publish.in .publish-layer.draft{transform:translateY(30px) scale(.9);opacity:.35}
+.seq-publish.in .publish-layer.live{transform:translateY(-6px) scale(1.02)}
+.publish-badge{position:absolute;top:16px;left:16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#fff;opacity:.7}
+
+/* SEQUENCE 7 — Ivory : silence, chrome disparu, canvas plus clair. */
+.seq-ivory{background:var(--ivory-canvas)}
+.ivory-frame{width:min(460px,86vw);margin:0 auto 26px;border-radius:24px;background:#fff;box-shadow:0 30px 70px rgba(17,17,17,.06);padding:34px 26px;opacity:0;transform:translateY(16px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.seq-ivory.in .ivory-frame{opacity:1;transform:translateY(0)}
+.ivory-frame .ivory-mark{width:40px;height:40px;border-radius:12px;background:var(--gold);margin:0 auto 16px}
+.ivory-frame p{margin:0;color:var(--graphite);font-size:14px;line-height:1.6}
+
+/* SEQUENCE 8 — Pilotage : tendances abstraites. */
+.trend{width:min(420px,86vw);height:120px;margin:0 auto 28px}
+.trend svg{width:100%;height:100%;display:block}
+.trend path{stroke:var(--ink);stroke-width:2;fill:none;stroke-dasharray:400;stroke-dashoffset:400;transition:stroke-dashoffset 1.1s var(--ease)}
+.seq-pilotage.in .trend path{stroke-dashoffset:0}
+
+/* SEQUENCE 9 — Control : plan plus large, cadre qui s'élargit. */
+.control-scope{width:min(480px,90vw);height:140px;margin:0 auto 28px;border-radius:24px;border:1.5px dashed rgba(17,17,17,.18);display:flex;align-items:center;justify-content:center;gap:8px;transform:scale(.92);opacity:0;transition:transform .8s var(--ease),opacity .8s var(--ease)}
+.seq-control.in .control-scope{transform:scale(1);opacity:1}
+.control-scope .dot{width:34px;height:34px;border-radius:10px;background:rgba(17,17,17,.08)}
+.control-scope .dot.mid{background:#111}
+
+/* SEQUENCE 10 — principe : synthèse, après avoir vu le système. */
+.seq-principle .stage-inner{max-width:600px}
+.principle-lead{font-size:clamp(26px,4vw,38px);font-weight:680;letter-spacing:-.035em;line-height:1.25;margin:0 0 30px}
+.principle-list{display:grid;gap:8px;text-align:left}
+.principle{padding:16px 20px;border-radius:16px;background:rgba(255,255,255,.6);font-size:14px;line-height:1.5;color:var(--graphite)}
+.principle b{color:var(--ink);font-weight:700}
+
+/* SEQUENCE 11 — continue. */
+.seq-continue h2{margin:0;font-size:clamp(32px,5vw,48px);letter-spacing:-.04em;font-weight:680}
+.cta{margin-top:30px;min-height:54px;padding:0 28px;border-radius:16px;background:#111;color:#fff;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.cta:hover{background:#000}
+
+@media(max-width:720px){
+  .home-grid,.studio-blocks{grid-template-columns:repeat(2,1fr)}
+  .topbar{padding-left:14px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+  .stage-inner,.move-line,.home-tile,.enter-frame,.studio-block,.publish-layer,.ivory-frame,.trend path,.control-scope{opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
+  .scroll-hint{display:none}
+  body.on-ivory{background:var(--ivory-canvas)}
+}
+</style>
+</head>
+<body>
+<header class="topbar" id="topbar"><div class="brand"><strong>Storm</strong><span>Meet Storm</span></div><button class="home-link" id="homeLink" type="button">Storm Home</button></header>
+<div class="rail" id="rail" aria-hidden="true"></div>
+
+<main id="stages">
+
+<section class="stage seq-intro" id="s-intro" data-title="Intro">
+  <div class="stage-inner">
+    <h1 class="mark">Meet Storm.</h1>
+    <p>Un projet workplace ne s'arrête jamais vraiment.</p>
+  </div>
+  <span class="scroll-hint">Faites défiler</span>
+</section>
+
+<section class="stage seq-move" id="s-move" data-title="Mouvement">
+  <div class="stage-inner">
+    <p class="move-line">Des informations arrivent.</p>
+    <p class="move-line">Des décisions changent.</p>
+    <p class="move-line">Des espaces évoluent.</p>
+    <p class="move-line">Les personnes posent de nouvelles questions.</p>
+    <p class="move-answer">Storm accompagne ce mouvement.</p>
+  </div>
+</section>
+
+<section class="stage seq-home" id="s-home" data-title="Home">
+  <div class="stage-inner">
+    <div class="composition home-grid" aria-hidden="true">
+      <div class="home-tile"></div><div class="home-tile"></div><div class="home-tile"></div>
+      <div class="home-tile"></div><div class="home-tile"></div><div class="home-tile"></div>
+    </div>
+    <h2 class="principle-lead" style="margin:0">Tous vos projets.<br>Un seul point de départ.</h2>
+  </div>
+</section>
+
+<section class="stage seq-enter" id="s-enter" data-title="Le projet">
+  <div class="stage-inner">
+    <div class="enter-frame" aria-hidden="true"><span>Votre projet</span></div>
+    <h2 class="principle-lead" style="margin:0">Le projet est l'unité de travail.</h2>
+  </div>
+</section>
+
+<section class="stage seq-studio" id="s-studio" data-title="Studio">
+  <div class="stage-inner">
+    <div class="studio-blocks" aria-hidden="true">
+      <div class="studio-block">Le projet</div><div class="studio-block">Espaces</div><div class="studio-block">Actualités</div>
+      <div class="studio-block">Ambassadeurs</div><div class="studio-block">Questions</div><div class="studio-block">Identité</div>
+    </div>
+    <h2 class="principle-lead" style="margin:0">Studio.<br>Ce qui doit être dit prend forme ici.</h2>
+  </div>
+</section>
+
+<section class="stage seq-publish" id="s-publish" data-title="Publication">
+  <div class="stage-inner">
+    <div class="publish-layers" aria-hidden="true">
+      <div class="publish-layer draft"></div>
+      <div class="publish-layer live"><span class="publish-badge">Publié</span></div>
+    </div>
+    <h2 class="principle-lead" style="margin:0">Ce qui est modifié n'est pas encore ce qui est vu.<br>Vous décidez du moment.</h2>
+  </div>
+</section>
+
+<section class="stage seq-ivory" id="s-ivory" data-title="Ivory">
+  <div class="stage-inner">
+    <div class="ivory-frame">
+      <div class="ivory-mark" aria-hidden="true"></div>
+      <p>Pour les collaborateurs, Storm disparaît.<br>L'expérience publiée prend l'identité du projet.</p>
+    </div>
+  </div>
+</section>
+
+<section class="stage seq-pilotage" id="s-pilotage" data-title="Pilotage">
+  <div class="stage-inner">
+    <div class="trend" aria-hidden="true">
+      <svg viewBox="0 0 400 120" preserveAspectRatio="none"><path d="M0,90 C60,85 90,40 150,45 C210,50 240,20 300,25 C340,28 360,10 400,15"/></svg>
+    </div>
+    <h2 class="principle-lead" style="margin:0">Voir ce qui aide.</h2>
+  </div>
+</section>
+
+<section class="stage seq-control" id="s-control" data-title="Control">
+  <div class="stage-inner">
+    <div class="control-scope" aria-hidden="true"><div class="dot"></div><div class="dot mid"></div><div class="dot"></div></div>
+    <h2 class="principle-lead" style="margin:0">Storm, à l'échelle de l'organisation.</h2>
+  </div>
+</section>
+
+<section class="stage seq-principle" id="s-principle" data-title="Principe">
+  <div class="stage-inner">
+    <p class="principle-lead">Storm absorbe la complexité.<br>Vous gardez la décision.</p>
+    <div class="principle-list">
+      <div class="principle"><b>Le projet reste l'unité de travail.</b> Chaque projet a son propre espace et ses propres droits.</div>
+      <div class="principle"><b>Les droits suivent les responsabilités.</b> Jamais l'inverse.</div>
+      <div class="principle"><b>Les collaborateurs ne voient jamais Storm.</b> Ivory reste une expérience à part entière.</div>
+    </div>
+  </div>
+</section>
+
+<section class="stage seq-continue" id="s-continue" data-title="Continuer">
+  <div class="stage-inner">
+    <h2>À vous.</h2>
+    <button class="cta" id="continueBtn" type="button">Voir mes projets →</button>
+  </div>
+</section>
+
+</main>
+
+<script>
+function currentDevUser(){ return new URLSearchParams(location.search).get('devUser'); }
+function homeUrl(){ const d = currentDevUser(); return d ? `/?devUser=${encodeURIComponent(d)}` : '/'; }
+document.getElementById('homeLink').addEventListener('click', () => location.assign(homeUrl()));
+document.getElementById('continueBtn').addEventListener('click', () => location.assign(homeUrl()));
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stages = [...document.querySelectorAll('.stage')];
+const topbar = document.getElementById('topbar');
+const rail = document.getElementById('rail');
+const ivoryStage = document.getElementById('s-ivory');
+
+// Rail de progression -- navigation fonctionnelle discrète, jamais décorative.
+stages.forEach((s, i) => {
+  const dot = document.createElement('button');
+  dot.className = 'rail-dot';
+  dot.type = 'button';
+  dot.setAttribute('aria-label', s.dataset.title || `Section ${i + 1}`);
+  dot.addEventListener('click', () => s.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' }));
+  rail.appendChild(dot);
+});
+const dots = [...rail.children];
+
+if (reduced || !('IntersectionObserver' in window)) {
+  stages.forEach(s => s.classList.add('in'));
+  if (dots[0]) dots[0].classList.add('active');
+} else {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        const idx = stages.indexOf(e.target);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+        // Passage Storm -> Ivory : le chrome disparaît perceptuellement
+        // tant que la section Ivory est active, jamais un vrai
+        // composant applicatif masqué ailleurs -- pur effet narratif
+        // de cette page, basé uniquement sur la section courante,
+        // jamais une heuristique de direction de scroll fragile.
+        const onIvory = e.target === ivoryStage;
+        topbar.style.opacity = onIvory ? '0' : '1';
+        topbar.style.transform = onIvory ? 'translate(-50%, -14px)' : 'translate(-50%, 0)';
+        rail.style.opacity = onIvory ? '0' : '1';
+        document.body.classList.toggle('on-ivory', onIvory);
+      }
+    });
+  }, { threshold: 0.45 });
+  stages.forEach(s => io.observe(s));
+}
+</script>
+</body>
+</html>

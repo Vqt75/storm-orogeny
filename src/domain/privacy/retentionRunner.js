@@ -3,9 +3,12 @@
 // Batch 2 : sessions et invitations. Batch 3 : + audit_events.
 // Batch 8 : + Pilotage raw (telemetry_events, 40 jours -- jamais les
 // agrégats daily_*_agg, conservés jusqu'à suppression permanente du
-// projet). External identities, user lifecycle, project deletion,
-// publications restent explicitement hors scope -- chacun rejoindra
-// ce même runner dans un batch ultérieur, jamais un second
+// projet). Batch 9 : + external_identities.email_at_linking (90
+// jours, nullification jamais suppression de ligne). User lifecycle,
+// project deletion, publications (doctrine V1 finale : suivent le
+// lifecycle projet, jamais un timer par âge) restent explicitement
+// hors scope de ce runner -- chacun rejoindra ce même runner
+// uniquement si une future doctrine l'exige, jamais un second
 // orchestrateur parallèle.
 //
 // `now` est injectable -- jamais une dépendance implicite à l'horloge
@@ -35,6 +38,7 @@ import { purgeExpiredSessions } from './sessionRetention.js';
 import { expirePendingInvitations, purgeTerminalInvitations } from './invitationRetention.js';
 import { purgeOldAuditEvents } from './auditRetention.js';
 import { purgeOldTelemetryEvents } from './pilotageRetention.js';
+import { nullifyOldEmailAtLinking } from './externalIdentityRetention.js';
 
 async function runPolicyInOwnTransaction(pool, { logger, policyName, work }) {
   const client = await pool.connect();
@@ -87,7 +91,13 @@ export async function runRetentionPolicies(pool, { now = new Date(), logger }) {
     work: async (client) => ({ purged: await purgeOldTelemetryEvents(client, { now }) })
   });
 
-  const result = { sessions, invitations, auditEvents, pilotage };
+  const externalIdentities = await runPolicyInOwnTransaction(pool, {
+    logger,
+    policyName: 'external_identities',
+    work: async (client) => ({ emailsNullified: await nullifyOldEmailAtLinking(client, { now }) })
+  });
+
+  const result = { sessions, invitations, auditEvents, pilotage, externalIdentities };
   logger.info({ result }, 'retention.completed');
   return result;
 }

@@ -1,7 +1,9 @@
 // Retention runner -- Privacy & Data Lifecycle V1. Point d'entrée
 // unique et déterministe pour toutes les politiques de rétention V1.
 // Batch 2 : sessions et invitations. Batch 3 : + audit_events.
-// Pilotage, external identities, user lifecycle, project deletion,
+// Batch 8 : + Pilotage raw (telemetry_events, 40 jours -- jamais les
+// agrégats daily_*_agg, conservés jusqu'à suppression permanente du
+// projet). External identities, user lifecycle, project deletion,
 // publications restent explicitement hors scope -- chacun rejoindra
 // ce même runner dans un batch ultérieur, jamais un second
 // orchestrateur parallèle.
@@ -32,6 +34,7 @@
 import { purgeExpiredSessions } from './sessionRetention.js';
 import { expirePendingInvitations, purgeTerminalInvitations } from './invitationRetention.js';
 import { purgeOldAuditEvents } from './auditRetention.js';
+import { purgeOldTelemetryEvents } from './pilotageRetention.js';
 
 async function runPolicyInOwnTransaction(pool, { logger, policyName, work }) {
   const client = await pool.connect();
@@ -78,7 +81,13 @@ export async function runRetentionPolicies(pool, { now = new Date(), logger }) {
     work: async (client) => ({ purged: await purgeOldAuditEvents(client, { now }) })
   });
 
-  const result = { sessions, invitations, auditEvents };
+  const pilotage = await runPolicyInOwnTransaction(pool, {
+    logger,
+    policyName: 'pilotage',
+    work: async (client) => ({ purged: await purgeOldTelemetryEvents(client, { now }) })
+  });
+
+  const result = { sessions, invitations, auditEvents, pilotage };
   logger.info({ result }, 'retention.completed');
   return result;
 }

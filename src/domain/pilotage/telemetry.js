@@ -20,6 +20,22 @@ export const RAW_RETENTION_DAYS = 40;
 // — un léger retard de purge ne compromet jamais la doctrine de
 // rétention (40 jours, marge large), un déclenchement systématique à
 // chaque écriture serait un coût inutile.
+//
+// DÉCISION (Privacy V1, Batch 8) : conservée comme filet de sécurité
+// supplémentaire, jamais plus l'autorité de rétention -- cette
+// autorité est désormais le retention runner déterministe
+// (src/domain/privacy/retentionRunner.js, policy 'pilotage',
+// purgeOldTelemetryEvents), dont la conformité aux 40 jours ne dépend
+// plus d'aucune probabilité d'arrivée de trafic. Choix retenu (Option
+// A) plutôt que suppression (Option B) car : le cutoff appliqué ici
+// est rigoureusement identique (même RAW_RETENTION_DAYS, même
+// prédicat occurred_at < now - 40 jours) -- aucune divergence
+// possible entre les deux mécanismes ; le code reste simple et déjà
+// testé (skipPurge) ; sa suppression n'apporterait aucune
+// simplification proportionnée au risque retiré (un projet à trafic
+// soutenu sans jamais d'exécution du runner déterministe resterait
+// tout de même borné par ce filet, une garantie utile en V1 tant que
+// l'infra DSI/OVH de déclenchement cron n'est pas encore en place).
 const PURGE_TRIGGER_PROBABILITY = 0.02;
 
 // skipPurge (jamais activé par défaut, jamais exposé publiquement en

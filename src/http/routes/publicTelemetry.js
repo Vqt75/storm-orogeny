@@ -35,6 +35,44 @@ function setVisitorCookie(res, visitorRef) {
   res.setHeader('Set-Cookie', `${VISITOR_COOKIE}=${visitorRef}; Path=/; Max-Age=${VISITOR_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax; HttpOnly`);
 }
 
+// FERMETURE (Privacy V1, Batch 8) : path est un champ texte fourni par
+// le client -- audité, la chaîne réelle vient du hash SPA d'Ivory
+// (window.location.hash côté runtime.js/ivory.js), normalisée pour
+// les routes news-/space- mais transmise TELLE QUELLE pour toute
+// autre valeur -- un visiteur naviguant manuellement vers un hash
+// arbitraire (#texte-libre, #email@exemple.com, etc.) verrait cette
+// chaîne arbitraire atteindre ce endpoint. Un simple .slice(0,80) ne
+// bornait que la longueur, jamais la structure -- normalisation
+// structurelle stricte ici, jamais une allowlist exhaustive des
+// routes connues :
+//   - toute URL absolue (http://, https://, //) refusée entièrement;
+//   - query string et fragment retirés (ne conserve que ce qui
+//     précède le premier ? ou #, défense en profondeur même si le
+//     hash SPA ne devrait déjà plus en contenir à ce stade);
+//   - uniquement lettres/chiffres/tiret/underscore/slash acceptés --
+//     jamais un espace, une arobase, ou tout caractère pouvant porter
+//     un texte libre/PII;
+//   - longueur bornée à 80 caractères, appliquée APRÈS validation
+//     structurelle (jamais un simple tronquage d'un texte libre qui
+//     laisserait jusqu'à 80 caractères de PII passer).
+// Toute valeur ne respectant pas cette structure est refusée
+// (retourne null, jamais persistée) plutôt que neutralisée/déformée en
+// une valeur plausible mais fausse.
+const SAFE_TELEMETRY_PATH_PATTERN = /^[a-zA-Z0-9\-_/]+$/;
+
+export function normalizeTelemetryPath(rawPath) {
+  if (typeof rawPath !== 'string') return null;
+  const trimmed = rawPath.trim();
+  if (trimmed.length === 0) return null;
+  if (/^([a-z][a-z0-9+.-]*:)?\/\//i.test(trimmed)) return null; // URL absolue -- refusée entièrement.
+
+  const withoutQueryOrFragment = trimmed.split('?')[0].split('#')[0];
+  if (withoutQueryOrFragment.length === 0) return null;
+  if (!SAFE_TELEMETRY_PATH_PATTERN.test(withoutQueryOrFragment)) return null;
+
+  return withoutQueryOrFragment.slice(0, 80);
+}
+
 export function createPublicTelemetryRouter({ pool }) {
   const router = Router();
 
@@ -63,7 +101,7 @@ export function createPublicTelemetryRouter({ pool }) {
         setVisitorCookie(res, visitorRef);
 
         if (body.event === 'page_view') {
-          const path = typeof body.path === 'string' ? body.path.slice(0, 80) : null;
+          const path = normalizeTelemetryPath(body.path);
           await recordPageView(pool, { tenantId, projectId, visitorRef, path, now });
         } else {
           const outcome = ['matched', 'disambiguated', 'abstained'].includes(body.outcome) ? body.outcome : null;

@@ -14,6 +14,7 @@
     "seed": "node src/db/seed.js",
     "seed:demo": "node src/db/seedDemo.js",
     "retention:run": "node src/domain/privacy/runRetention.js",
+    "privacy:purge-projects": "node src/domain/projects/runProjectDeletions.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

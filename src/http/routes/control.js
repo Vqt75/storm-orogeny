@@ -59,6 +59,10 @@ export function createControlRouter({ pool }) {
       next(Errors.notFound('Projet'));
       return;
     }
+    if (updated.blocked) {
+      next(new AppError(updated.code, 'Ce projet fait l\'objet d\'une demande de suppression définitive en cours -- annulez-la d\'abord pour modifier son statut.', { status: 409 }));
+      return;
+    }
     res.status(200).json({
       id: updated.id,
       name: updated.name,

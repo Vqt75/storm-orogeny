@@ -1,0 +1,21 @@
+-- 0016_project_deletion_job_lease — Privacy & Data Lifecycle V1,
+-- Batch 6 (fermeture crash/restart recovery). Le claim précédent
+-- (SELECT ... FOR UPDATE SKIP LOCKED, courte transaction, commit
+-- immédiat) évite une transaction longue mais ne distingue jamais un
+-- job réellement en cours de traitement par un worker vivant d'un job
+-- abandonné après un crash -- les deux se présentent identiquement en
+-- storage_purge_state='in_progress'. Sans lease, deux workers
+-- pourraient légitimement réclamer et traiter le MÊME job
+-- simultanément, violant l'ownership exclusif requis (l'idempotence
+-- de storage.delete() est une seconde ligne de défense, jamais une
+-- justification pour autoriser ce cas).
+--
+-- lease_token identifie le worker propriétaire courant (opaque,
+-- jamais un identifiant process/mémoire -- un job repris après crash
+-- process obtient un nouveau token, jamais le même). lease_expires_at
+-- borne la durée de propriété : passé ce délai, le job redevient
+-- réclamable par n'importe quel worker, qu'un ancien worker croie ou
+-- non encore le posséder -- jamais un timeout arbitraire non
+-- enregistré en DB, jamais une dépendance à la mémoire process.
+alter table project_deletion_jobs add column lease_token uuid;
+alter table project_deletion_jobs add column lease_expires_at timestamptz;

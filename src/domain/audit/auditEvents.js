@@ -34,5 +34,6 @@ export const AuditEventType = Object.freeze({
   USER_REACTIVATED: 'user.reactivated',
   USER_ANONYMIZED: 'user.anonymized',
   PROJECT_DELETION_REQUESTED: 'project.deletion_requested',
-  PROJECT_DELETION_CANCELLED: 'project.deletion_cancelled'
+  PROJECT_DELETION_CANCELLED: 'project.deletion_cancelled',
+  PROJECT_DELETED_PERMANENTLY: 'project.deleted_permanently'
 });

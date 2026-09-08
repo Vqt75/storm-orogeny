@@ -51,6 +51,24 @@ export async function transitionProjectLifecycle(pool, { tenantId, projectId, to
   );
   if (!current) return null;
 
+  // FERMETURE (Privacy V1, Batch 6) : un projet portant un
+  // project_deletion_job actif (jamais annulé, jamais db-complete) ne
+  // peut plus quitter 'archived' -- le seul chemin de sortie pendant
+  // la grace period est d'abord annuler explicitement la demande de
+  // suppression. Aucun nouveau statut 'pending_deletion' introduit --
+  // le projet reste structurellement 'archived', seul ce garde-fou
+  // change. Le runner de purge revalidera de toute façon
+  // status='archived' juste avant destruction -- double sécurité,
+  // jamais une confiance aveugle dans ce seul contrôle amont.
+  const { rows: [activeJob] } = await pool.query(
+    `select id from project_deletion_jobs
+     where project_id = $1 and cancelled_at is null and db_purge_completed_at is null`,
+    [projectId]
+  );
+  if (activeJob) {
+    return { blocked: true, code: 'PROJECT_DELETION_IN_PROGRESS' };
+  }
+
   let actualToStatus = toStatus;
   let nextPreviousStatus = current.previous_status;
 

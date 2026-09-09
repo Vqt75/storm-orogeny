@@ -354,7 +354,7 @@ test('Home -- un seul h1, jamais un second titre à échelle hero dans la même 
 
 test('Home -- moment du projet (momentum) regroupe présent et suivant dans une seule respiration, jamais deux sections pleine largeur séparées', () => {
   assert.match(ivoryJs, /const nowNextGrid = showMilestones && \(presentText \|\| nextDate \|\| nextTitle\) \? `/);
-  assert.match(ivoryJs, /<div class="tct-home-momentum tct-reveal"/);
+  assert.match(ivoryJs, /<div class="tct-home-momentum\$\{presentText \? '' : ' is-next-only'\} tct-reveal"/);
 });
 
 test('Home -- aucune donnée inventée dans le moment du projet -- uniquement présent/next issus du Manifest, jamais de barre de progression ni de pourcentage fabriqué', () => {
@@ -390,7 +390,7 @@ test('Home -- reduced motion : les nouveaux groupes (opening, momentum, closing)
   assert.match(ivoryJs, /class="tct-home-landing-title tct-reveal"/);
   assert.match(ivoryJs, /class="tct-home-stage-meta tct-reveal"/);
   assert.match(ivoryJs, /class="tct-home-title tct-reveal"/);
-  assert.match(ivoryJs, /class="tct-home-momentum tct-reveal"/);
+  assert.match(ivoryJs, /class="tct-home-momentum\$\{presentText \? '' : ' is-next-only'\} tct-reveal"/);
   assert.match(ivoryJs, /class="tct-home-closing tct-reveal"/);
 });
 
@@ -949,4 +949,102 @@ test('scroll-jack -- touch et clavier restent des handlers entièrement séparé
   const wheelBlockEnd = body.indexOf('\n    }\n', wheelBlockIdx);
   const wheelBlock = body.slice(wheelBlockIdx, wheelBlockEnd);
   assert.ok(!/pointerType === 'touch'|ArrowLeft|ArrowRight/.test(wheelBlock), 'la logique touch/clavier ne doit jamais être dans le bloc wheel');
+});
+
+// ── Correction sémantique Home -- message d'accueil ≠ jalon courant ──
+// Bug corrigé : home.message servait de repli au headline "En ce
+// moment" quand home.now était null, produisant un faux jalon (texte
+// générique + compteur d'étape réel mais sans rapport). Décision
+// produit : home.message rejoint l'ouverture (landingStatement),
+// jamais le bloc "En ce moment", qui ne s'affiche plus que si un vrai
+// jalon status:'current' existe.
+
+test('Case 1 -- sans jalon courant + message présent : message visible dans l\'ouverture, aucun "En ce moment", aucun faux phaseMeta, "À suivre" visible', () => {
+  const home = {
+    message: 'Un nouveau lieu pour mieux travailler ensemble.',
+    now: null,
+    next: { date: '15 septembre 2026', label: 'Choix des quartiers d\'équipe' },
+    showMilestones: true
+  };
+  const timeline = { progress: { currentStepLabel: 'Étape 4', totalSteps: 9 } };
+  const html = renderHome(home, { timeline });
+
+  assert.match(html, /<h1 id="tct-home-title" class="tct-home-landing-title tct-reveal"[^>]*>Un nouveau lieu pour mieux travailler ensemble\.<\/h1>/, 'le message doit devenir le h1 de l\'ouverture');
+  assert.ok(!html.includes('En ce moment'), 'aucun label "En ce moment" sans jalon courant réel');
+  assert.ok(!html.includes('tct-home-phase'), 'aucun phaseMeta affiché sans jalon courant réel (compteur d\'étape non lié à un faux présent)');
+  assert.ok(!html.includes('tct-live-dot'), 'aucun point "live" sans jalon courant réel');
+  assert.match(html, /À suivre · 15 septembre 2026/);
+  assert.match(html, /Choix des quartiers d.équipe/);
+});
+
+test('Case 2 -- jalon courant explicite : "En ce moment" visible, titre = home.now.label, phaseMeta visible, message ne remplace jamais le jalon, "À suivre" reste correct', () => {
+  const home = {
+    message: 'Un nouveau lieu pour mieux travailler ensemble.',
+    now: { label: 'Aménagement en cours', description: 'Les mobiliers sont livrés étage par étage.' },
+    next: { date: '15 septembre 2026', label: 'Choix des quartiers d\'équipe' },
+    showMilestones: true
+  };
+  const timeline = { progress: { currentStepLabel: 'Étape 4', totalSteps: 9 } };
+  const html = renderHome(home, { timeline });
+
+  assert.match(html, /<span>En ce moment<\/span>/);
+  assert.match(html, /<h1 id="tct-home-title" class="tct-home-title tct-reveal"[^>]*>Aménagement en cours<\/h1>/);
+  assert.match(html, /<span class="tct-home-phase">Étape 4 sur 9<\/span>/);
+  assert.match(html, /Un nouveau lieu pour mieux travailler ensemble\./, 'le message doit rester visible dans l\'ouverture (landingStatement) -- rattaché à l\'ouverture, jamais retiré');
+  assert.match(html, /À suivre · 15 septembre 2026/);
+});
+
+test('Case 3 -- home.message n\'est jamais perdu après la correction (visible dans l\'ouverture même quand un jalon courant existe aussi, via landingStatement si home.statement est aussi fourni)', () => {
+  const home = {
+    statement: 'Un nouveau lieu pour mieux travailler ensemble.',
+    message: 'Un nouveau lieu pour mieux travailler ensemble.',
+    now: { label: 'Aménagement en cours' },
+    showMilestones: true
+  };
+  const html = renderHome(home, { timeline: null });
+  assert.match(html, /Un nouveau lieu pour mieux travailler ensemble\./, 'le contenu doit apparaître au moins une fois (ici via home.statement, qui prime sur home.message dans landingStatement)');
+});
+
+test('Case 3b -- sans home.statement, home.message seul alimente bien landingStatement (jamais perdu, jamais dupliqué)', () => {
+  const home = { message: 'MESSAGE_UNIQUE_TEST', now: null, showMilestones: true };
+  const html = renderHome(home, {});
+  const occurrences = (html.match(/MESSAGE_UNIQUE_TEST/g) || []).length;
+  assert.equal(occurrences, 1, 'le message doit apparaître exactement une fois, jamais dupliqué');
+});
+
+test('Case 4 -- aucune structure vide réservée quand home.now est null (pas de conteneur momentum-now vide, pas de colonne de grille fantôme)', () => {
+  const home = { message: 'x', now: null, next: { date: 'd', label: 'l' }, showMilestones: true };
+  const html = renderHome(home, {});
+  assert.ok(!html.includes('tct-home-present'), 'aucun conteneur "Situation actuelle" vide');
+  assert.match(html, /tct-home-momentum is-next-only/, 'le modificateur is-next-only doit s\'appliquer pour éviter une colonne de grille vide');
+});
+
+test('Case 4b -- aucun bloc momentum du tout si ni présent ni suivant n\'existent (jamais un conteneur totalement vide)', () => {
+  const home = { message: 'x', now: null, next: null, showMilestones: true };
+  const html = renderHome(home, {});
+  assert.ok(!html.includes('tct-home-momentum'));
+});
+
+test('Case 5 -- home.now === null n\'empêche jamais l\'affichage de "À la une" / clôture (featured, latest, questions) ni des autres invariants Home', () => {
+  const home = {
+    message: 'x', now: null,
+    featured: { title: 'FEATURED_TEST', source: { module: 'news', id: 'a1' } },
+    latest: { title: 'LATEST_TEST' },
+    askPrompt: 'ASK_TEST'
+  };
+  const html = renderHome(home, { news: { items: [{ id: 'a1', asset: null }] } });
+  assert.ok(html.includes('FEATURED_TEST') && html.includes('LATEST_TEST') && html.includes('ASK_TEST'));
+});
+
+test('phaseMeta ne dépend plus de showMilestones seul mais de hasCurrentMilestone -- jamais affiché sans home.now même si progress existe', () => {
+  const body = ivoryJs.slice(ivoryJs.indexOf('function renderHome'), ivoryJs.indexOf('function renderHome') + 3000);
+  assert.match(body, /const hasCurrentMilestone = Boolean\(showMilestones && home\.now && home\.now\.label\);/);
+  assert.match(body, /const phaseMeta = hasCurrentMilestone && progress/);
+});
+
+test('un seul h1 dans les deux cas (avec et sans jalon courant), jamais deux titres concurrents', () => {
+  const withCurrent = renderHome({ now: { label: 'x' }, showMilestones: true }, {});
+  const withoutCurrent = renderHome({ message: 'x', now: null }, {});
+  assert.equal((withCurrent.match(/<h1/g) || []).length, 1);
+  assert.equal((withoutCurrent.match(/<h1/g) || []).length, 1);
 });

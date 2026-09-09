@@ -398,18 +398,36 @@ function renderHome(home, context = {}) {
     : null;
   const latest = home.latest || null;
 
-  // Home v2.3 introduces a quiet editorial prologue. The landing sentence may
-  // carry the introductory tone, but the main home headline remains the most
-  // truthful current phase whenever timeline data exists.
+  // Home v2.4 -- correction sémantique (diagnostic validé) : le
+  // "message d'accueil" Studio (home.message) est un contenu éditorial
+  // d'OUVERTURE, jamais un substitut de jalon courant. Avant cette
+  // correction, il servait de repli au headline "En ce moment" quand
+  // home.now était null, produisant un faux jalon (un texte générique
+  // affiché à côté d'un compteur d'étape "Étape N sur M" bien réel,
+  // lui-même dérivé de progress.currentStepLabel indépendamment de
+  // home.now -- cf. diagnostic). home.message rejoint maintenant
+  // landingStatement (l'ouverture), jamais le bloc "En ce moment".
   const landingStatement = (home.statement && String(home.statement).trim())
     || (home.hero && home.hero.statement && String(home.hero.statement).trim())
-    || 'Un nouveau lieu de travail prend forme.';
-  const headline = (showMilestones && home.now && home.now.label)
     || (home.message && String(home.message).trim())
-    || 'Le projet avance.';
-  const presentText = (showMilestones && home.now && home.now.description) || '';
+    || 'Un nouveau lieu de travail prend forme.';
+
+  // "En ce moment" n'existe que si un vrai jalon status:'current' a
+  // été trouvé par le Compiler (home.now non nul) -- jamais de repli
+  // vers home.message ni vers un texte générique. Un projet sans
+  // jalon courant est un état produit valide : Home ne doit rien
+  // inventer pour le combler (aucun label, aucun phaseMeta, aucun
+  // conteneur vide réservé -- voir plus bas).
+  const hasCurrentMilestone = Boolean(showMilestones && home.now && home.now.label);
+  const headline = hasCurrentMilestone ? home.now.label : '';
+  const presentText = hasCurrentMilestone ? (home.now.description || '') : '';
   const progress = timeline && timeline.progress || null;
-  const phaseMeta = showMilestones && progress && progress.currentStepLabel && progress.totalSteps
+  // phaseMeta (ex. "Étape 4 sur 9") vient de progress, calculé par le
+  // Compiler indépendamment de home.now (repli doneCount+1 -- resté
+  // intentionnellement inchangé, utile ailleurs). Ivory ne doit
+  // l'afficher que lorsqu'il décrit un jalon réellement courant --
+  // jamais comme preuve visuelle d'un home.now qui n'existe pas.
+  const phaseMeta = hasCurrentMilestone && progress && progress.currentStepLabel && progress.totalSteps
     ? `${progress.currentStepLabel} sur ${progress.totalSteps}`
     : '';
 
@@ -418,7 +436,7 @@ function renderHome(home, context = {}) {
   const nextDescription = (home.next && home.next.description) || '';
 
   const nowNextGrid = showMilestones && (presentText || nextDate || nextTitle) ? `
-    <div class="tct-home-momentum tct-reveal" data-tct-reveal>
+    <div class="tct-home-momentum${presentText ? '' : ' is-next-only'} tct-reveal" data-tct-reveal>
       ${presentText ? `
         <div class="tct-home-present">
           <span>Situation actuelle</span>
@@ -485,13 +503,15 @@ function renderHome(home, context = {}) {
   return `
     <section id="home" class="tct-section tct-home is-active" aria-labelledby="tct-home-title">
       <div class="tct-home-opening">
+        ${hasCurrentMilestone ? `
         <p class="tct-home-landing-title tct-reveal" data-tct-reveal>${renderLandingStatement(landingStatement)}</p>
         <div class="tct-home-stage-meta tct-reveal" data-tct-reveal>
           <span class="tct-live-dot" aria-hidden="true"></span>
           <span>En ce moment</span>
           ${phaseMeta ? `<span class="tct-home-phase">${esc(phaseMeta)}</span>` : ''}
         </div>
-        <h1 id="tct-home-title" class="tct-home-title tct-reveal" data-tct-reveal>${esc(headline)}</h1>
+        <h1 id="tct-home-title" class="tct-home-title tct-reveal" data-tct-reveal>${esc(headline)}</h1>` : `
+        <h1 id="tct-home-title" class="tct-home-landing-title tct-reveal" data-tct-reveal>${renderLandingStatement(landingStatement)}</h1>`}
         ${nowNextGrid}
       </div>
       ${featured}
@@ -1923,6 +1943,7 @@ const STYLE = `
     padding-top:clamp(28px,4vw,38px);
     border-top:1px solid var(--tct-hairline-soft);
   }
+  .tct-home-momentum.is-next-only { grid-template-columns:1fr; }
   .tct-home-present > span,
   .tct-home-nextline-label {
     display:block;

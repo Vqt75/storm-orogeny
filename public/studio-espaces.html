@@ -71,8 +71,10 @@
 }
 .preview{
   width:104px;height:78px;border-radius:14px;background:linear-gradient(145deg,#ecece8,#dddcd7);display:grid;place-items:center;
-  overflow:hidden;color:var(--muted);font-size:10px;font-weight:760;letter-spacing:.07em;text-transform:uppercase
+  overflow:hidden;color:var(--muted);font-size:10px;font-weight:760;letter-spacing:.07em;text-transform:uppercase;
+  transition:outline-color .15s
 }
+.preview.drag-active{outline:2px dashed #6b6bf0;outline-offset:-2px}
 .preview.plan{background:linear-gradient(135deg,#f0f0ed 25%,#ddd 25% 27%,#f0f0ed 27% 50%,#ddd 50% 52%,#f0f0ed 52%)}
 .preview.pdf{background:#fff;border:1px solid var(--line);color:#111}
 .preview img{width:100%;height:100%;object-fit:cover}
@@ -245,6 +247,20 @@ const projectId=(()=>{
 function devHeaders(){
   const d=new URLSearchParams(location.search).get("devUser");
   return d?{"X-Storm-Dev-User":d}:{};
+}
+
+// Drag & drop générique -- voir studio-identite.html pour le même
+// helper, jamais un second mécanisme d'upload parallèle.
+function wireDropZone(el,onFile){
+  if(!el)return;
+  let depth=0;
+  el.addEventListener("dragover",e=>{e.preventDefault()});
+  el.addEventListener("dragenter",e=>{e.preventDefault();depth++;el.classList.add("drag-active")});
+  el.addEventListener("dragleave",()=>{depth=Math.max(0,depth-1);if(depth===0)el.classList.remove("drag-active")});
+  el.addEventListener("drop",e=>{
+    e.preventDefault();depth=0;el.classList.remove("drag-active");
+    const file=e.dataTransfer?.files?.[0];if(file)onFile(file);
+  });
 }
 function preserveDev(url){
   const d=new URLSearchParams(location.search).get("devUser");
@@ -468,6 +484,11 @@ function wireEditor(){
   editor.querySelectorAll("[data-replace]").forEach(b=>b.onclick=()=>{
     const m=s.media.find(x=>String(mediaKey(x))===String(b.dataset.replace));
     if(m)chooseFile(m.kind,mediaKey(m));
+  });
+  editor.querySelectorAll(".media-card").forEach(card=>{
+    const m=s.media.find(x=>String(mediaKey(x))===String(card.dataset.mediaKey));
+    if(!m)return;
+    wireDropZone(card.querySelector(".preview"),file=>uploadSelectedFile(file,m.kind,mediaKey(m)));
   });
 
   document.getElementById("retryUpload")?.addEventListener("click",()=>fileInput.click());

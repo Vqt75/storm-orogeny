@@ -37,8 +37,10 @@
 .photo-wrap{display:grid;gap:8px}
 .photo{
   width:120px;aspect-ratio:1;border-radius:28px;background:linear-gradient(145deg,#ecece8,#dddcd7);
-  display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:11px;font-weight:760
+  display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:11px;font-weight:760;
+  transition:outline-color .15s,background .15s
 }
+.photo.drag-active{outline:2px dashed #6b6bf0;outline-offset:-2px;background:#eef0ff}
 .photo img{width:100%;height:100%;object-fit:cover}
 .photo-actions{display:grid;gap:6px}
 .photo-btn{min-height:38px;border:0;border-radius:12px;background:rgba(17,17,17,.045);font-size:11px;font-weight:680}
@@ -206,6 +208,20 @@ function devHeaders(){
   const d=new URLSearchParams(location.search).get("devUser");
   return d?{"X-Storm-Dev-User":d}:{};
 }
+
+// Drag & drop générique -- voir studio-identite.html pour le même
+// helper, jamais un second mécanisme d'upload parallèle.
+function wireDropZone(el,onFile){
+  if(!el)return;
+  let depth=0;
+  el.addEventListener("dragover",e=>{e.preventDefault()});
+  el.addEventListener("dragenter",e=>{e.preventDefault();depth++;el.classList.add("drag-active")});
+  el.addEventListener("dragleave",()=>{depth=Math.max(0,depth-1);if(depth===0)el.classList.remove("drag-active")});
+  el.addEventListener("drop",e=>{
+    e.preventDefault();depth=0;el.classList.remove("drag-active");
+    const file=e.dataTransfer?.files?.[0];if(file)onFile(file);
+  });
+}
 function preserveDev(url){
   const d=new URLSearchParams(location.search).get("devUser");
   return d?url+(url.includes("?")?"&":"?")+"devUser="+encodeURIComponent(d):url;
@@ -258,8 +274,8 @@ function renderList(){
 
 function photoMarkup(a){
   return a.photoAssetId
-    ? `<div class="photo"><img data-asset-id="${esc(a.photoAssetId)}" alt=""></div>`
-    : `<div class="photo"><span>Aucune photo</span></div>`;
+    ? `<div class="photo" id="photoBox"><img data-asset-id="${esc(a.photoAssetId)}" alt=""></div>`
+    : `<div class="photo" id="photoBox"><span>Aucune photo</span></div>`;
 }
 
 // Aide contextuelle selon le canal choisi -- la sémantique est déjà
@@ -431,6 +447,7 @@ function wireEditor(){
   document.getElementById("replacePhoto").onclick=()=>{
     flushDomToState();state.uploadError=null;photoInput.value="";photoInput.click();
   };
+  wireDropZone(document.getElementById("photoBox"),uploadPhoto);
   document.getElementById("removePhoto")?.addEventListener("click",()=>{
     flushDomToState();a.photoAssetId=null;markDirty(a.id);renderEditor();
   });

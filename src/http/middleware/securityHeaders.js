@@ -12,6 +12,23 @@
 // ici : avant l'activation d'un provider Entra réel / première vraie
 // production client, une passe CSP dédiée doit retirer 'unsafe-inline'
 // de script-src.
+//
+// img-src 'self' blob: -- BUG RÉEL TROUVÉ ET CORRIGÉ : sans directive
+// img-src explicite, la CSP retombe sur default-src 'self', qui
+// n'autorise jamais les URL blob:. Or le pattern de chargement d'assets
+// utilisé partout (Studio Identité/Ambassadeurs/Actualités/Espaces/Le
+// projet, Control, project-shell -- voir loadAssetImages()/getBlob())
+// assigne systématiquement img.src = URL.createObjectURL(blob) pour
+// contourner le fait qu'un <img src="/api/assets/:id"> classique ne
+// peut jamais envoyer l'en-tête d'authentification requis. Le
+// navigateur bloquait silencieusement cette assignation (violation CSP
+// sur le chargement de la ressource, jamais une exception JS
+// catchable par le bloc try/catch existant) -- icône d'image cassée
+// systématique pour tout logo/photo/aperçu dans toute l'application,
+// invisible côté serveur (curl/tests HTTP ne déclenchent jamais de CSP,
+// seul un navigateur réel l'applique) et invisible dans la suite de
+// tests existante (entièrement HTTP-level, aucun test de rendu
+// navigateur réel).
 
 export function securityHeaders({ isProduction }) {
   return (req, res, next) => {
@@ -28,6 +45,7 @@ export function securityHeaders({ isProduction }) {
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline'; " + // GATE : retirer avant Entra réel / prod client (voir ci-dessus).
       "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' blob:; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "frame-ancestors 'none'"

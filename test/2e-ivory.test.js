@@ -254,8 +254,11 @@ test('Ivory E2E (garde-fou) : aucun repli implicite vers Italiana/Georgia dans l
 
 test('Ivory E2E (garde-fou) : safeFontAssetUrl accepte le vrai schéma d\'URL publique, jamais le legacy /uploads/ inatteignable', () => {
   const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  assert.ok(!source.includes("/^\\/uploads\\/"), 'le motif /uploads/ hérité de Tectonic (jamais servi par Orogeny) ne doit jamais réapparaître dans safeFontAssetUrl');
-  assert.ok(source.includes('/public/projects/'), 'safeFontAssetUrl doit reconnaître le vrai schéma d\'URL publique produit par le Compiler');
+  const fnIdx = source.indexOf('function safeFontAssetUrl(value)');
+  assert.ok(fnIdx >= 0, 'safeFontAssetUrl doit exister');
+  const fnBody = source.slice(fnIdx, source.indexOf('\n}', fnIdx));
+  assert.ok(!fnBody.includes('/^\\/uploads\\/'), 'le motif /uploads/ hérité de Tectonic (jamais servi par Orogeny) ne doit jamais réapparaître dans safeFontAssetUrl');
+  assert.ok(fnBody.includes('\\/public\\/projects\\/'), 'safeFontAssetUrl doit reconnaître le vrai schéma d\'URL publique produit par le Compiler');
 });
 
 test('Ivory E2E (garde-fou) : safeCssFont() rejette entièrement une valeur invalide, ne la mutile jamais caractère par caractère', () => {

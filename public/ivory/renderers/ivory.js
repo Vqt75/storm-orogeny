@@ -23,23 +23,12 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
-// Auth admin Tectonic (xyz_admin_token / sessionStorage) retirée
-// (branchement Orogeny) : sans objet, Ivory ne gère plus elle-même
-// aucune notion de session admin, voir wireInteractions et le lien
-// Administration ci-dessous.
-
-// Lien Administration -> Studio Orogeny réel (branchement Orogeny).
-// projectId déduit de l'URL courante (page servie à
-// /public/projects/:projectId), jamais codé en dur ni transmis via le
-// Manifest -- l'authentification Orogeny (devAuth, appartenance de
-// projet) prend le relais nativement dès la navigation, sans overlay
-// ni session propre à Ivory.
-function studioUrlFromLocation(win) {
-  const w = win || (typeof window !== 'undefined' ? window : null);
-  const pathname = (w && w.location && w.location.pathname) || '';
-  const match = pathname.match(/\/public\/projects\/([^/]+)/);
-  return match ? `/projects/${match[1]}/studio` : '/';
-}
+// Le lien Administration -> Studio a été retiré de l'expérience
+// collaborateurs (jamais de dépendance Studio/admin visible depuis
+// Ivory, quel que soit le rôle du visiteur -- le lien était rendu
+// sans aucune condition pour tout visiteur, l'authentification réelle
+// ne se déclenchant qu'après clic côté Studio). studioUrlFromLocation
+// n'a plus d'usage et a été retirée avec lui.
 
 
 
@@ -99,6 +88,53 @@ function colorContrast(a, b) {
   const hi = Math.max(la, lb);
   const lo = Math.min(la, lb);
   return (hi + .05) / (lo + .05);
+}
+
+// Simule color-mix(in srgb, <hex> P%, white) en JS -- calculé ici,
+// jamais deviné, pour pouvoir vérifier le contraste RÉEL du résultat
+// avant de l'utiliser en CSS (le CSS lui-même ne peut pas être
+// "relu" côté rendu pour validation). Réutilise hexToRgb, jamais un
+// second parseur de couleur.
+function mixWithWhite(hex, percent) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return '#ffffff';
+  const p = Math.max(0, Math.min(100, percent)) / 100;
+  const mix = c => Math.round(c * p + 255 * (1 - p));
+  return `#${[mix(rgb.r), mix(rgb.g), mix(rgb.b)].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+// Résout la surface teintée d'une carte (chiffres clés / principes) en
+// validant réellement deux contrastes -- jamais une supposition que
+// color-mix(..., white) "est forcément sûr". Réutilise colorContrast,
+// aucun second calcul de contraste dupliqué.
+//   - le corps de texte (--tct-muted/--tct-ink) sur le fond teinté ;
+//   - si le fond doit porter le grand chiffre en couleur accent, ce
+//     texte-là aussi (seuil WCAG AA grand texte, 3:1, cohérent avec
+//     la taille réelle du chiffre, toujours ≥ 24px).
+// Repli en cascade, jamais un blocage : tint prévu -> tint réduit de
+// moitié si le texte encre échoue (cas limite jamais rencontré avec
+// les valeurs actuelles du resolver, mais vérifié plutôt que supposé)
+// -> aucun tint (papier neutre) si même ça échoue. Le chiffre en
+// accent ne s'active QUE si son contraste réel sur le fond retenu
+// passe le seuil grand texte, sinon repli sur l'encre neutre.
+function resolveCardSurface(accentHex, inkHex, mutedHex, tintPercent) {
+  const WCAG_LARGE_TEXT_MIN = 3;
+  const WCAG_BODY_TEXT_MIN = 4.5;
+  const bodyTextSafe = bg => colorContrast(inkHex, bg) >= WCAG_BODY_TEXT_MIN && colorContrast(mutedHex, bg) >= WCAG_BODY_TEXT_MIN;
+  let percent = tintPercent;
+  let bg = mixWithWhite(accentHex, percent);
+  if (!bodyTextSafe(bg)) {
+    percent = tintPercent / 2;
+    bg = mixWithWhite(accentHex, percent);
+  }
+  if (!bodyTextSafe(bg)) {
+    bg = '#ffffff';
+  }
+  const accentOnBg = colorContrast(accentHex, bg);
+  return {
+    background: bg,
+    numberColor: accentOnBg >= WCAG_LARGE_TEXT_MIN ? accentHex : inkHex
+  };
 }
 
 function isNeutralBrandColor(value) {
@@ -381,21 +417,25 @@ function renderHome(home, context = {}) {
   const nextTitle = (home.next && home.next.label) || '';
   const nextDescription = (home.next && home.next.description) || '';
 
-  const nextBlock = showMilestones && (nextDate || nextTitle) ? `
-    <div class="tct-home-nextline tct-reveal" data-tct-reveal aria-labelledby="tct-next-title">
-      <div class="tct-home-nextline-rail">
-        <div class="tct-home-nextline-label">À suivre</div>
-        ${nextDate ? `<div class="tct-home-nextline-date">${esc(nextDate)}</div>` : ''}
-      </div>
-      <div class="tct-home-nextline-copy">
-        ${nextTitle ? `<h2 id="tct-next-title">${esc(nextTitle)}</h2>` : ''}
-        ${nextDescription ? `<p>${esc(nextDescription)}</p>` : ''}
-        ${timeline ? `<a class="tct-text-link tct-home-nextline-link" href="#timeline" data-tct-route>Voir les grandes étapes <span aria-hidden="true">→</span></a>` : ''}
-      </div>
+  const nowNextGrid = showMilestones && (presentText || nextDate || nextTitle) ? `
+    <div class="tct-home-momentum tct-reveal" data-tct-reveal>
+      ${presentText ? `
+        <div class="tct-home-present">
+          <span>Situation actuelle</span>
+          <p>${esc(presentText)}</p>
+        </div>` : ''}
+      ${(nextDate || nextTitle) ? `
+        <div class="tct-home-nextline" aria-labelledby="tct-next-title">
+          <div class="tct-home-nextline-label">À suivre${nextDate ? ` · ${esc(nextDate)}` : ''}</div>
+          ${nextTitle ? `<h2 id="tct-next-title">${esc(nextTitle)}</h2>` : ''}
+          ${nextDescription ? `<p>${esc(nextDescription)}</p>` : ''}
+          ${timeline ? `<a class="tct-text-link tct-home-nextline-link" href="#timeline" data-tct-route>Voir les grandes étapes <span aria-hidden="true">→</span></a>` : ''}
+        </div>` : ''}
     </div>` : '';
 
+  const featuredAsset = featuredSource && featuredSource.asset;
   const featured = home.featured ? `
-    <section class="tct-home-feature tct-reveal" data-tct-reveal aria-labelledby="tct-featured-title">
+    <section class="tct-home-feature${featuredAsset ? ' has-media' : ''} tct-reveal" data-tct-reveal aria-labelledby="tct-featured-title">
       <div class="tct-home-feature-inner">
         <div class="tct-home-feature-meta">
           <span>À la une</span>
@@ -411,56 +451,51 @@ function renderHome(home, context = {}) {
             Découvrir <span aria-hidden="true">→</span>
           </a>
         </div>
+        ${featuredAsset ? `<div class="tct-home-feature-media">${renderAsset(featuredAsset, 'tct-home-feature-media-img')}</div>` : ''}
       </div>
     </section>` : '';
 
-  const latestNews = latest ? `
-    <section class="tct-home-latest tct-reveal" data-tct-reveal aria-labelledby="tct-latest-title">
-      <div class="tct-home-latest-label">Dernière actualité</div>
-      <div class="tct-home-latest-date">${esc(latest.date || '')}</div>
-      <div class="tct-home-latest-copy">
-        <span>${esc(latest.tag || '')}</span>
-        <h2 id="tct-latest-title">${esc(latest.title)}</h2>
-      </div>
-      <a class="tct-round-link" href="#news" data-tct-route aria-label="Lire l’actualité"><span aria-hidden="true">→</span></a>
+  // Clôture partagée -- "dernière actualité" et "questions" étaient
+  // deux sections pleine largeur séparées, chacune avec sa propre
+  // respiration verticale généreuse : exactement le pattern "bloc →
+  // blanc → bloc → blanc" à corriger. Fusionnées en une seule section
+  // à deux colonnes -- aucune donnée perdue, juste un seul geste de
+  // clôture au lieu de deux consécutifs.
+  const closing = (latest || showAskPrompt) ? `
+    <section class="tct-home-closing tct-reveal" data-tct-reveal>
+      ${latest ? `
+        <a class="tct-home-latest" href="#news" data-tct-route aria-labelledby="tct-latest-title">
+          <div class="tct-home-latest-label">Dernière actualité${latest.date ? ` · ${esc(latest.date)}` : ''}</div>
+          <div class="tct-home-latest-copy">
+            ${latest.tag ? `<span>${esc(latest.tag)}</span>` : ''}
+            <h2 id="tct-latest-title">${esc(latest.title)}</h2>
+          </div>
+          <span class="tct-round-link" aria-hidden="true">→</span>
+        </a>` : ''}
+      ${showAskPrompt ? `
+        <div class="tct-home-questions" aria-labelledby="tct-home-questions-title">
+          <div class="tct-home-questions-overline">Questions</div>
+          <h2 id="tct-home-questions-title">${esc(home.askPrompt || 'Une question sur le projet ?')}</h2>
+          <a class="tct-home-question-action" href="#questions" data-tct-route>
+            <span>Poser une question</span><span class="tct-question-arrow" aria-hidden="true">→</span>
+          </a>
+        </div>` : ''}
     </section>` : '';
-
-  const questionsBlock = showAskPrompt ? `
-      <section class="tct-home-questions tct-reveal" data-tct-reveal aria-labelledby="tct-home-questions-title">
-        <div class="tct-home-questions-overline">Questions</div>
-        <h2 id="tct-home-questions-title">${esc(home.askPrompt || 'Une question sur le projet ?')}</h2>
-        <p>Retrouvez les informations disponibles sur le projet.</p>
-        <a class="tct-home-question-action" href="#questions" data-tct-route>
-          <span>Poser une question</span><span class="tct-question-arrow" aria-hidden="true">→</span>
-        </a>
-      </section>` : '';
 
   return `
     <section id="home" class="tct-section tct-home is-active" aria-labelledby="tct-home-title">
-      <div class="tct-home-landing">
-        <div class="tct-home-landing-inner">
-          <p class="tct-home-landing-title tct-reveal" data-tct-reveal>${renderLandingStatement(landingStatement)}</p>
-        </div>
-      </div>
-      <div class="tct-home-stage">
+      <div class="tct-home-opening">
+        <p class="tct-home-landing-title tct-reveal" data-tct-reveal>${renderLandingStatement(landingStatement)}</p>
         <div class="tct-home-stage-meta tct-reveal" data-tct-reveal>
           <span class="tct-live-dot" aria-hidden="true"></span>
           <span>En ce moment</span>
           ${phaseMeta ? `<span class="tct-home-phase">${esc(phaseMeta)}</span>` : ''}
         </div>
-        <div class="tct-home-stage-grid">
-          <h1 id="tct-home-title" class="tct-home-title tct-reveal" data-tct-reveal>${esc(headline)}</h1>
-          ${presentText ? `
-            <div class="tct-home-present tct-reveal" data-tct-reveal>
-              <span>Situation actuelle</span>
-              <p>${esc(presentText)}</p>
-            </div>` : ''}
-        </div>
-        ${nextBlock}
+        <h1 id="tct-home-title" class="tct-home-title tct-reveal" data-tct-reveal>${esc(headline)}</h1>
+        ${nowNextGrid}
       </div>
       ${featured}
-      ${latestNews}
-      ${questionsBlock}
+      ${closing}
     </section>`;
 }
 function projectInitials(name) {
@@ -473,6 +508,19 @@ function projectInitials(name) {
     .join('');
 }
 
+// DÉCISION STRUCTURELLE EXPLICITE (chantier HXI, jalons/timeline) :
+// cette séquence reste TELLE QUELLE, jamais convertie vers la
+// primitive de rail générique (data-tct-rail). Raisons : (1) c'est un
+// <ol> sémantique -- un vrai récit chronologique à suivre, pas une
+// famille d'éléments frères indépendants à explorer ; (2) elle porte
+// déjà une ligne de progression reliant les étapes (aria-current sur
+// l'étape en cours), une affordance de "parcours" qu'un rail
+// générique détruirait ; (3) elle bascule DÉJÀ elle-même entre
+// horizontal et vertical selon le volume réel de jalons (>6 -> vertical,
+// sinon horizontal) -- un mécanisme dédié, plus fin que le choix
+// binaire de la primitive de rail, construit spécifiquement pour ce
+// contenu. Le choix vient du sens du contenu, pas de la disponibilité
+// de la primitive.
 function renderProjectTrajectory(timeline) {
   if (!timeline) return '';
 
@@ -544,7 +592,7 @@ function renderProjectTeam(team) {
         <span>Équipe projet</span>
         <h2>Ce projet est porté par une équipe.</h2>
       </div>
-      <ul class="tct-project-team-grid">${people}</ul>
+      <ul class="tct-project-team-grid" data-tct-rail data-tct-rail-family="team" aria-label="Équipe du projet">${people}</ul>
     </section>`;
 }
 
@@ -585,7 +633,7 @@ function renderProjectSection(section, context = {}) {
     return `
       <section class="tct-project-section tct-project-figures tct-reveal" data-tct-reveal>
         <div class="tct-project-figures-head">${esc(section.title || 'Quelques repères')}</div>
-        <div class="tct-project-figures-grid ${count > 4 ? 'is-many' : ''}" style="--tct-figure-count:${Math.max(1, Math.min(count, 4))}">
+        <div class="tct-project-figures-grid ${count > 4 ? 'is-many' : ''}" data-tct-rail data-tct-rail-family="figures" aria-label="Chiffres clés du projet" style="--tct-figure-count:${Math.max(1, Math.min(count, 4))}">
           ${figures.map(item => `
             <div class="tct-project-figure">
               <strong>${esc(item.value)}</strong>
@@ -610,13 +658,13 @@ function renderProjectSection(section, context = {}) {
     return `
       <section class="tct-project-section tct-project-choices tct-reveal" data-tct-reveal>
         <div class="tct-project-choices-head">${esc(section.title || 'Les grands choix du projet')}</div>
-        <div class="tct-project-choices-grid">
+        <ul class="tct-project-choices-grid" data-tct-rail data-tct-rail-family="choices" aria-label="${esc(section.title || 'Principes du projet')}">
           ${choices.map(item => `
-            <article>
+            <li class="tct-project-choice-card">
               ${item.title ? `<h3>${esc(item.title)}</h3>` : ''}
               ${item.body ? `<p>${esc(item.body)}</p>` : ''}
-            </article>`).join('')}
-        </div>
+            </li>`).join('')}
+        </ul>
       </section>`;
   }
 
@@ -872,6 +920,23 @@ function renderSpaceDetail(item, items, index) {
 
 function renderSpaces(spaces) {
   if (!spaces) return '';
+  // DÉCISION STRUCTURELLE EXPLICITE (chantier HXI, grammaire
+  // horizontale) : aucun data-tct-rail introduit sur cette surface,
+  // malgré trois candidats réels évalués :
+  //   - la liste principale (.tct-space-story) porte déjà un système
+  //     de variantes éditoriales tournantes (media-left/media-right/
+  //     wide/document) -- un vrai récit vertical avec asymétrie
+  //     voulue, qu'un rail uniformiserait en cartes identiques ;
+  //   - la galerie de médias secondaires d'un espace
+  //     (.tct-space-detail-gallery) alterne déjà des largeurs
+  //     généreuses (78%/66%) en édition verticale -- un rail
+  //     forcerait une largeur de carte fixe, à l'encontre de
+  //     "présence généreuse, jamais une petite thumbnail" ;
+  //   - "autres espaces" (related) ne propose jamais plus de 2 liens
+  //     -- comme pour les suggestions d'Article, un seul/deux
+  //     éléments ne justifient jamais la primitive de rail.
+  // Le choix vient du sens du contenu, pas de la disponibilité de la
+  // primitive -- même principe que la décision timeline/jalons.
   const items = spaces.items || [];
   const intro = spaces.intro || {};
   const rawTitle = String(intro.title || '').trim();
@@ -1436,7 +1501,7 @@ function renderAmbassadors(ambassadors) {
         </div>
 
         ${roster.length ? `
-          <ul class="tct-ambassadors-list" data-tct-ambassadors-list>
+          <ul class="tct-ambassadors-list" data-tct-ambassadors-list data-tct-rail data-tct-rail-family="ambassadors" aria-label="Ambassadeurs du projet">
             ${roster.map((person, index) => renderAmbassadorPerson(person, index, communityContact)).join('')}
           </ul>
           <p class="tct-ambassadors-no-result" data-tct-ambassador-no-result hidden>
@@ -1549,7 +1614,6 @@ function renderFooter() {
     <footer class="tct-footer">
       <div class="tct-footer-inner">
         <span class="tct-footer-note">Espace projet</span>
-        <span class="tct-footer-signature">Powered by <strong>Storm</strong> · Tectonic 2.1</span>
       </div>
     </footer>`;
 }
@@ -1593,6 +1657,19 @@ const STYLE = `
     --tct-faint:#969690;
     --tct-hairline:rgba(23,23,23,.14);
     --tct-hairline-soft:rgba(23,23,23,.075);
+    /* Échelle typographique -- HXI Orogeny (fermeture "textes gigantesques").
+       Avant cette passe, la quasi-totalité des titres de page ET des
+       titres de section utilisaient la même échelle hero (5.3–7.35rem
+       au maximum), sans hiérarchie perceptible entre "ouverture de
+       page" et "titre de section répété plusieurs fois sur la même
+       page". Trois paliers réels désormais :
+       --tct-type-hero   : une seule fois par page, l'ouverture (Home,
+                            "Le projet", "Espaces").
+       --tct-type-title  : titres de section (répétés dans une page).
+       --tct-type-card   : titres de card/élément dans une liste. */
+    --tct-type-hero:clamp(2.7rem,4.6vw,4.6rem);
+    --tct-type-title:clamp(1.65rem,2.4vw,2.35rem);
+    --tct-type-card:clamp(1.1rem,1.4vw,1.35rem);
     min-height:100vh;
     background:var(--tct-canvas);
   }
@@ -1671,21 +1748,6 @@ const STYLE = `
   }
   .tct-nav a:hover, .tct-nav a[aria-current="page"] { color:var(--tct-ink); }
   .tct-nav a[aria-current="page"]::after { opacity:1; transform:translate(-50%,0) scale(1); }
-  .tct-admin-entry {
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    min-height:34px;
-    padding:0 8px;
-    color:var(--tct-faint);
-    text-decoration:none;
-    font-size:.69rem;
-    font-weight:500;
-    white-space:nowrap;
-    transition:color .2s ease, background .2s ease;
-  }
-  .tct-admin-entry:hover { color:var(--tct-ink); background:rgba(23,23,23,.045); }
-  .tct-admin-entry svg { width:12px; height:12px; flex:0 0 auto; }
   .tct-menu-toggle {
     display:none;
     width:38px;
@@ -1751,45 +1813,40 @@ const STYLE = `
   }
   .tct-round-link:hover { transform:translateX(4px); background:var(--tct-ink); color:#fff; border-color:var(--tct-ink); }
 
-  /* HOME v2.3 — A quiet prologue leads into the current phase, then the next.
-     The page should feel edited, not dashboard-like. */
+  /* HOME — recomposition HXI : l'ouverture (déclaration + "en ce
+     moment" + titre) ne réserve plus la quasi-totalité de l'écran à
+     elle seule (l'ancien .tct-home-landing avait
+     min-height:calc(100svh - 74px) autour d'un texte volontairement
+     petit depuis la passe typographique -- la cause principale du
+     "trop blanc" sur cette page). Une seule zone d'ouverture
+     continue ; le moment du projet (présent/suivant) rejoint cette
+     même zone au lieu d'un bloc pleine largeur séparé ; "dernière
+     actualité" et "questions" sont fusionnées en une seule clôture à
+     deux colonnes au lieu de deux sections pleine largeur
+     consécutives. */
   .tct-home { padding-top:0; padding-bottom:0; }
-  .tct-home-landing {
-    min-height:calc(100svh - 74px);
+  .tct-home-opening {
     display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:clamp(48px,7vw,92px) 0 clamp(22px,4vw,52px);
-  }
-  .tct-home-landing-inner {
-    width:min(920px,100%);
-    margin:0 auto;
+    flex-direction:column;
+    padding:clamp(56px,7vw,100px) 0 clamp(44px,5.5vw,72px);
   }
   .tct-home-landing-title {
-    margin:0 auto;
-    max-width:11.2ch;
-    text-align:center;
+    margin:0 0 26px;
+    max-width:36ch;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(3.05rem,6.1vw,6.1rem);
-    line-height:.98;
+    font-size:clamp(1.5rem,2.3vw,2.05rem);
+    line-height:1.2;
     font-weight:400;
     letter-spacing:-.03em;
     text-wrap:balance;
   }
   .tct-home-landing-accent { color:var(--tct-expression-accent,var(--tct-ink)); }
-  .tct-home-stage {
-    min-height:auto;
-    display:flex;
-    flex-direction:column;
-    margin-top:-72px;
-    padding-top:clamp(10px,2.2vw,20px);
-    padding-bottom:clamp(22px,4vw,42px);
-  }
   .tct-home-stage-meta {
     display:flex;
     align-items:center;
     gap:9px;
     min-height:22px;
+    margin-bottom:18px;
     color:var(--tct-muted);
     font-size:.68rem;
     font-weight:500;
@@ -1822,7 +1879,7 @@ const STYLE = `
   }
   .tct-live-dot::after {
     inset:-20px;
-    background:radial-gradient(circle, color-mix(in srgb, var(--tct-expression-accent) 18%, transparent) 0%, transparent 74%);
+    background:radial-gradient(circle, color-mix(in srgb, var(--tct-expression-accent-secondary,var(--tct-expression-accent)) 18%, transparent) 0%, transparent 74%);
     opacity:.24;
     transform:scale(.82);
     animation:tct-now-breathe-wide 5.2s cubic-bezier(.16,1,.3,1) infinite;
@@ -1844,30 +1901,31 @@ const STYLE = `
     text-transform:uppercase;
     letter-spacing:.12em;
   }
-  .tct-home-stage-grid {
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-items:end;
-    padding:clamp(26px,3vw,42px) 0 clamp(38px,5.5vw,74px);
-  }
   .tct-home-title {
-    grid-column:1 / span 8;
     margin:0;
-    max-width:10.8ch;
+    max-width:14ch;
     font-family:var(--tct-font-primary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(3.65rem,7vw,7.35rem);
-    line-height:.94;
+    font-size:var(--tct-type-hero);
+    line-height:.96;
     font-weight:400;
     letter-spacing:-.062em;
     text-wrap:balance;
   }
-  .tct-home-present {
-    grid-column:10 / span 3;
-    align-self:end;
-    padding-bottom:.4rem;
+
+  /* Moment du projet -- présent et suivant dans la même respiration
+     visuelle plutôt que deux blocs séparés par du vide. Un hairline
+     signale la transition sans nécessiter un grand espace blanc. */
+  .tct-home-momentum {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);
+    gap:clamp(28px,4vw,56px);
+    margin-top:clamp(36px,5vw,56px);
+    padding-top:clamp(28px,4vw,38px);
+    border-top:1px solid var(--tct-hairline-soft);
   }
-  .tct-home-present > span {
+  .tct-home-present > span,
+  .tct-home-nextline-label {
+    display:block;
     color:var(--tct-faint);
     text-transform:uppercase;
     letter-spacing:.13em;
@@ -1875,58 +1933,28 @@ const STYLE = `
     font-weight:600;
   }
   .tct-home-present p {
-    margin:18px 0 0;
+    margin:14px 0 0;
     color:var(--tct-muted);
     font-size:clamp(.92rem,1vw,1rem);
     line-height:1.65;
+    max-width:28ch;
   }
-  .tct-home-nextline {
-    position:relative;
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-items:start;
-    padding:clamp(10px,1.6vw,16px) 0 clamp(18px,3vw,36px);
-  }
-  .tct-home-nextline-rail {
-    grid-column:1 / span 4;
-    display:flex;
-    flex-direction:column;
-    gap:22px;
-  }
-  .tct-home-nextline-label {
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
-    font-weight:600;
-  }
-  .tct-home-nextline-date {
-    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(2.25rem,3.6vw,4.05rem);
-    line-height:.98;
-    letter-spacing:-.04em;
-    text-wrap:balance;
-  }
-  .tct-home-nextline-copy {
-    grid-column:6 / span 5;
-    padding-top:8px;
-  }
-  .tct-home-nextline-copy h2 {
+  .tct-home-nextline-label { margin-bottom:12px; }
+  .tct-home-nextline h2 {
     margin:0;
     font-size:clamp(1.18rem,1.55vw,1.55rem);
     font-weight:500;
     line-height:1.22;
     letter-spacing:-.03em;
   }
-  .tct-home-nextline-copy p {
+  .tct-home-nextline p {
     max-width:44rem;
     margin:12px 0 0;
     color:var(--tct-muted);
     font-size:.84rem;
     line-height:1.6;
   }
-  .tct-home-nextline-link { margin-top:22px; }
+  .tct-home-nextline-link { margin-top:18px; display:inline-block; }
 
   /* Featured content becomes a full-width editorial event instead of a card. */
   .tct-home-feature {
@@ -1945,7 +1973,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:center;
-    padding:clamp(94px,10vw,158px) 0;
+    padding:clamp(64px,7vw,108px) 0;
   }
   .tct-home-feature-meta {
     grid-column:1 / span 2;
@@ -1966,7 +1994,7 @@ const STYLE = `
     margin:0;
     max-width:15ch;
     font-family:var(--tct-font-primary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(3rem,5.5vw,5.9rem);
+    font-size:var(--tct-type-title);
     line-height:.98;
     font-weight:400;
     letter-spacing:-.055em;
@@ -1984,61 +2012,86 @@ const STYLE = `
     line-height:1.65;
   }
 
-  /* Latest news is deliberately a strip, not another content block. */
-  .tct-home-latest {
+  /* Média riche -- l'image réelle du premier article (déjà dérivée par
+     le Compiler comme asset de couverture) prend une vraie colonne,
+     pleine hauteur, jamais une petite vignette à côté du texte. Le
+     texte se resserre en conséquence -- aucune donnée cachée, juste
+     une composition plus généreuse pour l'image. Repli intact si
+     l'article n'a pas d'image (grille par défaut ci-dessus). */
+  .tct-home-feature.has-media .tct-home-feature-inner {
     display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-items:center;
-    min-height:156px;
-    padding:42px 0;
+    grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+    grid-template-areas:"meta media" "title media" "aside media";
+    grid-template-rows:auto 1fr auto;
+    column-gap:clamp(32px,4vw,64px);
+    align-items:start;
+  }
+  .tct-home-feature.has-media .tct-home-feature-meta { grid-area:meta; padding-top:0; }
+  .tct-home-feature.has-media .tct-home-feature-title-wrap { grid-area:title; }
+  .tct-home-feature.has-media .tct-home-feature-aside { grid-area:aside; align-self:start; padding-bottom:0; margin-top:8px; }
+  .tct-home-feature.has-media .tct-home-feature-media {
+    grid-area:media;
+    height:100%;
+    min-height:320px;
+    border-radius:22px;
+    overflow:hidden;
+  }
+  .tct-home-feature-media-img { width:100%; height:100%; object-fit:cover; display:block; }
+
+  /* Clôture -- dernière actualité + questions, une seule respiration
+     de fin au lieu de deux sections pleine largeur consécutives
+     (l'ancienne .tct-home-questions seule atteignait
+     min-height:min(650px,72vh)). */
+  .tct-home-closing {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    column-gap:clamp(32px,4vw,64px);
+    border-top:1px solid var(--tct-hairline-soft);
+    padding:clamp(48px,6vw,80px) 0;
+  }
+  .tct-home-latest {
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+    padding-right:clamp(24px,3vw,40px);
+    border-right:1px solid var(--tct-hairline-soft);
+    text-decoration:none;
+    color:inherit;
   }
   .tct-home-latest-label {
-    grid-column:1 / span 2;
     color:var(--tct-faint);
     text-transform:uppercase;
     letter-spacing:.13em;
     font-size:.59rem;
     font-weight:600;
   }
-  .tct-home-latest-date {
-    grid-column:3 / span 2;
-    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(1.4rem,2vw,2.15rem);
-    line-height:1;
-  }
-  .tct-home-latest-copy { grid-column:5 / span 6; }
-  .tct-home-latest-copy > span {
+  .tct-home-latest-copy span {
     display:block;
-    margin-bottom:5px;
+    margin-bottom:6px;
     color:var(--tct-faint);
     font-size:.62rem;
     text-transform:uppercase;
     letter-spacing:.1em;
   }
-  .tct-home-latest h2 {
+  .tct-home-latest-copy h2 {
     margin:0;
+    max-width:26ch;
     font-size:clamp(1.05rem,1.5vw,1.45rem);
     font-weight:500;
     line-height:1.25;
     letter-spacing:-.026em;
   }
-  .tct-home-latest .tct-round-link { grid-column:12; }
+  .tct-home-latest .tct-round-link { margin-top:auto; align-self:flex-start; justify-self:auto; }
+  .tct-home-latest:hover .tct-round-link,
+  .tct-home-latest:focus-visible .tct-round-link { transform:translateX(4px); background:var(--tct-ink); color:#fff; border-color:var(--tct-ink); }
 
-  /* Questions is a large, calm exit path — no dark CTA slab. */
   .tct-home-questions {
-    position:relative;
-    min-height:min(650px,72vh);
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-content:center;
-    padding:clamp(110px,13vw,190px) 0;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+    padding-left:clamp(24px,3vw,40px);
   }
   .tct-home-questions-overline {
-    grid-column:1 / span 2;
-    align-self:start;
-    padding-top:10px;
     color:var(--tct-faint);
     text-transform:uppercase;
     letter-spacing:.14em;
@@ -2046,43 +2099,24 @@ const STYLE = `
     font-weight:600;
   }
   .tct-home-questions h2 {
-    grid-column:3 / span 8;
     margin:0;
-    max-width:12ch;
+    max-width:17ch;
     font-family:var(--tct-font-primary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(3.15rem,5.9vw,6.35rem);
-    line-height:.95;
+    font-size:clamp(1.3rem,2vw,1.9rem);
+    line-height:1.1;
     font-weight:400;
-    letter-spacing:-.058em;
+    letter-spacing:-.032em;
     text-wrap:balance;
   }
-  .tct-home-questions > p {
-    grid-column:3 / span 5;
-    margin:28px 0 0;
-    color:var(--tct-muted);
-    line-height:1.6;
-    font-size:.92rem;
-  }
   .tct-home-question-action {
-    grid-column:3 / span 8;
-    display:flex;
+    display:inline-flex;
     align-items:center;
-    justify-content:space-between;
-    gap:24px;
-    margin-top:54px;
-    padding:20px 22px 20px 0;
-    border-radius:18px;
+    gap:16px;
+    margin-top:auto;
     color:var(--tct-ink);
     text-decoration:none;
     font-size:.86rem;
     font-weight:500;
-    transition:background .3s ease, padding-left .38s cubic-bezier(.16,1,.3,1), padding-right .38s cubic-bezier(.16,1,.3,1);
-  }
-  .tct-home-question-action:hover,
-  .tct-home-question-action:focus-visible {
-    padding-left:22px;
-    padding-right:14px;
-    background:rgba(23,23,23,.04);
   }
   .tct-question-arrow {
     width:44px;
@@ -2096,7 +2130,8 @@ const STYLE = `
     font-size:1rem;
     transition:transform .25s cubic-bezier(.2,.8,.2,1);
   }
-  .tct-home-question-action:hover .tct-question-arrow { transform:translateX(5px); }
+  .tct-home-question-action:hover .tct-question-arrow,
+  .tct-home-question-action:focus-visible .tct-question-arrow { transform:translateX(5px); }
 
   /* PROJECT v2.5.2 — Le projet is a continuous editorial narrative.
      POC-only fallback copy is used until Studio / Compiler publish semantic
@@ -2107,8 +2142,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:start;
-    min-height:min(590px,66vh);
-    padding-bottom:clamp(90px,10vw,150px);
+    padding:clamp(56px,6vw,84px) 0 clamp(48px,5vw,72px);
   }
   .tct-project-opening-eyebrow {
     grid-column:1 / span 2;
@@ -2124,7 +2158,7 @@ const STYLE = `
     margin:0;
     max-width:10.8ch;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(3.45rem,6.55vw,7rem);
+    font-size:var(--tct-type-hero);
     line-height:.96;
     font-weight:400;
     letter-spacing:-.04em;
@@ -2145,7 +2179,7 @@ const STYLE = `
   .tct-project-focus {
     width:100vw;
     margin-left:calc(50% - 50vw);
-    padding:clamp(92px,10vw,150px) 0;
+    padding:clamp(64px,7vw,104px) 0;
     background:var(--tct-soft-2);
   }
   .tct-project-focus-inner {
@@ -2169,7 +2203,7 @@ const STYLE = `
     margin:0;
     max-width:12ch;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(2.7rem,5vw,5.35rem);
+    font-size:var(--tct-type-title);
     line-height:.99;
     font-weight:400;
     letter-spacing:-.038em;
@@ -2187,7 +2221,7 @@ const STYLE = `
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
-    padding:clamp(110px,12vw,180px) 0;
+    padding:clamp(52px,6vw,84px) 0;
   }
   .tct-project-figures-head {
     grid-column:1 / span 2;
@@ -2208,13 +2242,20 @@ const STYLE = `
   .tct-project-figures-grid.is-many {
     grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
   }
+  .tct-project-figure {
+    width:min(220px,68vw);
+    padding:24px 22px 26px;
+    border-radius:18px;
+    background:var(--tct-figure-surface,var(--tct-canvas));
+  }
   .tct-project-figure strong {
     display:block;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(3.1rem,5.8vw,6.3rem);
+    font-size:clamp(2.4rem,4.4vw,4.4rem);
     line-height:.9;
     font-weight:400;
     letter-spacing:-.055em;
+    color:var(--tct-figure-number-color,var(--tct-ink));
   }
   .tct-project-figure span {
     display:block;
@@ -2225,7 +2266,7 @@ const STYLE = `
     line-height:1.55;
   }
 
-  .tct-project-text { padding:clamp(56px,7vw,104px) 0 clamp(118px,13vw,190px); }
+  .tct-project-text { padding:clamp(56px,7vw,96px) 0 clamp(64px,7vw,104px); }
   .tct-project-reading {
     width:min(700px,58vw);
     margin-left:25%;
@@ -2303,8 +2344,8 @@ const STYLE = `
   .tct-project-milestone.tct-status-current .tct-project-milestone-marker {
     border-color:var(--tct-expression-accent,var(--tct-ink));
     background:var(--tct-expression-accent,var(--tct-ink));
-    box-shadow:0 0 0 7px color-mix(in srgb,var(--tct-expression-accent,var(--tct-ink)) 12%,transparent),
-      0 0 24px color-mix(in srgb,var(--tct-expression-accent,var(--tct-ink)) 18%,transparent);
+    box-shadow:0 0 0 7px color-mix(in srgb,var(--tct-expression-accent-secondary,var(--tct-expression-accent,var(--tct-ink))) 12%,transparent),
+      0 0 24px color-mix(in srgb,var(--tct-expression-accent-secondary,var(--tct-expression-accent,var(--tct-ink))) 18%,transparent);
   }
   .tct-project-milestone-meta {
     display:flex; flex-direction:column; gap:15px; min-height:84px;
@@ -2365,7 +2406,7 @@ const STYLE = `
   .tct-project-quote {
     width:100vw;
     margin-left:calc(50% - 50vw);
-    padding:clamp(116px,13vw,198px) 0;
+    padding:clamp(80px,9vw,136px) 0;
     background:var(--tct-ink);
     color:var(--tct-canvas);
   }
@@ -2402,7 +2443,7 @@ const STYLE = `
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
-    padding:clamp(126px,14vw,210px) 0;
+    padding:clamp(56px,6vw,92px) 0;
   }
   .tct-project-choices-head {
     grid-column:1 / span 3;
@@ -2426,7 +2467,27 @@ const STYLE = `
     font-weight:500;
     letter-spacing:-.03em;
   }
-  .tct-project-choices article p {
+  /* Carte principe -- objet éditorial court (idée + quelques lignes),
+     surface légèrement teintée par la marque du projet. Teinte
+     toujours CLAIRE (accent mélangé à un blanc quasi pur, 6-9%) --
+     jamais besoin de recalculer le contraste : de l'encre sombre sur
+     une teinte claire de N'IMPORTE QUELLE couleur reste toujours
+     lisible, contrairement à une surface fortement colorée qui
+     exigerait une résolution clair/sombre dédiée. */
+  .tct-project-choice-card {
+    width:min(280px,74vw);
+    padding:26px 24px;
+    border-radius:18px;
+    background:var(--tct-choice-surface,var(--tct-canvas));
+  }
+  .tct-project-choice-card h3 {
+    margin:0;
+    font-size:clamp(1.12rem,1.55vw,1.5rem);
+    line-height:1.18;
+    font-weight:500;
+    letter-spacing:-.03em;
+  }
+  .tct-project-choice-card p {
     margin:16px 0 0;
     color:var(--tct-muted);
     font-size:.83rem;
@@ -2451,7 +2512,7 @@ const STYLE = `
     max-width:10ch;
     margin:22px 0 0;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(2.35rem,4.2vw,4.65rem);
+    font-size:var(--tct-type-title);
     line-height:1;
     font-weight:400;
     letter-spacing:-.038em;
@@ -2465,7 +2526,7 @@ const STYLE = `
     grid-template-columns:repeat(3,minmax(0,1fr));
     gap:clamp(24px,3vw,46px);
   }
-  .tct-project-person { min-width:0; }
+  .tct-project-person { min-width:0; width:min(220px,60vw); }
   .tct-project-person-photo,
   .tct-project-person-fallback {
     aspect-ratio:4 / 5;
@@ -2501,7 +2562,7 @@ const STYLE = `
     line-height:1.45;
   }
 
-  .tct-project-media { padding:clamp(72px,8vw,120px) 0 clamp(118px,13vw,190px); }
+  .tct-project-media { padding:clamp(56px,6vw,88px) 0; }
   .tct-project-media-frame { overflow:hidden; }
   .tct-project-media-img {
     display:block;
@@ -2519,7 +2580,7 @@ const STYLE = `
     line-height:1.45;
   }
 
-  .tct-project-gallery { padding:clamp(70px,8vw,118px) 0 clamp(124px,14vw,200px); }
+  .tct-project-gallery { padding:clamp(56px,6vw,88px) 0; }
   .tct-project-gallery-head {
     margin-bottom:34px;
     color:var(--tct-faint);
@@ -2550,15 +2611,14 @@ const STYLE = `
 
 
   /* ESPACES v2.7 — architectural editorial rhythm; plans become tools. */
-  .tct-spaces-page { padding-top:clamp(84px,9vw,146px); padding-bottom:clamp(110px,12vw,180px); }
+  .tct-spaces-page { padding-top:clamp(56px,6vw,88px); padding-bottom:clamp(64px,7vw,104px); }
 
   .tct-spaces-opening {
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
-    min-height:min(540px,62vh);
     align-items:start;
-    padding-bottom:clamp(92px,10vw,154px);
+    padding-bottom:clamp(48px,5.5vw,76px);
   }
   .tct-spaces-opening-eyebrow {
     grid-column:1 / span 2;
@@ -2574,7 +2634,7 @@ const STYLE = `
     margin:0;
     max-width:9.8ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(3.4rem,6.55vw,7rem);
+    font-size:var(--tct-type-hero);
     line-height:.96;
     font-weight:400;
     letter-spacing:-.042em;
@@ -2594,7 +2654,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:end;
-    padding-bottom:clamp(128px,14vw,204px);
+    padding-bottom:clamp(72px,8vw,112px);
   }
   .tct-spaces-lead-media { grid-column:1 / span 8; overflow:hidden; min-height:420px; }
   .tct-spaces-lead-copy { grid-column:9 / -1; padding:0 0 .3rem clamp(8px,1vw,18px); }
@@ -2748,7 +2808,7 @@ const STYLE = `
     border-bottom-color:var(--tct-ink);
   }
 
-  .tct-spaces-sequence { display:grid; gap:clamp(116px,14vw,216px); }
+  .tct-spaces-sequence { display:grid; gap:clamp(72px,8vw,124px); }
   .tct-space-story {
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
@@ -2808,7 +2868,7 @@ const STYLE = `
     margin:0;
     max-width:10ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(3.35rem,6.55vw,7rem);
+    font-size:var(--tct-type-hero);
     line-height:.96;
     font-weight:400;
     letter-spacing:-.042em;
@@ -2833,7 +2893,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:start;
-    padding:clamp(50px,6vw,88px) 0 clamp(120px,13vw,190px);
+    padding:clamp(40px,5vw,64px) 0 clamp(56px,6vw,88px);
   }
   .tct-space-status-signal {
     grid-column:1 / span 1;
@@ -2874,7 +2934,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:start;
-    padding-bottom:clamp(130px,14vw,206px);
+    padding-bottom:clamp(64px,7vw,100px);
   }
   .tct-space-usages-head { grid-column:1 / span 4; }
   .tct-space-usages-head h2 {
@@ -2923,8 +2983,8 @@ const STYLE = `
 
   .tct-space-detail-gallery {
     display:grid;
-    gap:clamp(70px,9vw,130px);
-    padding-bottom:clamp(130px,14vw,206px);
+    gap:clamp(56px,7vw,96px);
+    padding-bottom:clamp(64px,7vw,100px);
   }
   .tct-space-detail-secondary { margin:0; }
   .tct-space-detail-secondary:nth-child(odd) { width:78%; }
@@ -2941,7 +3001,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:end;
-    padding:clamp(88px,10vw,148px) 0 30px;
+    padding:clamp(60px,7vw,102px) 0 30px;
   }
   .tct-space-related > div:first-child { grid-column:1 / span 5; }
   .tct-space-related h2 {
@@ -3108,19 +3168,19 @@ const STYLE = `
 
   @media (max-width:720px) {
     .tct-spaces-page { padding-top:72px; padding-bottom:108px; }
-    .tct-spaces-opening { display:block; min-height:auto; padding-bottom:92px; }
+    .tct-spaces-opening { display:block; padding-bottom:48px; }
     .tct-spaces-opening-eyebrow { margin-bottom:36px; padding-top:0; }
     .tct-spaces-opening h1 { max-width:9.4ch; font-size:clamp(3rem,14.6vw,4.95rem); }
     .tct-spaces-opening > p { max-width:34rem; margin-top:34px; }
 
-    .tct-spaces-lead { display:block; padding-bottom:112px; }
+    .tct-spaces-lead { display:block; padding-bottom:56px; }
     .tct-spaces-lead-media { min-height:360px; }
     .tct-spaces-lead-copy { margin-top:36px; padding:0; }
-    .tct-spaces-lead-copy h2 { max-width:10ch; font-size:clamp(2.35rem,11vw,3.9rem); }
+    .tct-spaces-lead-copy h2 { max-width:10ch; font-size:clamp(1.5rem,6vw,1.95rem); }
 
     .tct-space-filters { gap:16px 22px; margin-bottom:86px; }
 
-    .tct-spaces-sequence { gap:112px; }
+    .tct-spaces-sequence { gap:64px; }
     .tct-space-story,
     .tct-space-story.is-media-left,
     .tct-space-story.is-media-right,
@@ -3147,15 +3207,15 @@ const STYLE = `
     .tct-space-detail-hero.is-inspectable,
     .tct-space-detail-hero .tct-space-document-trigger { min-height:360px; }
 
-    .tct-space-status { display:block; padding:46px 0 104px; }
+    .tct-space-status { display:block; padding:40px 0 56px; }
     .tct-space-status-signal { margin-bottom:24px; }
     .tct-space-inspect-link { margin-top:26px; }
 
-    .tct-space-usages { display:block; padding-bottom:112px; }
-    .tct-space-usages-head h2 { max-width:8.5ch; font-size:clamp(2.55rem,12vw,4.25rem); }
+    .tct-space-usages { display:block; padding-bottom:56px; }
+    .tct-space-usages-head h2 { max-width:8.5ch; font-size:clamp(1.5rem,6vw,1.95rem); }
     .tct-space-usages-list { margin-top:54px; gap:34px; }
 
-    .tct-space-detail-gallery { gap:58px; padding-bottom:112px; }
+    .tct-space-detail-gallery { gap:48px; padding-bottom:56px; }
     .tct-space-detail-secondary:nth-child(odd),
     .tct-space-detail-secondary:nth-child(even) { width:100%; margin-left:0; }
     .tct-space-detail-secondary-button { min-height:340px; }
@@ -3180,15 +3240,14 @@ const STYLE = `
   }
 
   /* ACTUALITÉS v2.6 — chronology, not a corporate blog grid. */
-  .tct-news-page { padding-top:clamp(84px,9vw,146px); padding-bottom:clamp(110px,12vw,180px); }
+  .tct-news-page { padding-top:clamp(56px,6vw,88px); padding-bottom:clamp(64px,7vw,104px); }
 
   .tct-news-opening {
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
-    min-height:min(520px,60vh);
     align-items:start;
-    padding-bottom:clamp(90px,10vw,150px);
+    padding-bottom:clamp(40px,5vw,64px);
   }
   .tct-news-opening-eyebrow {
     grid-column:1 / span 2;
@@ -3204,7 +3263,7 @@ const STYLE = `
     margin:0;
     max-width:9.6ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(3.35rem,6.4vw,6.8rem);
+    font-size:var(--tct-type-hero);
     line-height:.97;
     font-weight:400;
     letter-spacing:-.04em;
@@ -3224,7 +3283,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:start;
-    padding:clamp(24px,3vw,42px) 0 clamp(126px,13vw,196px);
+    padding:clamp(24px,3vw,42px) 0 clamp(56px,6vw,84px);
   }
   .tct-news-lead-date {
     grid-column:1 / span 3;
@@ -3308,7 +3367,7 @@ const STYLE = `
   .tct-news-archive-list {
     grid-column:4 / -1;
     display:grid;
-    gap:clamp(70px,8vw,118px);
+    gap:clamp(36px,3.5vw,52px);
   }
   .tct-news-row {
     display:grid;
@@ -3383,7 +3442,7 @@ const STYLE = `
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
-    padding-bottom:clamp(78px,9vw,136px);
+    padding-bottom:clamp(48px,5vw,72px);
   }
   .tct-news-article-meta {
     grid-column:1 / span 2;
@@ -3405,7 +3464,7 @@ const STYLE = `
     margin:0;
     max-width:12ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(3.15rem,6.2vw,6.6rem);
+    font-size:var(--tct-type-hero);
     line-height:.97;
     font-weight:400;
     letter-spacing:-.042em;
@@ -3419,7 +3478,7 @@ const STYLE = `
     line-height:1.72;
   }
   .tct-news-article-media {
-    margin:0 0 clamp(100px,11vw,170px);
+    margin:0 0 clamp(56px,6vw,88px);
   }
   .tct-news-article-media > div { overflow:hidden; }
   .tct-news-article-img {
@@ -3441,7 +3500,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:start;
-    padding-bottom:clamp(110px,12vw,178px);
+    padding-bottom:clamp(56px,6vw,84px);
   }
   .tct-news-article-date {
     grid-column:1 / span 3;
@@ -3465,7 +3524,7 @@ const STYLE = `
     line-height:1.82;
   }
   .tct-news-article-reading h2 {
-    margin:clamp(62px,7vw,94px) 0 26px;
+    margin:clamp(48px,5vw,72px) 0 24px;
     font-size:clamp(1.55rem,2.2vw,2.25rem);
     line-height:1.1;
     font-weight:500;
@@ -3646,7 +3705,8 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:end;
-    padding:clamp(90px,10vw,150px) 0 clamp(20px,3vw,46px);
+    border-top:1px solid var(--tct-hairline-soft);
+    padding:clamp(40px,4.5vw,64px) 0 clamp(20px,3vw,46px);
   }
   .tct-news-article-exit > div:first-child { grid-column:1 / span 6; }
   .tct-news-article-exit > div:first-child > span {
@@ -3657,13 +3717,13 @@ const STYLE = `
     text-transform:uppercase;
   }
   .tct-news-article-exit h2 {
-    max-width:10ch;
-    margin:22px 0 0;
+    max-width:20ch;
+    margin:14px 0 0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(2.4rem,4.4vw,4.8rem);
-    line-height:1;
-    font-weight:400;
-    letter-spacing:-.04em;
+    font-size:clamp(1.3rem,1.8vw,1.7rem);
+    line-height:1.2;
+    font-weight:500;
+    letter-spacing:-.02em;
   }
   .tct-news-article-exit-links {
     grid-column:8 / -1;
@@ -3685,22 +3745,22 @@ const STYLE = `
   }
 
   @media (max-width:720px) {
-    .tct-news-page { padding-top:72px; padding-bottom:108px; }
-    .tct-news-opening { display:block; min-height:auto; padding-bottom:94px; }
+    .tct-news-page { padding-top:48px; padding-bottom:64px; }
+    .tct-news-opening { display:block; padding-bottom:48px; }
     .tct-news-opening-eyebrow { margin-bottom:36px; padding-top:0; }
     .tct-news-opening h1 { max-width:9ch; font-size:clamp(3rem,14.6vw,4.95rem); }
     .tct-news-opening > p { max-width:34rem; margin-top:34px; }
 
-    .tct-news-lead { display:block; padding:12px 0 112px; }
+    .tct-news-lead { display:block; padding:12px 0 56px; }
     .tct-news-lead-date { gap:12px; margin-bottom:42px; }
-    .tct-news-lead-date time { max-width:none; font-size:clamp(2.6rem,13vw,4rem); }
+    .tct-news-lead-date time { max-width:none; font-size:clamp(1.9rem,8vw,2.6rem); }
     .tct-news-lead-copy h2 { max-width:11ch; font-size:clamp(2.45rem,11.7vw,4.1rem); }
     .tct-news-lead-copy p { margin-top:24px; }
     .tct-news-lead-media { margin-top:52px; }
 
     .tct-news-archive { display:block; padding-bottom:30px; }
     .tct-news-archive-head { margin-bottom:52px; padding-top:0; }
-    .tct-news-archive-list { gap:74px; }
+    .tct-news-archive-list { gap:44px; }
     .tct-news-row { display:block; }
     .tct-news-row-date { margin-bottom:22px; }
     .tct-news-row-date time,
@@ -3709,18 +3769,18 @@ const STYLE = `
     .tct-news-row.is-compact .tct-news-row-copy h3 { max-width:20ch; font-size:clamp(1.5rem,7vw,2.25rem); }
 
     .tct-news-back { margin-bottom:36px; }
-    .tct-news-article-opening { display:block; padding-bottom:78px; }
+    .tct-news-article-opening { display:block; padding-bottom:44px; }
     .tct-news-article-meta { margin-bottom:38px; padding-top:0; }
-    .tct-news-article-opening h1 { max-width:10.8ch; font-size:clamp(3rem,14vw,4.85rem); }
+    .tct-news-article-opening h1 { max-width:10.8ch; font-size:clamp(2.2rem,9vw,3.2rem); line-height:1.02; }
     .tct-news-article-opening > p { margin-top:36px; }
-    .tct-news-article-media { margin-bottom:86px; }
+    .tct-news-article-media { margin-bottom:48px; }
 
-    .tct-news-article-body { display:block; padding-bottom:100px; }
+    .tct-news-article-body { display:block; padding-bottom:52px; }
     .tct-news-article-date { position:static; margin-bottom:54px; }
-    .tct-news-article-date span { max-width:none; font-size:clamp(2.35rem,11vw,3.7rem); }
+    .tct-news-article-date span { max-width:none; font-size:clamp(1.7rem,7vw,2.3rem); }
     .tct-news-article-reading h2 { margin-top:62px; }
 
-    .tct-news-article-exit { display:block; padding-top:86px; }
+    .tct-news-article-exit { display:block; padding-top:40px; }
     .tct-news-article-exit-links { margin-top:52px; padding-bottom:0; }
   }
 
@@ -3749,8 +3809,8 @@ const STYLE = `
 
   /* QUESTIONS v2.8 — resolution first; interface recedes behind language. */
   .tct-questions-page {
-    padding-top:clamp(82px,8vw,132px);
-    padding-bottom:clamp(110px,12vw,178px);
+    padding-top:clamp(48px,5vw,72px);
+    padding-bottom:clamp(48px,5vw,72px);
   }
 
   .tct-questions-opening {
@@ -3758,7 +3818,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:start;
-    padding-bottom:clamp(72px,8vw,118px);
+    padding-bottom:clamp(32px,3.5vw,48px);
   }
   .tct-questions-opening-eyebrow {
     grid-column:1 / span 2;
@@ -3774,7 +3834,7 @@ const STYLE = `
     margin:0;
     max-width:10ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(3.25rem,6.1vw,6.5rem);
+    font-size:var(--tct-type-hero);
     line-height:.97;
     font-weight:400;
     letter-spacing:-.04em;
@@ -3792,7 +3852,7 @@ const STYLE = `
   .tct-question-workbench {
     width:min(980px,76vw);
     margin:0 auto;
-    padding:clamp(32px,4vw,54px) 0 clamp(78px,8vw,120px);
+    padding:clamp(24px,3vw,40px) 0 clamp(32px,3.5vw,48px);
   }
   .tct-question-workbench > label {
     display:block;
@@ -3879,7 +3939,7 @@ const STYLE = `
 
   .tct-question-result {
     scroll-margin-top:120px;
-    padding:clamp(34px,4vw,58px) 0 clamp(116px,12vw,176px);
+    padding:clamp(24px,3vw,40px) 0 clamp(40px,4.5vw,56px);
   }
   .tct-question-answer,
   .tct-question-ambiguity,
@@ -3915,13 +3975,13 @@ const STYLE = `
   .tct-question-answer h2,
   .tct-question-ambiguity h2,
   .tct-question-unknown h2 {
-    max-width:14ch;
+    max-width:24ch;
     margin:0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(2.6rem,4.7vw,5.15rem);
-    line-height:1;
-    font-weight:400;
-    letter-spacing:-.04em;
+    font-size:clamp(1.5rem,2.2vw,2.05rem);
+    line-height:1.15;
+    font-weight:500;
+    letter-spacing:-.025em;
     text-wrap:balance;
   }
   .tct-question-answer-body {
@@ -4025,7 +4085,7 @@ const STYLE = `
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
-    padding:clamp(78px,9vw,132px) 0 clamp(128px,13vw,194px);
+    padding:clamp(32px,4vw,48px) 0 clamp(40px,4.5vw,56px);
   }
   .tct-question-contact[hidden] { display:none; }
   .tct-question-contact-intro { grid-column:1 / span 4; }
@@ -4038,13 +4098,13 @@ const STYLE = `
     text-transform:uppercase;
   }
   .tct-question-contact-intro h2 {
-    max-width:9ch;
-    margin:21px 0 0;
+    max-width:22ch;
+    margin:12px 0 0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(2.2rem,3.8vw,4.15rem);
-    line-height:1;
-    font-weight:400;
-    letter-spacing:-.04em;
+    font-size:clamp(1.4rem,2vw,1.85rem);
+    line-height:1.2;
+    font-weight:500;
+    letter-spacing:-.025em;
   }
   .tct-question-contact-intro p {
     max-width:24rem;
@@ -4114,13 +4174,13 @@ const STYLE = `
   }
   .tct-featured-questions-heading { grid-column:1 / span 4; }
   .tct-featured-questions-heading h2 {
-    max-width:10ch;
-    margin:21px 0 0;
+    max-width:22ch;
+    margin:12px 0 0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(2.2rem,3.7vw,4rem);
-    line-height:1;
-    font-weight:400;
-    letter-spacing:-.04em;
+    font-size:clamp(1.4rem,2vw,1.85rem);
+    line-height:1.2;
+    font-weight:500;
+    letter-spacing:-.025em;
   }
   .tct-featured-questions ol {
     grid-column:6 / -1;
@@ -4172,13 +4232,13 @@ const STYLE = `
   }
 
   @media (max-width:720px) {
-    .tct-questions-page { padding-top:72px; padding-bottom:106px; }
-    .tct-questions-opening { display:block; padding-bottom:64px; }
+    .tct-questions-page { padding-top:44px; padding-bottom:48px; }
+    .tct-questions-opening { display:block; padding-bottom:32px; }
     .tct-questions-opening-eyebrow { margin-bottom:34px; padding-top:0; }
-    .tct-questions-opening h1 { max-width:9.5ch; font-size:clamp(3rem,14vw,4.8rem); }
+    .tct-questions-opening h1 { max-width:9.5ch; font-size:clamp(2.2rem,9vw,3.2rem); line-height:1.02; }
     .tct-questions-opening > p { max-width:33rem; margin-top:32px; }
 
-    .tct-question-workbench { width:100%; margin:0; padding:20px 0 82px; }
+    .tct-question-workbench { width:100%; margin:0; padding:20px 0 36px; }
     .tct-question-workbench > label { margin-bottom:18px; }
     .tct-question-input-line input {
       padding-right:14px;
@@ -4187,26 +4247,26 @@ const STYLE = `
     .tct-question-input-line button { width:44px; height:44px; }
     .tct-question-examples { margin-top:16px; gap:5px 7px; }
 
-    .tct-question-result { padding:26px 0 98px; scroll-margin-top:88px; }
+    .tct-question-result { padding:20px 0 40px; scroll-margin-top:88px; }
     .tct-question-answer,
     .tct-question-ambiguity,
     .tct-question-unknown { display:block; }
     .tct-question-state { margin-bottom:34px; padding-top:0; }
     .tct-question-answer h2,
     .tct-question-ambiguity h2,
-    .tct-question-unknown h2 { max-width:10.5ch; font-size:clamp(2.7rem,12.5vw,4.45rem); }
-    .tct-question-answer-body { margin-top:28px; }
+    .tct-question-unknown h2 { max-width:none; font-size:clamp(1.3rem,6vw,1.7rem); }
+    .tct-question-answer-body { margin-top:20px; }
     .tct-question-answer-actions { gap:18px 24px; margin-top:32px; }
 
-    .tct-question-contact { display:block; padding:74px 0 112px; }
-    .tct-question-contact-intro h2 { max-width:9.5ch; font-size:clamp(2.4rem,11vw,3.9rem); }
+    .tct-question-contact { display:block; padding:36px 0 48px; }
+    .tct-question-contact-intro h2 { max-width:9.5ch; font-size:clamp(1.5rem,6vw,1.95rem); }
     .tct-question-contact-form { grid-template-columns:1fr; margin-top:54px; gap:28px; }
     .tct-question-contact-form label.is-wide { grid-column:auto; }
     .tct-question-contact-form > button { grid-column:auto; }
     .tct-question-contact-status { margin-top:24px; }
 
     .tct-featured-questions { display:block; padding-top:38px; }
-    .tct-featured-questions-heading h2 { max-width:9.5ch; font-size:clamp(2.4rem,11vw,3.9rem); }
+    .tct-featured-questions-heading h2 { max-width:9.5ch; font-size:clamp(1.5rem,6vw,1.95rem); }
     .tct-featured-questions ol { margin-top:54px; }
     .tct-featured-questions li button { grid-template-columns:34px 1fr auto; gap:12px; }
   }
@@ -4214,17 +4274,16 @@ const STYLE = `
 
   /* AMBASSADEURS v2.9 — human presence, not an HR directory. */
   .tct-ambassadors-page {
-    padding-top:clamp(84px,9vw,144px);
-    padding-bottom:clamp(110px,12vw,178px);
+    padding-top:clamp(56px,6vw,88px);
+    padding-bottom:clamp(64px,7vw,104px);
   }
 
   .tct-ambassadors-opening {
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
-    min-height:min(520px,60vh);
     align-items:start;
-    padding-bottom:clamp(92px,10vw,150px);
+    padding-bottom:clamp(48px,5.5vw,76px);
   }
   .tct-ambassadors-opening-eyebrow {
     grid-column:1 / span 2;
@@ -4240,7 +4299,7 @@ const STYLE = `
     max-width:10.2ch;
     margin:0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(3.35rem,6.35vw,6.8rem);
+    font-size:var(--tct-type-hero);
     line-height:.97;
     font-weight:400;
     letter-spacing:-.042em;
@@ -4312,7 +4371,7 @@ const STYLE = `
   }
   .tct-ambassadors-count strong {
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(4rem,8vw,8.6rem);
+    font-size:clamp(2.8rem,5.5vw,5.4rem);
     line-height:.78;
     font-weight:400;
     letter-spacing:-.06em;
@@ -4363,6 +4422,7 @@ const STYLE = `
   }
   .tct-ambassador-person {
     min-width:0;
+    width:min(300px,78vw);
     display:grid;
     grid-template-rows:auto auto;
     gap:18px;
@@ -4476,12 +4536,12 @@ const STYLE = `
     text-transform:uppercase;
   }
   .tct-ambassadors-cta h2 {
-    max-width:10ch;
-    margin:22px 0 0;
+    max-width:20ch;
+    margin:12px 0 0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(2.45rem,4.4vw,4.9rem);
-    line-height:1;
-    font-weight:400;
+    font-size:clamp(1.4rem,2vw,1.85rem);
+    line-height:1.2;
+    font-weight:500;
     letter-spacing:-.04em;
   }
   .tct-ambassadors-cta > div:last-child {
@@ -4626,11 +4686,11 @@ const STYLE = `
   }
 
   @media (max-width:720px) {
-    .tct-ambassadors-page { padding-top:72px; padding-bottom:104px; }
+    .tct-ambassadors-page { padding-top:44px; padding-bottom:48px; }
 
-    .tct-ambassadors-opening { display:block; min-height:auto; padding-bottom:86px; }
+    .tct-ambassadors-opening { display:block; padding-bottom:44px; }
     .tct-ambassadors-opening-eyebrow { margin-bottom:36px; padding-top:0; }
-    .tct-ambassadors-opening h1 { max-width:9.5ch; font-size:clamp(3rem,14vw,4.85rem); }
+    .tct-ambassadors-opening h1 { max-width:9.5ch; font-size:clamp(2.2rem,9vw,3.2rem); line-height:1.02; }
     .tct-ambassadors-opening > p { max-width:33rem; margin-top:34px; }
 
     .tct-ambassadors-role { display:block; padding:20px 0 102px; }
@@ -4640,7 +4700,7 @@ const STYLE = `
     .tct-ambassadors-roster { padding-bottom:112px; }
     .tct-ambassadors-roster-head { display:block; margin-bottom:58px; }
     .tct-ambassadors-count { gap:14px; }
-    .tct-ambassadors-count strong { font-size:clamp(4rem,20vw,6.4rem); }
+    .tct-ambassadors-count strong { font-size:clamp(2.4rem,10vw,3.4rem); }
     .tct-ambassadors-search { margin-top:42px; }
 
     .tct-ambassadors-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:52px 14px; }
@@ -4655,7 +4715,7 @@ const STYLE = `
       display:block;
       padding:86px 14px 96px;
     }
-    .tct-ambassadors-cta h2 { max-width:9.5ch; font-size:clamp(2.55rem,12vw,4.15rem); }
+    .tct-ambassadors-cta h2 { max-width:9.5ch; font-size:clamp(1.5rem,6vw,1.95rem); }
     .tct-ambassadors-cta > div:last-child { max-width:none; margin-top:42px; justify-self:auto; }
     .tct-ambassador-join-panel { display:block; margin-top:64px; padding-top:58px; }
     .tct-ambassador-join-panel[hidden] { display:none; }
@@ -4691,7 +4751,44 @@ const STYLE = `
   /* Footer stays almost invisible in Ivory. */
   .tct-footer { padding:25px 0 30px; background:var(--tct-canvas); color:var(--tct-faint); }
   .tct-footer-inner { width:min(1420px, calc(100% - 64px)); margin:0 auto; display:flex; justify-content:space-between; gap:24px; font-size:.61rem; letter-spacing:.035em; }
-  .tct-footer-signature strong { color:var(--tct-muted); font-weight:500; }
+
+  /* Rail horizontal partagé -- "le vertical raconte, l'horizontal
+     explore". Overflow natif, snap doux, prochaine carte
+     partiellement révélée par construction (padding-right sur le
+     rail, jamais une flèche/dot/pagination). */
+  [data-tct-rail] {
+    display:flex;
+    gap:var(--tct-rail-gap,16px);
+    overflow-x:auto;
+    scroll-snap-type:x proximity;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    cursor:grab;
+    padding:2px 2px 14px;
+    margin:0 -2px;
+    list-style:none;
+  }
+  [data-tct-rail]::-webkit-scrollbar { display:none; }
+  [data-tct-rail].is-grabbing { cursor:grabbing; scroll-snap-type:none; }
+  [data-tct-rail] > * { flex:0 0 auto; scroll-snap-align:start; }
+  [data-tct-rail]:focus-visible { outline:2px solid var(--tct-ink); outline-offset:6px; }
+  .tct-rail-cue {
+    position:absolute; z-index:3; top:50%; left:50%;
+    width:22px; height:22px; margin:-11px 0 0 -11px;
+    border-radius:50%; background:rgba(23,23,23,.86);
+    box-shadow:0 4px 14px rgba(23,23,23,.28);
+    opacity:0; transform:scale(.6);
+    transition:opacity .32s ease,transform .32s ease;
+    pointer-events:none;
+  }
+  .tct-rail-cue.is-visible { opacity:1; transform:scale(1); animation:tct-rail-cue-nudge 1.3s ease-in-out .25s 2; }
+  .tct-rail-wrap-cue { position:relative; }
+  @keyframes tct-rail-cue-nudge {
+    0%,100% { transform:scale(1) translateX(0); }
+    45% { transform:scale(1) translateX(16px); }
+    46% { transform:scale(1) translateX(16px); }
+    70% { transform:scale(1) translateX(-2px); }
+  }
 
   /* One motion language: continuity, low amplitude, deterministic timing. */
   .tct-reveal {
@@ -4705,15 +4802,10 @@ const STYLE = `
   .tct-home-landing-title { --tct-reveal-delay:0ms; }
   .tct-home-stage-meta { --tct-reveal-delay:28ms; }
   .tct-home-title { --tct-reveal-delay:72ms; }
-  .tct-home-present { --tct-reveal-delay:126ms; }
-  .tct-home-nextline { --tct-reveal-delay:164ms; }
+  .tct-home-momentum { --tct-reveal-delay:126ms; }
 
   @media (max-width:1080px) {
-    .tct-home-landing-title { max-width:11.8ch; }
-    .tct-home-title { grid-column:1 / span 9; }
-    .tct-home-present { grid-column:10 / span 3; }
-    .tct-home-nextline-rail { grid-column:1 / span 5; }
-    .tct-home-nextline-copy { grid-column:7 / span 5; }
+    .tct-home-landing-title { max-width:30ch; }
     .tct-home-feature-title-wrap { grid-column:3 / span 7; }
   }
 
@@ -4746,23 +4838,24 @@ const STYLE = `
     .tct-nav a { width:100%; padding:12px 0; font-family:var(--tct-font-primary,'Roboto'),sans-serif; font-size:1.55rem; font-weight:400; letter-spacing:-.035em; color:var(--tct-ink); }
     .tct-nav a::after { display:none; }
     .tct-section, .tct-footer-inner { width:calc(100% - 40px); }
-    .tct-project-opening { min-height:auto; padding-bottom:100px; }
+    .tct-project-opening { padding-bottom:56px; }
     .tct-project-opening-eyebrow { grid-column:1 / span 2; }
     .tct-project-opening h1 { grid-column:3 / span 7; }
     .tct-project-opening > p { grid-column:10 / span 3; }
     .tct-project-track.is-horizontal .tct-project-milestone-copy p { display:none; }
-    .tct-home-landing { min-height:calc(100svh - 66px); }
-    .tct-home-stage-grid { align-items:start; }
-    .tct-home-title { grid-column:1 / span 8; }
-    .tct-home-present { grid-column:9 / -1; }
-    .tct-home-nextline-rail { grid-column:1 / span 5; }
-    .tct-home-nextline-copy { grid-column:6 / span 6; }
+    .tct-home-momentum { grid-template-columns:1fr; gap:32px; }
     .tct-home-feature-inner { width:calc(100% - 40px); min-height:auto; }
     .tct-home-feature-meta { grid-column:1 / span 2; }
     .tct-home-feature-title-wrap { grid-column:3 / span 7; }
     .tct-home-feature-aside { grid-column:10 / span 3; }
-    .tct-home-latest-copy { grid-column:5 / span 6; }
-    .tct-home-questions h2, .tct-home-questions > p, .tct-home-question-action { grid-column:3 / span 9; }
+    .tct-home-feature.has-media .tct-home-feature-inner {
+      display:block;
+    }
+    .tct-home-feature.has-media .tct-home-feature-meta,
+    .tct-home-feature.has-media .tct-home-feature-title-wrap,
+    .tct-home-feature.has-media .tct-home-feature-aside { grid-column:auto; }
+    .tct-home-feature.has-media .tct-home-feature-aside { margin-top:24px; }
+    .tct-home-feature.has-media .tct-home-feature-media { margin-top:40px; min-height:280px; height:auto; aspect-ratio:16/10; }
   }
 
   @media (max-width:720px) {
@@ -4771,15 +4864,13 @@ const STYLE = `
     .tct-header-inner { width:calc(100% - 28px); }
     .tct-brand img { max-width:92px; height:25px; }
     .tct-brand-name { font-size:.75rem; max-width:150px; }
-    .tct-admin-entry { width:34px; padding:0; justify-content:center; }
-    .tct-admin-entry span { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     .tct-nav { inset:58px 0 auto 0; }
     .tct-section, .tct-footer-inner { width:calc(100% - 28px); }
 
     .tct-project-page { padding-top:72px; padding-bottom:110px; }
-    .tct-project-opening { display:block; min-height:auto; padding-bottom:96px; }
+    .tct-project-opening { display:block; padding-bottom:56px; }
     .tct-project-opening-eyebrow { margin-bottom:38px; padding-top:0; }
-    .tct-project-opening h1 { max-width:10ch; font-size:clamp(3.15rem,15vw,5.15rem); line-height:.96; }
+    .tct-project-opening h1 { max-width:10ch; font-size:clamp(2.3rem,10vw,3.2rem); line-height:1; }
     .tct-project-opening > p { max-width:34rem; margin-top:38px; }
     .tct-project-trajectory-head { margin-bottom:52px; }
     .tct-project-track.is-horizontal,
@@ -4817,38 +4908,25 @@ const STYLE = `
     .tct-project-milestone-copy h3 { font-size:1.02rem; }
     .tct-project-track.is-horizontal .tct-project-milestone-copy p { display:block; }
 
-    .tct-home-landing { min-height:calc(100svh - 58px); padding:42px 0 24px; }
-    .tct-home-landing-title { max-width:9.6ch; font-size:clamp(2.8rem,12vw,4.9rem); line-height:1; }
-    .tct-home-stage { min-height:auto; margin-top:-58px; padding-top:22px; }
+    .tct-home-opening { padding:36px 0 44px; }
+    .tct-home-landing-title { max-width:none; font-size:clamp(1.3rem,4.6vw,1.6rem); line-height:1.3; margin-bottom:20px; }
     .tct-home-stage-meta { font-size:.65rem; }
     .tct-home-phase { letter-spacing:.08em; font-size:.58rem; }
-    .tct-home-stage-grid { display:block; padding:34px 0 50px; }
-    .tct-home-title { max-width:10.5ch; font-size:clamp(3.2rem,15vw,5.25rem); line-height:.93; }
-    .tct-home-present { margin-top:42px; max-width:34rem; }
-    .tct-home-nextline { display:block; padding:10px 0 30px; }
-    .tct-home-nextline-rail { display:flex; flex-direction:column; gap:18px; }
-    .tct-home-nextline-date { font-size:clamp(2.45rem,13vw,3.7rem); }
-    .tct-home-nextline-copy { padding:28px 0 0; }
-    .tct-home-nextline-copy p { margin-top:14px; }
-    .tct-home-nextline-link { margin-top:20px; }
+    .tct-home-title { max-width:11.5ch; font-size:clamp(2.4rem,9.5vw,3.1rem); line-height:1; }
+    .tct-home-momentum { grid-template-columns:1fr; gap:28px; margin-top:32px; padding-top:24px; }
+    .tct-home-present p { max-width:none; }
+    .tct-home-nextline-link { margin-top:16px; }
 
-    .tct-home-feature-inner { width:calc(100% - 28px); display:block; padding:92px 0 100px; }
-
-    .tct-home-feature-meta { margin-bottom:58px; flex-direction:row; flex-wrap:wrap; gap:7px 14px; }
+    .tct-home-feature-inner { width:calc(100% - 28px); display:block; padding:64px 0 76px; }
+    .tct-home-feature-meta { margin-bottom:40px; flex-direction:row; flex-wrap:wrap; gap:7px 14px; }
     .tct-home-feature h2 { max-width:11ch; font-size:clamp(3rem,13.2vw,4.8rem); }
-    .tct-home-feature-aside { margin-top:58px; max-width:34rem; }
+    .tct-home-feature-aside { margin-top:40px; max-width:34rem; }
+    .tct-home-feature.has-media .tct-home-feature-media { margin-top:40px; height:auto; min-height:0; aspect-ratio:4/3; border-radius:18px; }
 
-    .tct-home-latest { grid-template-columns:1fr auto; column-gap:20px; min-height:auto; padding:44px 0; align-items:start; }
-    .tct-home-latest-label, .tct-home-latest-date, .tct-home-latest-copy { grid-column:1; }
-    .tct-home-latest-date { margin-top:24px; font-size:1.9rem; }
-    .tct-home-latest-copy { margin-top:24px; }
-    .tct-home-latest .tct-round-link { grid-column:2; grid-row:1 / span 3; align-self:center; }
-
-    .tct-home-questions { display:block; min-height:auto; padding:110px 0 118px; }
-    .tct-home-questions-overline { margin-bottom:48px; }
-    .tct-home-questions h2 { max-width:9.5ch; font-size:clamp(3.1rem,14vw,5rem); }
-    .tct-home-questions > p { margin-top:28px; max-width:28rem; }
-    .tct-home-question-action { margin-top:58px; }
+    .tct-home-closing { grid-template-columns:1fr; row-gap:40px; padding:40px 0 56px; }
+    .tct-home-latest { padding-right:0; padding-bottom:32px; border-right:0; border-bottom:1px solid var(--tct-hairline-soft); }
+    .tct-home-questions { padding-left:0; }
+    .tct-home-questions h2 { max-width:none; font-size:clamp(1.3rem,6vw,1.7rem); }
     .tct-ask-box { flex-direction:column; }
     .tct-footer-inner { flex-direction:column; gap:9px; }
   }
@@ -4873,7 +4951,7 @@ const STYLE = `
 
   @media (max-width:720px) {
     .tct-project-page { padding-top:72px; padding-bottom:100px; }
-    .tct-project-opening { display:block; min-height:auto; padding-bottom:92px; }
+    .tct-project-opening { display:block; padding-bottom:56px; }
     .tct-project-opening-eyebrow { margin-bottom:38px; padding-top:0; }
     .tct-project-opening h1 { max-width:10ch; font-size:clamp(3.05rem,14.6vw,5rem); line-height:.97; }
     .tct-project-opening > p { max-width:34rem; margin-top:38px; }
@@ -4884,11 +4962,11 @@ const STYLE = `
     .tct-project-focus h2 { max-width:10ch; font-size:clamp(2.8rem,12.5vw,4.6rem); }
     .tct-project-focus p { margin-top:26px; }
 
-    .tct-project-figures { display:block; padding:96px 0 116px; }
+    .tct-project-figures { display:block; padding:56px 0 64px; }
     .tct-project-figures-head { margin-bottom:48px; padding-top:0; }
     .tct-project-figures-grid,
     .tct-project-figures-grid.is-many { grid-template-columns:repeat(2,minmax(0,1fr)); gap:48px 24px; }
-    .tct-project-figure strong { font-size:clamp(3rem,15vw,5rem); }
+    .tct-project-figure strong { font-size:clamp(2rem,9vw,3rem); }
     .tct-project-figure span { margin-top:12px; }
 
     .tct-project-text { padding:22px 0 110px; }
@@ -4932,7 +5010,7 @@ const STYLE = `
     .tct-project-quote blockquote { max-width:11ch; font-size:clamp(2.8rem,12.5vw,4.7rem); }
     .tct-project-quote cite { margin-top:34px; }
 
-    .tct-project-choices { display:block; padding:104px 0 116px; }
+    .tct-project-choices { display:block; padding:60px 0 64px; }
     .tct-project-choices-head { margin-bottom:46px; }
     .tct-project-choices-grid { display:grid; grid-template-columns:1fr; gap:42px; }
 
@@ -4940,9 +5018,9 @@ const STYLE = `
     .tct-project-team-heading h2 { max-width:9.5ch; }
     .tct-project-team-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:36px 16px; margin-top:54px; }
 
-    .tct-project-media { padding:62px 0 106px; }
+    .tct-project-media { padding:56px 0; }
     .tct-project-media-img { max-height:none; }
-    .tct-project-gallery { padding:62px 0 110px; }
+    .tct-project-gallery { padding:56px 0; }
     .tct-project-gallery-grid { grid-template-columns:1fr; gap:40px; }
     .tct-project-gallery-item,
     .tct-project-gallery-item.is-lead,
@@ -5002,11 +5080,6 @@ const TCT_MOOD_STYLE = `
   @media(prefers-reduced-motion:reduce){.tct-mood-fab,.tct-mood-fab-label,.tct-mood-panel,.tct-mood-option{transition:none!important}.tct-mood-fab.is-wave{animation:none!important}}
 `;
 
-// Overlay d'authentification admin — markup et wording identiques à
-// #adminModal (tectonic/studio.html), valeurs de couleur RÉSOLUES plutôt
-// que les variables Studio (--ink, --white, --bordeaux…), qui n'existent
-// pas dans les variables --tct-* d'Ivory. Même apparence, pas de nouvelle
-// charte. z-index au-dessus de tout, y compris la lightbox (999).
 function renderMoodExperience(manifest) {
   const config = manifest && manifest.experience && manifest.experience.mood ? manifest.experience.mood : {};
   if (config.enabled === false || config.status === 'suspended') return '';
@@ -5127,13 +5200,164 @@ function wireMoodExperience(root, actions) {
   engine.start();
 }
 
-// Overlay d'authentification admin Tectonic retirée (branchement
-// Orogeny) : le lien Administration pointe désormais directement vers
-// Studio Orogeny (/projects/:projectId/studio), dont l'authentification
-// réelle (devAuth, appartenance de projet) prend le relais nativement.
-// Aucun overlay, aucun token, aucune session propre à Ivory.
+// Grammaire récurrente : "Le vertical raconte. L'horizontal explore."
+// Un rail horizontal (data-tct-rail) reste un <ul> natif scrollable --
+// jamais une bibliothèque de carousel.
+//
+// Sémantique : jamais de rôle ARIA synthétique quand le HTML natif
+// suffit déjà (Ambassadeurs/Équipe sont déjà <ul><li> réels -- <ul>
+// porte déjà role=list implicitement, role=listitem est déjà
+// implicite sur <li>). Un rôle n'est ajouté que si les enfants ne
+// sont PAS déjà des <li> (ex. chiffres clés, actuellement des <div>).
+//
+// Cue de geste : contextuel et intermittent, jamais un onboarding
+// global unique ni répété à chaque rail -- une seule fois par
+// "famille" de rail (data-tct-rail-family), maximum 2 par page, et
+// jamais si une interaction avec un rail vient de se produire
+// (cooldown court : l'utilisateur a déjà compris le geste).
+//
+// Clavier : le rail est déjà nativement scrollable au clavier une
+// fois focus (comportement de scroll natif du navigateur sur un
+// conteneur overflow avec tabindex) -- ArrowLeft/ArrowRight sont
+// ajoutées en complément explicite pour un incrément cohérent, mais
+// SEULEMENT quand le rail lui-même a le focus (jamais quand un CTA
+// interne -- ex. le lien de contact d'un ambassadeur -- a le focus,
+// pour ne jamais lui voler ses propres flèches/comportement).
+function wireHorizontalRails(root) {
+  const rails = [...root.querySelectorAll('[data-tct-rail]')];
+  if (!rails.length) return;
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const cueState = { shownFamilies: new Set(), totalShown: 0, lastInteractionAt: 0 };
+  const MAX_CUES_PER_PAGE = 2;
+  const INTERACTION_COOLDOWN_MS = 4000;
+  const noteInteraction = () => { cueState.lastInteractionAt = Date.now(); };
+
+  function maybeShowCue(rail) {
+    if (reduced) return;
+    const family = rail.dataset.tctRailFamily || rail.className;
+    if (cueState.shownFamilies.has(family)) return;
+    if (cueState.totalShown >= MAX_CUES_PER_PAGE) return;
+    if (cueState.lastInteractionAt && Date.now() - cueState.lastInteractionAt < INTERACTION_COOLDOWN_MS) return;
+    cueState.shownFamilies.add(family);
+    cueState.totalShown += 1;
+
+    const cue = document.createElement('span');
+    cue.className = 'tct-rail-cue';
+    cue.setAttribute('aria-hidden', 'true');
+    rail.insertAdjacentElement('afterend', cue);
+    const wrap = cue.parentElement;
+    wrap && wrap.classList.add('tct-rail-wrap-cue');
+    requestAnimationFrame(() => cue.classList.add('is-visible'));
+    const dismiss = () => { cue.classList.remove('is-visible'); setTimeout(() => cue.remove(), 400); };
+    const timer = setTimeout(dismiss, 2400);
+    rail.addEventListener('pointerdown', () => { clearTimeout(timer); dismiss(); }, { once: true });
+    rail.addEventListener('scroll', () => { clearTimeout(timer); dismiss(); }, { once: true, passive: true });
+  }
+
+  rails.forEach(rail => {
+    rail.setAttribute('tabindex', '0');
+    const firstChildIsListItem = rail.firstElementChild && rail.firstElementChild.tagName === 'LI';
+    if (!firstChildIsListItem && !rail.hasAttribute('role')) {
+      rail.setAttribute('role', 'list');
+      [...rail.children].forEach(child => { if (!child.hasAttribute('role')) child.setAttribute('role', 'listitem'); });
+    }
+
+    // Drag pointer -- souris/trackpad uniquement. Le trackpad bénéficie
+    // déjà de son scroll horizontal natif (wheel/shift-wheel selon le
+    // navigateur) -- jamais combattu ici, le drag ne fait qu'ajouter
+    // une amélioration pour la souris.
+    let dragging = false, startX = 0, startScroll = 0, moved = false;
+    rail.addEventListener('pointerdown', e => {
+      noteInteraction();
+      if (e.pointerType === 'touch') return;
+      dragging = true; moved = false;
+      startX = e.clientX; startScroll = rail.scrollLeft;
+      rail.classList.add('is-grabbing');
+      rail.setPointerCapture(e.pointerId);
+    });
+    rail.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 4) moved = true;
+      rail.scrollLeft = startScroll - dx;
+    });
+    const endDrag = e => {
+      if (!dragging) return;
+      dragging = false;
+      rail.classList.remove('is-grabbing');
+      if (moved && e.pointerId != null) {
+        // Empêche un clic fantôme sur la card sous le pointeur juste après un drag réel.
+        const suppress = ev => { ev.preventDefault(); ev.stopPropagation(); };
+        rail.addEventListener('click', suppress, { once: true, capture: true });
+      }
+    };
+    rail.addEventListener('pointerup', endDrag);
+    rail.addEventListener('pointerleave', endDrag);
+    rail.addEventListener('scroll', noteInteraction, { passive: true });
+
+    // Flèches clavier -- uniquement quand le rail LUI-MÊME est la
+    // cible active, jamais quand un CTA interne (ex. le lien de
+    // contact d'une card) a le focus -- il garde alors son propre
+    // comportement de tabulation naturel entre les cards.
+    rail.addEventListener('keydown', e => {
+      if (e.target !== rail) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      noteInteraction();
+      const step = Math.max(160, rail.clientWidth * 0.7);
+      rail.scrollBy({ left: e.key === 'ArrowRight' ? step : -step, behavior: reduced ? 'auto' : 'smooth' });
+    });
+
+    // Scroll-jack directionnel -- tant que le rail est dans la zone de
+    // lecture verticale ET qu'il reste du contenu horizontal dans le
+    // sens du geste, la molette/trackpad vertical est convertie en
+    // défilement horizontal du rail, avec une résistance très brève à
+    // l'entrée (premier tick amorti + micro-retour haptique si
+    // disponible, jamais requis -- progressive enhancement pur).
+    // Dès que le bord est atteint dans ce sens, la main est rendue
+    // IMMÉDIATEMENT au scroll vertical natif -- jamais un piège,
+    // jamais un blocage. Uniquement `wheel` (souris + la plupart des
+    // trackpads verticaux) -- le tactile garde son swipe natif déjà
+    // fonctionnel sur le rail lui-même, jamais combattu ici.
+    if (!reduced) {
+      let justEngaged = false;
+      let engagedAt = 0;
+      rail.addEventListener('wheel', e => {
+        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // déjà un geste horizontal -- laisser le navigateur faire nativement
+        const rect = rail.getBoundingClientRect();
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        const inEngagementZone = rect.top < vh * 0.62 && rect.bottom > vh * 0.38;
+        if (!inEngagementZone) { justEngaged = false; return; }
+        const scrollingForward = e.deltaY > 0;
+        const maxScroll = rail.scrollWidth - rail.clientWidth;
+        const canConsume = scrollingForward ? rail.scrollLeft < maxScroll - 1 : rail.scrollLeft > 1;
+        if (!canConsume) { justEngaged = false; return; } // bord atteint dans ce sens -- le scroll vertical reprend normalement
+        e.preventDefault();
+        noteInteraction();
+        const now = performance.now();
+        if (!justEngaged || now - engagedAt > 600) {
+          justEngaged = true; engagedAt = now;
+          if (typeof navigator !== 'undefined' && navigator.vibrate) { try { navigator.vibrate(8); } catch (err) {} }
+          rail.scrollLeft += e.deltaY * 0.35; // résistance légère au premier tick d'engagement
+          return;
+        }
+        engagedAt = now;
+        rail.scrollLeft += e.deltaY;
+      }, { passive: false });
+    }
+
+    if (!('IntersectionObserver' in window)) { maybeShowCue(rail); return; }
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(entry => { if (entry.isIntersecting) { maybeShowCue(rail); io.disconnect(); } });
+    }, { threshold: 0.5 });
+    io.observe(rail);
+  });
+}
 
 function wireInteractions(root, manifest, actions) {
+  wireHorizontalRails(root);
+
   // Espaces v2 — filters only appear for large collections.
   root.querySelectorAll('[data-space-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -6070,13 +6294,37 @@ function wireFoundation(root, manifest, actions) {
   }
 }
 
+// Exports supplémentaires -- uniquement pour permettre une vérification
+// numérique réelle du contraste en test (Node, sans navigateur/DOM).
+// N'change rien au comportement runtime : render() reste le seul point
+// d'entrée utilisé par runtime.js.
+export { mixWithWhite, colorContrast, resolveCardSurface, renderHome, renderProject, renderNews, renderNewsArticle, renderSpaces, renderQuestions };
+
 export function render(manifest, root, actions) {
   const branding = manifest.branding || {};
   const colors = branding.colors || {};
   const fonts = branding.fonts || {};
   const primary = safeCssColor(colors.primary, '#1E1D1E');
   const secondary = safeCssColor(colors.secondary, '#C2AF7E');
+  // Extension de consommation du Brand Engine (jamais une seconde
+  // architecture) : le resolver partagé calcule déjà accent,
+  // accentSecondary et ambientAccent avec les mêmes règles de
+  // contraste que resolveExpressionAccent (repli local, tests
+  // isolés). On les expose désormais tous en variables CSS, utilisés
+  // avec retenue -- jamais un envahissement systématique (accent =
+  // interactif/highlight, accentSecondary = un second rôle distinct
+  // uniquement là où un contraste hue/lightness réel existe, jamais
+  // recalculé localement).
   const expressionAccent = resolveExpressionAccent(primary, secondary);
+  const sharedBrand = globalThis && globalThis.StormBrandEngine;
+  const brandDecision = sharedBrand && typeof sharedBrand.resolve === 'function'
+    ? sharedBrand.resolve([primary, secondary], { canvas: '#F7F7F5' })
+    : null;
+  const expressionAccentSecondary = (brandDecision && brandDecision.roles && brandDecision.roles.accentSecondary) || expressionAccent;
+  // Cartes teintées (chiffres clés / principes) : contraste réel
+  // vérifié ici (jamais supposé côté CSS), voir resolveCardSurface.
+  const figureSurface = resolveCardSurface(expressionAccent, '#171717', '#6a6a66', 9);
+  const choiceSurface = resolveCardSurface(expressionAccent, '#171717', '#6a6a66', 7);
   const fontPrimary = safeCssFont(fonts.primary && fonts.primary.family, 'Roboto');
   // Le repli n'est plus jamais une police nommée en dur (Italiana) --
   // c'est fontPrimary déjà résolue, cohérent avec la doctrine "1 police
@@ -6121,7 +6369,7 @@ export function render(manifest, root, actions) {
 
   root.innerHTML = `
     <style>${fontAssetsCss}${STYLE}${TCT_MOOD_STYLE}</style>
-    <div class="tct-site" style="--tct-primary:${primary};--tct-secondary:${secondary};--tct-expression-accent:${expressionAccent};--tct-font-primary:'${fontPrimary}';--tct-font-secondary:'${fontSecondary}';">
+    <div class="tct-site" style="--tct-primary:${primary};--tct-secondary:${secondary};--tct-expression-accent:${expressionAccent};--tct-expression-accent-secondary:${expressionAccentSecondary};--tct-figure-surface:${figureSurface.background};--tct-figure-number-color:${figureSurface.numberColor};--tct-choice-surface:${choiceSurface.background};--tct-font-primary:'${fontPrimary}';--tct-font-secondary:'${fontSecondary}';">
       <header class="tct-header" id="tct-site-header">
         <div class="tct-header-inner">
           <a class="tct-brand" href="#home" aria-label="Accueil — ${projectName}">
@@ -6130,10 +6378,6 @@ export function render(manifest, root, actions) {
           </a>
           <button type="button" class="tct-menu-toggle" id="tct-menu-toggle" aria-expanded="false" aria-controls="tct-main-nav" aria-label="Ouvrir la navigation"><span></span></button>
           ${renderNavigation(manifest.navigation, { hasProject: Boolean(manifest.content && (manifest.content.project || manifest.content.timeline)) })}
-          <a class="tct-admin-entry" href="${esc(studioUrlFromLocation())}" aria-label="Administration">
-            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
-            <span>Administration</span>
-          </a>
         </div>
       </header>
       <main class="tct-main">${sections}</main>

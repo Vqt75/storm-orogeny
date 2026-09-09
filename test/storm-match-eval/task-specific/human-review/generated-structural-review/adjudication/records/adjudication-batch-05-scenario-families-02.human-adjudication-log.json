@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "logType": "STRUCTURAL_HUMAN_ADJUDICATION_LOG",
+  "batchId": "adjudication-batch-05-scenario-families-02",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  },
+  "status": "PENDING_HUMAN_REVIEW",
+  "generationAuthorized": false,
+  "appendOnly": true,
+  "authorizedSourceItemIds": [
+    "scenario-family-preflight-14",
+    "scenario-family-preflight-16",
+    "scenario-family-preflight-17",
+    "scenario-family-preflight-18",
+    "scenario-family-preflight-19",
+    "scenario-family-preflight-21",
+    "scenario-family-preflight-22",
+    "scenario-family-preflight-23"
+  ],
+  "humanDoctrine": {
+    "provenance": "HUMAN_ADJUDICATION",
+    "decisionTask": "STRUCTURAL_SCENARIO_FAMILY_ADJUDICATION",
+    "futureRuleRequired": true,
+    "generatedUserFormulationsAvailable": false,
+    "generationAuthorized": false
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "eventId": "adjudication-batch-05-event-001",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-14",
+      "sourceComparisonItemFingerprint": "e432d6322a668f6b8c6fd9d4e1bdf3a6cd5d98b295fbc45cbbb3ab8f3c55d1d9",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "distinct",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q064",
+              "equinoxe-q072",
+              "equinoxe-q092"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q072` couvre l’intention générale de choisir où déjeuner, `q064` en est un cas particulier concernant la Terrasse, et `q092` apporte une règle d’usage concernant les postes de travail.\n\nCes connaissances constituent une structure cohérente général → cas particulier → contrainte et peuvent appartenir à une même scenario family.\n\nCette décision est cohérente avec la décision scellée `ambiguity-capacity-14`, qui établit précisément que ces connaissances ne représentent pas trois lectures concurrentes.",
+      "futureRule": "Une connaissance générale, ses raffinements contextuels et les contraintes qui l’encadrent peuvent appartenir à une même scenario family lorsqu’elles décrivent un même besoin utilisateur sans changer substantiellement l’intention.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": null,
+      "eventHash": "b647a901a6b2c298fbe0379498378b384d6278ee0cbdc7b708491ceba6b82da3"
+    },
+    {
+      "sequence": 2,
+      "eventId": "adjudication-batch-05-event-002",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-16",
+      "sourceComparisonItemFingerprint": "be080c718f25f618e540be12dcbd9d5a55ca9528bc9cabfca69fbb7a5a3dddab",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "mergeWithAnotherDisplayedBrief",
+          "mergeCanonicalReviewItemIds": [
+            "scenario-family-preflight-15"
+          ]
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q040",
+              "equinoxe-q042",
+              "equinoxe-q043"
+            ],
+            [
+              "equinoxe-q044"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q040`, `q042` et `q043` portent sur une même vérité de portée projet : Cobalt ne modifie pas les règles de télétravail et n’impose pas de présence minimale.\n\nCe noyau recouvre directement `scenario-family-preflight-15`, qui traite déjà de l’effet du projet sur la fréquence ou l’obligation de présence.\n\n`q044` reste une branche structurellement différente car elle relève de l’autorité de l’équipe ou du manager et non de la règle projet.\n\nCette partition est déjà établie par la décision scellée `ambiguity-capacity-16`.",
+      "futureRule": "Fusionner les briefs qui expriment le même effet d’une règle projet sur la présence ou le télétravail, mais conserver une branche distincte lorsque la source d’autorité change — notamment projet versus équipe ou manager.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "b647a901a6b2c298fbe0379498378b384d6278ee0cbdc7b708491ceba6b82da3",
+      "eventHash": "aaf8ccc8167df4cf9b4445c12ece7d1ab88da6a9dca83e407d6556dfff269a89"
+    },
+    {
+      "sequence": 3,
+      "eventId": "adjudication-batch-05-event-003",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-17",
+      "sourceComparisonItemFingerprint": "2c8c5a40be60143ddfe8a128422f309aee88e464023ed8c36be3349a5e2d247c",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "distinct",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q006",
+              "equinoxe-q079",
+              "equinoxe-q110"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "La date d’ouverture du plateau témoin, son rôle expérimental et l’organisation de la collecte des premiers retours décrivent ensemble le même dispositif pilote.\n\nIls constituent des attributs complémentaires d’une même situation métier et peuvent être générés au sein d’une même scenario family.\n\nCette décision est cohérente avec la décision scellée `ambiguity-capacity-17`, qui conclut que ces éléments peuvent être expliqués ensemble sans concurrence substantielle entre réponses.",
+      "futureRule": "Les attributs complémentaires d’un même dispositif expérimental peuvent former une seule scenario family lorsqu’ils décrivent conjointement son existence, son rôle et son fonctionnement sans créer plusieurs intentions métier indépendantes.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "aaf8ccc8167df4cf9b4445c12ece7d1ab88da6a9dca83e407d6556dfff269a89",
+      "eventHash": "3be4f0d2965f974caf8e8166746ce7c409bc8a12cd49f19b36e774822cc15843"
+    },
+    {
+      "sequence": 4,
+      "eventId": "adjudication-batch-05-event-004",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-18",
+      "sourceComparisonItemFingerprint": "924763a0c00c4c03be980f60e4da5a72abdb83c96eb1d3905a2e14722597f356",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "mergeWithAnotherDisplayedBrief",
+          "mergeCanonicalReviewItemIds": [
+            "scenario-family-preflight-17"
+          ]
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q079",
+              "equinoxe-q110"
+            ],
+            [
+              "equinoxe-q111"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q079` et `q110` appartiennent déjà au scénario du plateau témoin couvert par `scenario-family-preflight-17`.\n\n`q111` prolonge ce même sujet vers une seconde phase : l’observation et les ajustements possibles après l’emménagement.\n\nLe brief ne doit donc pas créer une deuxième famille dupliquant le pilote ; il doit rejoindre la famille 17 tout en conservant la distinction temporelle entre :\n\n* phase d’essai et de feedback avant déménagement;\n* évolution possible après emménagement.\n\nCette partition reprend exactement la décision scellée `ambiguity-capacity-18`.",
+      "futureRule": "Lorsque deux briefs partagent le même dispositif et une partie substantielle de leurs connaissances, les fusionner plutôt que dupliquer la scenario family; préserver toutefois des branches distinctes lorsque les mécanismes se situent à des phases métier différentes.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "3be4f0d2965f974caf8e8166746ce7c409bc8a12cd49f19b36e774822cc15843",
+      "eventHash": "5b1f84933c4b562bed931e85ba08ed79afecbf109088067110c9a29bab8c4984"
+    },
+    {
+      "sequence": 5,
+      "eventId": "adjudication-batch-05-event-005",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-19",
+      "sourceComparisonItemFingerprint": "1a66e805c2a416853372b77af2bdbe0339a154bb6b1fbb2d0caf1bcb2bf6919e",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q008"
+            ],
+            [
+              "equinoxe-q078",
+              "equinoxe-q085"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q008` concerne la possibilité de poser une question sur le projet.\n\n`q078` et `q085` concernent la réception et le suivi des actualités ou jalons du projet et forment déjà un groupe cohérent, avec leur relation d’équivalence existante préservée.\n\nLe fait que ces fonctions utilisent toutes Storm ou relèvent de la communication projet ne suffit pas à constituer un besoin utilisateur unique.\n\nCette décision est cohérente avec `ambiguity-capacity-19`, qui établit que poser une question et recevoir des actualités sont deux flux de communication distincts.",
+      "futureRule": "Une plateforme ou un canal commun ne suffit pas à former une scenario family : distinguer les actions utilisateur sortantes, comme poser une question, des besoins de réception ou de suivi d’information.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "5b1f84933c4b562bed931e85ba08ed79afecbf109088067110c9a29bab8c4984",
+      "eventHash": "5dcc174216706e153c016bbe89ebc2134e7151e145659076ad9fb9ceab00ad1f"
+    },
+    {
+      "sequence": 6,
+      "eventId": "adjudication-batch-05-event-006",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-21",
+      "sourceComparisonItemFingerprint": "19d7d95d159305fffd929eda0d05276c2b2e4fb5c205f23cf001016c240b5520",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q083"
+            ],
+            [
+              "equinoxe-q112"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "`q083` correspond au besoin de trouver un interlocuteur lorsqu’une question n’est pas couverte.\n\n`q112` correspond à une intention de contribution : proposer une idée d’amélioration.\n\nLes deux peuvent aboutir opérationnellement à contacter un ambassadeur ou l’équipe projet, mais le besoin utilisateur initial est différent.\n\nLa décision scellée `ambiguity-capacity-21` établit que cette proximité de réponse ne crée pas une ambiguïté utile ; elle ne justifie pas non plus de fusionner les deux intentions dans une unique scenario family.",
+      "futureRule": "Une réponse opérationnelle commune ne suffit pas à fusionner deux scenario families lorsque les intentions utilisateur sont substantiellement différentes; structurer d’abord par le besoin, puis par le canal ou l’action de sortie.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "5dcc174216706e153c016bbe89ebc2134e7151e145659076ad9fb9ceab00ad1f",
+      "eventHash": "9e310eddf2a0adfa56846e6b87fbb17f542e2d260e6a867ae7c4613d60b2e74f"
+    },
+    {
+      "sequence": 7,
+      "eventId": "adjudication-batch-05-event-007",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-22",
+      "sourceComparisonItemFingerprint": "4b3c462160cdfd8c600150d4dfd4f884f43407b2e2d2f59d6241ebc4d8e0dcc8",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "tooBroad",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q078",
+              "equinoxe-q085"
+            ],
+            [
+              "equinoxe-q110",
+              "equinoxe-q112"
+            ],
+            [
+              "equinoxe-q111"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Le brief agrège sous un thème générique d’« interaction avec le projet » trois besoins différents :\n\n* `q078` et `q085` : suivre les actualités et jalons;\n* `q110` et `q112` : contribuer activement par feedback ou proposition d’amélioration;\n* `q111` : savoir si le projet peut encore évoluer après l’emménagement.\n\nLa décision scellée `ambiguity-capacity-22` établit déjà que cette agrégation est une catégorie thématique trop large plutôt qu’une intention unique.\n\nLa distinction `q110/q112` versus `q111` conserve également la différence entre contribution active et simple information sur l’évolutivité du projet.",
+      "futureRule": "Ne pas utiliser une catégorie thématique générale comme scenario family. Séparer le suivi d’information, la contribution active et la compréhension de l’évolution future lorsqu’ils correspondent à des besoins utilisateur différents.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "9e310eddf2a0adfa56846e6b87fbb17f542e2d260e6a867ae7c4613d60b2e74f",
+      "eventHash": "04de7622fcc747ea43437dbefa6f5944204d5899142b7e163fb3c67bc43d3b6a"
+    },
+    {
+      "sequence": 8,
+      "eventId": "adjudication-batch-05-event-008",
+      "batchId": "adjudication-batch-05-scenario-families-02",
+      "sourceItemId": "scenario-family-preflight-23",
+      "sourceComparisonItemFingerprint": "4557a9f3a5c860019fa50ec689c4e3461b858cd60c8a338b93629fc7c99c4659",
+      "decision": {
+        "fragmentationAssessment": {
+          "value": "distinct",
+          "mergeCanonicalReviewItemIds": []
+        },
+        "reviewerScenarioFamilyPartition": {
+          "value": "reviewerDefinedFamilyGroups",
+          "canonicalPartition": [
+            [
+              "equinoxe-q019",
+              "equinoxe-q053"
+            ],
+            [
+              "equinoxe-q020"
+            ],
+            [
+              "equinoxe-q022"
+            ],
+            [
+              "equinoxe-q023"
+            ],
+            [
+              "equinoxe-q024"
+            ]
+          ]
+        }
+      },
+      "humanRationale": "Le besoin général est cohérent : comprendre la règle de réservation lorsque l’espace concerné varie.\n\nMais la connaissance applicable dépend structurellement du type d’espace :\n\n* `q019`, `q053` : salles de réunion;\n* `q020` : Bibliothèque;\n* `q022` : Project Room;\n* `q023` : bulles;\n* `q024` : Forum.\n\nLa scenario family reste donc valide, avec le type d’espace comme variable structurante.\n\nCette partition respecte les frontières déjà scellées dans `boundary-rooms-focus` et les décisions d’ambiguïté relatives aux règles d’usage/réservation des différents espaces.",
+      "futureRule": "Une scenario family peut couvrir une même opération appliquée à plusieurs types de ressources, à condition de partitionner explicitement par ressource lorsque celle-ci détermine la règle applicable.",
+      "recordedAt": "2026-09-08T18:39:02.138Z",
+      "provenance": "HUMAN_ADJUDICATION",
+      "previousEventHash": "04de7622fcc747ea43437dbefa6f5944204d5899142b7e163fb3c67bc43d3b6a",
+      "eventHash": "ee3e842196243bb4edbdc6eb05b874fb275e57bbb890bb5ad3b84b54da657ef0"
+    }
+  ],
+  "logFingerprint": "151707983da056350859948951a138b10eb37bb3325d54981beceeffb889f030"
+}

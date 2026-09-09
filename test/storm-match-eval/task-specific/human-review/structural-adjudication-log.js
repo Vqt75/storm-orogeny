@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 
 import { canonicalJson, fingerprint } from './review-packets.js';
 
@@ -60,6 +61,11 @@ const SEAL_KEYS = Object.freeze([
   'sourceReviewerSeals'
 ]);
 const HUMAN_PROVENANCE_SEAL_KEYS = Object.freeze([...SEAL_KEYS, 'provenance']);
+const PACKET_BOUND_HUMAN_PROVENANCE_SEAL_KEYS = Object.freeze([
+  ...HUMAN_PROVENANCE_SEAL_KEYS,
+  'sourcePacketPath',
+  'sourcePacketSha256'
+]);
 
 function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -91,6 +97,14 @@ function isCanonicalTimestamp(value) {
   if (typeof value !== 'string') return false;
   const milliseconds = Date.parse(value);
   return Number.isFinite(milliseconds) && new Date(milliseconds).toISOString() === value;
+}
+
+function sha256File(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+function portableRelativePath(from, to) {
+  return relative(from, to).replaceAll('\\', '/');
 }
 
 export function canonicaliseAdjudicatedPartition(partition) {
@@ -247,7 +261,7 @@ function assertScenarioPartitionCoversScope(partition, sourceScope) {
   }
 }
 
-function assertScenarioFamilyDecision(decision, sourceScope) {
+function assertScenarioFamilyDecision(decision, sourceScope, sourceMatrix, comparisonItem) {
   if (!hasExactKeys(decision, [
     'fragmentationAssessment',
     'reviewerScenarioFamilyPartition'
@@ -277,6 +291,11 @@ function assertScenarioFamilyDecision(decision, sourceScope) {
     if (fragmentation.mergeCanonicalReviewItemIds.length === 0) {
       throw new Error('Scenario-family merge disposition requires merge candidates');
     }
+    if (fragmentation.mergeCanonicalReviewItemIds.some(itemId => itemId === comparisonItem.canonicalReviewItemId
+      || !sourceMatrix.items.some(item => item.canonicalReviewItemId === itemId
+        && item.packetKind === 'SCENARIO_FAMILY_PREFLIGHT'))) {
+      throw new Error('Scenario-family merge candidates must reference other known scenario-family items');
+    }
   } else if (fragmentation.mergeCanonicalReviewItemIds.length !== 0) {
     throw new Error('Scenario-family non-merge disposition cannot carry merge candidates');
   }
@@ -290,7 +309,7 @@ function assertScenarioFamilyDecision(decision, sourceScope) {
   }
 }
 
-function assertDecision(decision, comparisonItem) {
+function assertDecision(decision, comparisonItem, sourceMatrix) {
   if (comparisonItem.packetKind === 'EQUIVALENCE_AND_PREFERRED') {
     assertEquivalenceDecision(decision, comparisonItem.canonicalKnowledgeScope);
     return;
@@ -304,7 +323,7 @@ function assertDecision(decision, comparisonItem) {
     return;
   }
   if (comparisonItem.packetKind === 'SCENARIO_FAMILY_PREFLIGHT') {
-    assertScenarioFamilyDecision(decision, comparisonItem.canonicalKnowledgeScope);
+    assertScenarioFamilyDecision(decision, comparisonItem.canonicalKnowledgeScope, sourceMatrix, comparisonItem);
     return;
   }
   throw new Error(`Structural adjudication packet kind is not supported: ${comparisonItem.packetKind}`);
@@ -391,7 +410,7 @@ export function constructStructuralAdjudicationLogWithEvent(log, input, sourceMa
   } else if (!hasExactKeys(input, INPUT_KEYS)) {
     throw new Error('This adjudication input cannot carry futureRule');
   }
-  assertDecision(input.decision, comparisonItem);
+  assertDecision(input.decision, comparisonItem, sourceMatrix);
   const previousEventHash = log.events.at(-1)?.eventHash ?? null;
   const eventWithoutHash = {
     sequence: log.events.length + 1,
@@ -474,7 +493,7 @@ export function validateStructuralAdjudicationLog(log, sourceMatrix) {
     }
     if (comparisonItem) {
       try {
-        assertDecision(event.decision, comparisonItem);
+        assertDecision(event.decision, comparisonItem, sourceMatrix);
       } catch (error) {
         errors.push({ code: 'INVALID_STRUCTURED_DECISION', sequence: event.sequence, message: error.message });
       }
@@ -517,7 +536,8 @@ export function createStructuralAdjudicationSeal({
   log,
   sourceMatrix,
   journalPath,
-  sealedAt
+  sealedAt,
+  sourcePacketPath = null
 }) {
   const validation = validateStructuralAdjudicationLog(log, sourceMatrix);
   if (!validation.ok || !completeBatch(log)) {
@@ -526,8 +546,19 @@ export function createStructuralAdjudicationSeal({
   requiredString(journalPath, 'journalPath');
   if (!isCanonicalTimestamp(sealedAt)) throw new Error('sealedAt must be a canonical ISO-8601 timestamp');
   const bindsHumanProvenance = log.events.some(event => Object.hasOwn(event, 'futureRule'));
+  const bindsSourcePacket = sourcePacketPath !== null;
+  let sourcePacketBinding = {};
+  if (bindsSourcePacket) {
+    requiredString(sourcePacketPath, 'sourcePacketPath');
+    const resolvedJournalPath = resolve(journalPath);
+    const resolvedSourcePacketPath = resolve(sourcePacketPath);
+    sourcePacketBinding = {
+      sourcePacketPath: portableRelativePath(dirname(resolvedJournalPath), resolvedSourcePacketPath),
+      sourcePacketSha256: sha256File(resolvedSourcePacketPath)
+    };
+  }
   const sealWithoutHash = {
-    schemaVersion: bindsHumanProvenance ? 2 : 1,
+    schemaVersion: bindsSourcePacket ? 3 : (bindsHumanProvenance ? 2 : 1),
     sealType: STRUCTURAL_ADJUDICATION_BATCH_SEAL,
     batchId: log.batchId,
     sourceMatrixFingerprint: log.sourceMatrixFingerprint,
@@ -538,6 +569,7 @@ export function createStructuralAdjudicationSeal({
     eventCount: validation.eventCount,
     finalEventHash: validation.finalEventHash,
     ...(bindsHumanProvenance ? { provenance: HUMAN_ADJUDICATION_PROVENANCE } : {}),
+    ...sourcePacketBinding,
     sealedAt
   };
   return deepFreeze({ ...sealWithoutHash, sealHash: fingerprint(sealWithoutHash) });
@@ -546,16 +578,20 @@ export function createStructuralAdjudicationSeal({
 export function validateStructuralAdjudicationSeal(seal, {
   log = null,
   sourceMatrix = null,
-  journalPath = null
+  journalPath = null,
+  sourcePacketPath = null
 } = {}) {
   const errors = [];
   const legacySchema = hasExactKeys(seal, SEAL_KEYS);
-  const humanProvenanceSchema = hasExactKeys(seal, HUMAN_PROVENANCE_SEAL_KEYS);
+  const unboundHumanProvenanceSchema = hasExactKeys(seal, HUMAN_PROVENANCE_SEAL_KEYS);
+  const packetBoundHumanProvenanceSchema = hasExactKeys(seal, PACKET_BOUND_HUMAN_PROVENANCE_SEAL_KEYS);
+  const humanProvenanceSchema = unboundHumanProvenanceSchema || packetBoundHumanProvenanceSchema;
   if (!legacySchema && !humanProvenanceSchema) {
     return { ok: false, errors: [{ code: 'INVALID_STRUCTURAL_ADJUDICATION_SEAL_SCHEMA' }] };
   }
   if ((legacySchema && seal.schemaVersion !== 1)
-    || (humanProvenanceSchema && (seal.schemaVersion !== 2 || seal.provenance !== HUMAN_ADJUDICATION_PROVENANCE))
+    || (unboundHumanProvenanceSchema && (seal.schemaVersion !== 2 || seal.provenance !== HUMAN_ADJUDICATION_PROVENANCE))
+    || (packetBoundHumanProvenanceSchema && (seal.schemaVersion !== 3 || seal.provenance !== HUMAN_ADJUDICATION_PROVENANCE))
     || seal.sealType !== STRUCTURAL_ADJUDICATION_BATCH_SEAL
     || typeof seal.batchId !== 'string' || seal.batchId.trim() === ''
     || !HASH_PATTERN.test(seal.sourceMatrixFingerprint ?? '')
@@ -566,7 +602,10 @@ export function validateStructuralAdjudicationSeal(seal, {
     || !HASH_PATTERN.test(seal.journalCanonicalSha256 ?? '')
     || !Number.isInteger(seal.eventCount) || seal.eventCount < 1
     || !HASH_PATTERN.test(seal.finalEventHash ?? '')
-    || !isCanonicalTimestamp(seal.sealedAt)) {
+    || !isCanonicalTimestamp(seal.sealedAt)
+    || (packetBoundHumanProvenanceSchema
+      && (typeof seal.sourcePacketPath !== 'string' || seal.sourcePacketPath.trim() === ''
+        || !HASH_PATTERN.test(seal.sourcePacketSha256 ?? '')))) {
     errors.push({ code: 'INVALID_STRUCTURAL_ADJUDICATION_SEAL_HEADER' });
   }
   if (!HASH_PATTERN.test(seal.sealHash ?? '')
@@ -593,6 +632,21 @@ export function validateStructuralAdjudicationSeal(seal, {
         || seal.eventCount !== validation.eventCount
         || seal.finalEventHash !== validation.finalEventHash) {
         errors.push({ code: 'STRUCTURAL_ADJUDICATION_SEAL_CONTENT_MISMATCH' });
+      }
+      if (packetBoundHumanProvenanceSchema) {
+        try {
+          const resolvedJournalPath = resolve(journalPath);
+          const resolvedSourcePacketPath = sourcePacketPath === null
+            ? resolve(dirname(resolvedJournalPath), seal.sourcePacketPath)
+            : resolve(sourcePacketPath);
+          const expectedPacketPath = portableRelativePath(dirname(resolvedJournalPath), resolvedSourcePacketPath);
+          if (seal.sourcePacketPath !== expectedPacketPath
+            || seal.sourcePacketSha256 !== sha256File(resolvedSourcePacketPath)) {
+            errors.push({ code: 'STRUCTURAL_ADJUDICATION_SEAL_PACKET_MISMATCH' });
+          }
+        } catch {
+          errors.push({ code: 'STRUCTURAL_ADJUDICATION_SEAL_PACKET_UNREADABLE' });
+        }
       }
     }
   }
@@ -660,7 +714,8 @@ export function appendStructuralAdjudicationEvent({ journalPath, sourceMatrixPat
 export function persistStructuralAdjudicationSeal({
   journalPath,
   sourceMatrixPath,
-  sealedAt
+  sealedAt,
+  sourcePacketPath = null
 }) {
   requiredString(journalPath, 'journalPath');
   requiredString(sourceMatrixPath, 'sourceMatrixPath');
@@ -673,7 +728,8 @@ export function persistStructuralAdjudicationSeal({
     log,
     sourceMatrix,
     journalPath: resolvedJournalPath,
-    sealedAt
+    sealedAt,
+    sourcePacketPath
   });
   writeFileSync(sealPath, serialiseArtifact(seal), { encoding: 'utf8', flag: 'wx' });
   return { seal, sealPath };

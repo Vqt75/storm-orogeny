@@ -30,6 +30,11 @@ import {
   STRUCTURAL_ADJUDICATION_BATCH_04_EVENTS
 } from './task-specific/human-review/record-structural-adjudication-batch-04.js';
 import {
+  DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+  STRUCTURAL_ADJUDICATION_BATCH_05_EVENTS
+} from './task-specific/human-review/record-structural-adjudication-batch-05.js';
+import { DEFAULT_ADJUDICATION_BATCH_05_PATH } from './task-specific/human-review/generate-structural-adjudication-batch.js';
+import {
   buildStructuralAdjudicationBatch01Seal,
   DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_01_SEAL_PATH,
   DEFAULT_STRUCTURAL_COMPARISON_MATRIX_PATH,
@@ -53,6 +58,12 @@ import {
   materialiseStructuralAdjudicationBatch04Seal,
   STRUCTURAL_ADJUDICATION_BATCH_04_SEALED_AT
 } from './task-specific/human-review/seal-structural-adjudication-batch-04.js';
+import {
+  buildStructuralAdjudicationBatch05Seal,
+  DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_SEAL_PATH,
+  materialiseStructuralAdjudicationBatch05Seal,
+  STRUCTURAL_ADJUDICATION_BATCH_05_SEALED_AT
+} from './task-specific/human-review/seal-structural-adjudication-batch-05.js';
 
 const EXPECTED_SEAL_HASH = '1adf0fb5526aea6fc8837328a8dff5f56eb44d9d010a7d29f1f0deb4df33f704';
 const EXPECTED_JOURNAL_FINGERPRINT = 'fb334571e0fdc4b8d982a1d4d2640f5c6b7ab67cd0cdb65ba931d4faf186de76';
@@ -66,6 +77,10 @@ const EXPECTED_BATCH_03_FINAL_EVENT_HASH = 'ba01a92f34236acaa1f21a9aa87721bdc854
 const EXPECTED_BATCH_04_SEAL_HASH = '99ee2f783135a56b65e0b306ee0550eda322dc8f7535802b513d6d03282e3043';
 const EXPECTED_BATCH_04_JOURNAL_FINGERPRINT = '4b610627e267f01276985ff6ac30f670dd2040a8498776a4064a88e0dca0817c';
 const EXPECTED_BATCH_04_FINAL_EVENT_HASH = '9a92c50e36e5982d19b0b004fc6dc11ca0eafdc1c4b27c3e9403714a6344d60e';
+const EXPECTED_BATCH_05_SEAL_HASH = '6e3bbce88d73071547110af3c8ea898c4c91e0c827501a45c938f164c5a67e90';
+const EXPECTED_BATCH_05_PACKET_SHA256 = 'd46747dc3de6ffa53eb6849a3344e7cc751b36a79fc8620a6c4a4a88af29f501';
+const EXPECTED_BATCH_05_JOURNAL_FINGERPRINT = '151707983da056350859948951a138b10eb37bb3325d54981beceeffb889f030';
+const EXPECTED_BATCH_05_FINAL_EVENT_HASH = 'ee3e842196243bb4edbdc6eb05b874fb275e57bbb890bb5ad3b84b54da657ef0';
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -550,4 +565,157 @@ test('versioned Batch 04 seal is deterministic and current while Batches 01/02/0
   assert.equal(materialiseStructuralAdjudicationBatch01Seal({ checkOnly: true }).sealHash, EXPECTED_SEAL_HASH);
   assert.equal(materialiseStructuralAdjudicationBatch02Seal({ checkOnly: true }).sealHash, EXPECTED_BATCH_02_SEAL_HASH);
   assert.equal(materialiseStructuralAdjudicationBatch03Seal({ checkOnly: true }).sealHash, EXPECTED_BATCH_03_SEAL_HASH);
+});
+
+test('Batch 05 seal binds the packet and exactly eight HUMAN_ADJUDICATION events', () => {
+  const log = readJson(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH);
+  const matrix = readJson(DEFAULT_STRUCTURAL_COMPARISON_MATRIX_PATH);
+  const seal = readJson(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_SEAL_PATH);
+  assert.deepEqual(seal, buildStructuralAdjudicationBatch05Seal());
+  assert.deepEqual(validateStructuralAdjudicationSeal(seal, {
+    log,
+    sourceMatrix: matrix,
+    journalPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+    sourcePacketPath: DEFAULT_ADJUDICATION_BATCH_05_PATH
+  }), { ok: true, errors: [] });
+  assert.equal(seal.schemaVersion, 3);
+  assert.equal(seal.eventCount, 8);
+  assert.equal(seal.provenance, HUMAN_ADJUDICATION_PROVENANCE);
+  assert.equal(log.events.every(event => event.provenance === HUMAN_ADJUDICATION_PROVENANCE), true);
+  assert.equal(seal.sourcePacketSha256, EXPECTED_BATCH_05_PACKET_SHA256);
+  assert.equal(seal.journalFingerprint, EXPECTED_BATCH_05_JOURNAL_FINGERPRINT);
+  assert.equal(seal.finalEventHash, EXPECTED_BATCH_05_FINAL_EVENT_HASH);
+  assert.equal(seal.sealHash, EXPECTED_BATCH_05_SEAL_HASH);
+  assert.equal(seal.sealedAt, STRUCTURAL_ADJUDICATION_BATCH_05_SEALED_AT);
+});
+
+test('Batch 05 public append derives the packet-bound seal and rejects omission-based bypass', () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'storm-sealed-adjudication-05-'));
+  try {
+    const journalPath = join(temporaryRoot, 'adjudication-batch-05-scenario-families-02.human-adjudication-log.json');
+    const matrixPath = join(temporaryRoot, 'reviewer-ab-comparison-matrix.json');
+    const packetPath = join(temporaryRoot, 'adjudication-batch-05-scenario-families-02.md');
+    const sealPath = structuralAdjudicationSealPathForJournal(journalPath);
+    writeFileSync(journalPath, readFileSync(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH));
+    writeFileSync(matrixPath, readFileSync(DEFAULT_STRUCTURAL_COMPARISON_MATRIX_PATH));
+    writeFileSync(packetPath, readFileSync(DEFAULT_ADJUDICATION_BATCH_05_PATH));
+    const localSeal = buildStructuralAdjudicationBatch05Seal({
+      journalPath,
+      sourceMatrixPath: matrixPath,
+      sourcePacketPath: packetPath
+    });
+    writeFileSync(sealPath, `${JSON.stringify(localSeal, null, 2)}\n`, 'utf8');
+    const journalBefore = readFileSync(journalPath, 'utf8');
+    const hashBefore = sha256(journalPath);
+    const first = STRUCTURAL_ADJUDICATION_BATCH_05_EVENTS[0];
+    assert.throws(() => appendStructuralAdjudicationEvent({
+      journalPath,
+      sourceMatrixPath: matrixPath,
+      input: {
+        eventId: 'post-seal-batch-05-event',
+        sourceItemId: first.sourceItemId,
+        decision: first.decision,
+        humanRationale: first.humanRationale,
+        futureRule: first.futureRule,
+        recordedAt: '2026-09-09T09:23:43.000Z',
+        provenance: HUMAN_ADJUDICATION_PROVENANCE
+      }
+    }), /covered by a valid seal/u);
+    assert.equal(readFileSync(journalPath, 'utf8'), journalBefore);
+    assert.equal(sha256(journalPath), hashBefore);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('Batch 05 decision, partition, rationale and futureRule tampering each invalidate the seal', () => {
+  const originalLog = readJson(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH);
+  const matrix = readJson(DEFAULT_STRUCTURAL_COMPARISON_MATRIX_PATH);
+  const seal = readJson(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_SEAL_PATH);
+  const mutations = [
+    log => { log.events[0].decision.fragmentationAssessment.value = 'tooBroad'; },
+    log => { log.events[0].decision.reviewerScenarioFamilyPartition.canonicalPartition = [['equinoxe-q064']]; },
+    log => { log.events[0].humanRationale = 'tampered rationale'; },
+    log => { log.events[0].futureRule = 'tampered future rule'; }
+  ];
+  for (const mutate of mutations) {
+    const changedLog = structuredClone(originalLog);
+    mutate(changedLog);
+    assert.equal(validateStructuralAdjudicationSeal(seal, {
+      log: changedLog,
+      sourceMatrix: matrix,
+      journalPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+      sourcePacketPath: DEFAULT_ADJUDICATION_BATCH_05_PATH
+    }).ok, false);
+  }
+});
+
+test('Batch 05 packet, matrix, finalEventHash, provenance and event count tampering are rejected', () => {
+  const log = readJson(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH);
+  const matrix = readJson(DEFAULT_STRUCTURAL_COMPARISON_MATRIX_PATH);
+  const seal = readJson(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_SEAL_PATH);
+  const changedMatrix = structuredClone(matrix);
+  changedMatrix.matrixFingerprint = '0'.repeat(64);
+  assert.equal(validateStructuralAdjudicationSeal(seal, {
+    log,
+    sourceMatrix: changedMatrix,
+    journalPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+    sourcePacketPath: DEFAULT_ADJUDICATION_BATCH_05_PATH
+  }).ok, false);
+  for (const [field, value] of [
+    ['finalEventHash', '0'.repeat(64)],
+    ['provenance', 'AUTOMATED']
+  ]) {
+    const changedSeal = structuredClone(seal);
+    changedSeal[field] = value;
+    assert.equal(validateStructuralAdjudicationSeal(changedSeal, {
+      log,
+      sourceMatrix: matrix,
+      journalPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+      sourcePacketPath: DEFAULT_ADJUDICATION_BATCH_05_PATH
+    }).ok, false);
+  }
+  const shortened = structuredClone(log);
+  shortened.events = shortened.events.slice(0, 7);
+  shortened.logFingerprint = fingerprint(withoutField(shortened, 'logFingerprint'));
+  assert.equal(validateStructuralAdjudicationSeal(seal, {
+    log: shortened,
+    sourceMatrix: matrix,
+    journalPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+    sourcePacketPath: DEFAULT_ADJUDICATION_BATCH_05_PATH
+  }).ok, false);
+
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'storm-tampered-adjudication-packet-05-'));
+  try {
+    const packetPath = join(temporaryRoot, 'adjudication-batch-05-scenario-families-02.md');
+    writeFileSync(packetPath, readFileSync(DEFAULT_ADJUDICATION_BATCH_05_PATH));
+    const localSeal = buildStructuralAdjudicationBatch05Seal({ sourcePacketPath: packetPath });
+    writeFileSync(packetPath, `${readFileSync(packetPath, 'utf8')}tampered\n`, 'utf8');
+    assert.equal(validateStructuralAdjudicationSeal(localSeal, {
+      log,
+      sourceMatrix: matrix,
+      journalPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+      sourcePacketPath: packetPath
+    }).ok, false);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('versioned Batch 05 seal is deterministic and current while Batches 01/02/03/04 remain valid', () => {
+  const first = buildStructuralAdjudicationBatch05Seal();
+  const second = buildStructuralAdjudicationBatch05Seal();
+  assert.deepEqual(first, second);
+  const result = materialiseStructuralAdjudicationBatch05Seal({ checkOnly: true });
+  assert.equal(result.checkOnly, true);
+  assert.equal(result.eventCount, 8);
+  assert.equal(result.provenance, HUMAN_ADJUDICATION_PROVENANCE);
+  assert.equal(result.sealHash, EXPECTED_BATCH_05_SEAL_HASH);
+  assert.equal(result.sourcePacketSha256, EXPECTED_BATCH_05_PACKET_SHA256);
+  assert.equal(result.journalFingerprint, EXPECTED_BATCH_05_JOURNAL_FINGERPRINT);
+  assert.equal(result.finalEventHash, EXPECTED_BATCH_05_FINAL_EVENT_HASH);
+  assert.equal(materialiseStructuralAdjudicationBatch01Seal({ checkOnly: true }).sealHash, EXPECTED_SEAL_HASH);
+  assert.equal(materialiseStructuralAdjudicationBatch02Seal({ checkOnly: true }).sealHash, EXPECTED_BATCH_02_SEAL_HASH);
+  assert.equal(materialiseStructuralAdjudicationBatch03Seal({ checkOnly: true }).sealHash, EXPECTED_BATCH_03_SEAL_HASH);
+  assert.equal(materialiseStructuralAdjudicationBatch04Seal({ checkOnly: true }).sealHash, EXPECTED_BATCH_04_SEAL_HASH);
 });

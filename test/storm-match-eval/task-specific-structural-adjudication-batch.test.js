@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -10,24 +10,29 @@ import {
   ADJUDICATION_BATCH_02_ITEM_IDS,
   ADJUDICATION_BATCH_03_ITEM_IDS,
   ADJUDICATION_BATCH_04_ITEM_IDS,
+  ADJUDICATION_BATCH_05_ITEM_IDS,
   buildStructuralAdjudicationBatch01,
   buildStructuralAdjudicationBatch02,
   buildStructuralAdjudicationBatch03,
   buildStructuralAdjudicationBatch04,
+  buildStructuralAdjudicationBatch05,
   DEFAULT_ADJUDICATION_BATCH_01_PATH,
   DEFAULT_ADJUDICATION_BATCH_02_PATH,
   DEFAULT_ADJUDICATION_BATCH_03_PATH,
   DEFAULT_ADJUDICATION_BATCH_04_PATH,
+  DEFAULT_ADJUDICATION_BATCH_05_PATH,
   DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
   EXPECTED_COMPARISON_MATRIX_FINGERPRINT,
   materialiseStructuralAdjudicationBatch01,
   materialiseStructuralAdjudicationBatch02,
   materialiseStructuralAdjudicationBatch03,
   materialiseStructuralAdjudicationBatch04,
+  materialiseStructuralAdjudicationBatch05,
   renderStructuralAdjudicationBatch01,
   renderStructuralAdjudicationBatch02,
   renderStructuralAdjudicationBatch03,
-  renderStructuralAdjudicationBatch04
+  renderStructuralAdjudicationBatch04,
+  renderStructuralAdjudicationBatch05
 } from './task-specific/human-review/generate-structural-adjudication-batch.js';
 
 const RESPONSE_BASENAMES = [
@@ -108,6 +113,24 @@ function batch03ArtifactPaths() {
       'adjudication',
       'records',
       'adjudication-batch-03-ambiguities-02.human-adjudication-seal.json'
+    )
+  ];
+}
+
+function batch04ArtifactPaths() {
+  return [
+    DEFAULT_ADJUDICATION_BATCH_04_PATH,
+    join(
+      DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+      'adjudication',
+      'records',
+      'adjudication-batch-04-scenario-families-01.human-adjudication-log.json'
+    ),
+    join(
+      DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+      'adjudication',
+      'records',
+      'adjudication-batch-04-scenario-families-01.human-adjudication-seal.json'
     )
   ];
 }
@@ -458,4 +481,154 @@ test('versioned batch 04 is deterministic and current', () => {
   assert.equal(result.checkOnly, true);
   assert.equal(result.itemCount, 10);
   assert.equal(result.generationAuthorized, false);
+});
+
+const ADJUDICATION_BATCH_06_ITEM_IDS = Object.freeze([
+  'scenario-family-preflight-24',
+  'scenario-family-preflight-25',
+  'scenario-family-preflight-27',
+  'scenario-family-preflight-28',
+  'scenario-family-preflight-30',
+  'scenario-family-preflight-31',
+  'scenario-family-preflight-32',
+  'scenario-family-preflight-34'
+]);
+
+test('batch 05 contains exactly the requested eight pending scenario-family items in order', () => {
+  const batch = buildStructuralAdjudicationBatch05();
+  assert.equal(batch.itemCount, 8);
+  assert.deepEqual(batch.items.map(item => item.sourceItemId), ADJUDICATION_BATCH_05_ITEM_IDS);
+  assert.equal(batch.items.every(item => item.packetKind === 'SCENARIO_FAMILY_PREFLIGHT'), true);
+  assert.equal(batch.items.every(item => item.sourceFamily.scenarioFamilyId === null), true);
+  assert.equal(batch.items.some(item => ADJUDICATION_BATCH_04_ITEM_IDS.includes(item.sourceItemId)), false);
+  assert.equal(batch.items.some(item => ADJUDICATION_BATCH_06_ITEM_IDS.includes(item.sourceItemId)), false);
+});
+
+test('batch 05 remains neutral, pending and contains no adjudication event or generated decision', () => {
+  const batch = buildStructuralAdjudicationBatch05();
+  const serialised = JSON.stringify(batch);
+  const rendered = renderStructuralAdjudicationBatch05(batch);
+  assert.equal(batch.sourceMatrixFingerprint, EXPECTED_COMPARISON_MATRIX_FINGERPRINT);
+  assert.equal(batch.status, 'PENDING_HUMAN_REVIEW');
+  assert.equal(batch.generationAuthorized, false);
+  assert.equal(batch.adjudicationPerformed, false);
+  assert.equal(batch.items.every(item => Object.values(item.humanDecision).every(value => value === 'PENDING')), true);
+  assert.equal(batch.items.every(item => item.knowledge.every(knowledge => knowledge.scenarioFamilyId === null)), true);
+  assert.doesNotMatch(serialised, /eventHash|recordedAt|provenance|goldDecision|finalDecision/u);
+  assert.doesNotMatch(rendered, /^HUMAN_ADJUDICATION:$/gmu);
+  assert.equal((rendered.match(/^generated user formulation: NOT AVAILABLE$/gmu) ?? []).length, 8);
+  assert.equal((rendered.match(/^decision: PENDING$/gmu) ?? []).length, 8);
+  assert.equal((rendered.match(/^rationale: PENDING$/gmu) ?? []).length, 8);
+  assert.equal((rendered.match(/^future_rule: PENDING$/gmu) ?? []).length, 8);
+});
+
+test('batch 05 exposes exact sealed context without reinterpreting A or B', () => {
+  const batch = buildStructuralAdjudicationBatch05();
+  for (const item of batch.items) {
+    assert.equal(item.sourceFamily.title.length > 0, true);
+    assert.equal(item.sourceFamily.businessContext.length > 0, true);
+    assert.equal(item.knowledge.length > 0, true);
+    assert.equal(item.knowledge.every(knowledge => knowledge.entryId && knowledge.canonicalQuestion && knowledge.canonicalAnswer), true);
+    assert.equal(item.comparison.findings.length > 0, true);
+    assert.equal(item.comparison.completeAgreement, false);
+    assert.equal(item.comparison.crosswalk.reviewerA.knowledgeRefMappings.length, item.knowledge.length);
+    assert.equal(item.comparison.crosswalk.reviewerB.knowledgeRefMappings.length, item.knowledge.length);
+  }
+  const contextsByItem = Object.fromEntries(batch.items.map(item => [
+    item.sourceItemId,
+    item.existingAdjudicationContext.map(context => context.sourceItemId)
+  ]));
+  assert.deepEqual(contextsByItem, {
+    'scenario-family-preflight-14': ['ambiguity-capacity-11', 'ambiguity-capacity-14', 'scenario-family-preflight-09'],
+    'scenario-family-preflight-16': ['ambiguity-capacity-16'],
+    'scenario-family-preflight-17': ['boundary-communication-pilot', 'ambiguity-capacity-17', 'ambiguity-capacity-18', 'ambiguity-capacity-22'],
+    'scenario-family-preflight-18': ['boundary-communication-pilot', 'ambiguity-capacity-17', 'ambiguity-capacity-18', 'ambiguity-capacity-22'],
+    'scenario-family-preflight-19': ['equivalence-comparison-05', 'boundary-communication-pilot', 'ambiguity-capacity-19', 'ambiguity-capacity-22'],
+    'scenario-family-preflight-21': ['boundary-communication-pilot', 'ambiguity-capacity-21', 'ambiguity-capacity-22'],
+    'scenario-family-preflight-22': ['equivalence-comparison-05', 'boundary-communication-pilot', 'ambiguity-capacity-17', 'ambiguity-capacity-18', 'ambiguity-capacity-19', 'ambiguity-capacity-21', 'ambiguity-capacity-22'],
+    'scenario-family-preflight-23': ['equivalence-comparison-02', 'boundary-rooms-focus', 'ambiguity-capacity-29', 'ambiguity-capacity-30']
+  });
+  for (const item of batch.items) {
+    const itemEntryIds = new Set(item.knowledge.map(knowledge => knowledge.entryId));
+    for (const context of item.existingAdjudicationContext) {
+      assert.equal(context.affectedEntryIds.length > 0, true);
+      assert.equal(context.affectedEntryIds.every(entryId => itemEntryIds.has(entryId)), true);
+    }
+  }
+  assert.match(renderStructuralAdjudicationBatch05(batch), /Disposition scellée : `distinct`/u);
+});
+
+test('batch 05 contains eight still-pending items and preserves structural completeness invariants', () => {
+  const matrix = JSON.parse(readFileSync(join(
+    DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+    'adjudication',
+    'reviewer-ab-comparison-matrix.json'
+  ), 'utf8'));
+  const recordsRoot = join(DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT, 'adjudication', 'records');
+  const batch04Log = JSON.parse(readFileSync(join(
+    recordsRoot,
+    'adjudication-batch-04-scenario-families-01.human-adjudication-log.json'
+  ), 'utf8'));
+  const requiredScenarioItems = matrix.items
+    .filter(item => item.packetKind === 'SCENARIO_FAMILY_PREFLIGHT' && item.requiresAdjudication)
+    .map(item => item.canonicalReviewItemId)
+    .sort();
+  const adjudicatedScenarioItems = batch04Log.events.map(event => event.sourceItemId).sort();
+  const pendingScenarioItems = requiredScenarioItems.filter(itemId => !adjudicatedScenarioItems.includes(itemId));
+  assert.equal(requiredScenarioItems.length, 26);
+  assert.equal(adjudicatedScenarioItems.length, 10);
+  assert.equal(pendingScenarioItems.length, 16);
+  assert.equal(ADJUDICATION_BATCH_05_ITEM_IDS.every(itemId => pendingScenarioItems.includes(itemId)), true);
+  assert.equal(ADJUDICATION_BATCH_05_ITEM_IDS.some(itemId => adjudicatedScenarioItems.includes(itemId)), false);
+  assert.equal(ADJUDICATION_BATCH_06_ITEM_IDS.every(itemId => pendingScenarioItems.includes(itemId)), true);
+
+  const ambiguityRequired = matrix.items
+    .filter(item => item.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES' && item.requiresAdjudication)
+    .map(item => item.canonicalReviewItemId)
+    .sort();
+  const ambiguityRecorded = [
+    'adjudication-batch-02-ambiguities-01.human-adjudication-log.json',
+    'adjudication-batch-03-ambiguities-02.human-adjudication-log.json'
+  ].flatMap(filename => JSON.parse(readFileSync(join(recordsRoot, filename), 'utf8')).events.map(event => event.sourceItemId)).sort();
+  assert.equal(ambiguityRequired.length, 20);
+  assert.deepEqual(ambiguityRecorded, ambiguityRequired);
+});
+
+test('batch 05 generation is deterministic and cannot modify sealed sources or Batches 01/02/03/04', () => {
+  const first = renderStructuralAdjudicationBatch05(buildStructuralAdjudicationBatch05());
+  const second = renderStructuralAdjudicationBatch05(buildStructuralAdjudicationBatch05());
+  assert.equal(first, second);
+  const sourcePaths = [
+    ...immutableSourcePaths(),
+    ...batch01ArtifactPaths(),
+    ...batch02ArtifactPaths(),
+    ...batch03ArtifactPaths(),
+    ...batch04ArtifactPaths()
+  ];
+  const before = Object.fromEntries(sourcePaths.map(path => [path, sha256(path)]));
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'storm-adjudication-batch-05-'));
+  try {
+    const outputPath = join(temporaryRoot, 'batch.md');
+    const result = materialiseStructuralAdjudicationBatch05({ outputPath });
+    assert.equal(result.itemCount, 8);
+    assert.equal(readFileSync(outputPath, 'utf8'), first);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+  const after = Object.fromEntries(sourcePaths.map(path => [path, sha256(path)]));
+  assert.deepEqual(after, before);
+});
+
+test('versioned batch 05 is deterministic, recorded and sealed', () => {
+  const result = materialiseStructuralAdjudicationBatch05({
+    outputPath: DEFAULT_ADJUDICATION_BATCH_05_PATH,
+    checkOnly: true
+  });
+  const recordsRoot = join(DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT, 'adjudication', 'records');
+  assert.equal(result.checkOnly, true);
+  assert.equal(result.itemCount, 8);
+  assert.equal(result.generationAuthorized, false);
+  assert.equal(result.status, 'PENDING_HUMAN_REVIEW');
+  assert.equal(existsSync(join(recordsRoot, 'adjudication-batch-05-scenario-families-02.human-adjudication-log.json')), true);
+  assert.equal(existsSync(join(recordsRoot, 'adjudication-batch-05-scenario-families-02.human-adjudication-seal.json')), true);
 });

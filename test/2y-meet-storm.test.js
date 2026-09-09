@@ -254,7 +254,7 @@ test('mode démo ?devUser= préservé dans les deux sens', () => {
 // ── Vrais écrans produit intégrés ──────────────────────────────────────
 
 test('les cinq screens réels et le visuel Liquid Core sont intégrés et servis réellement', async () => {
-  for (const name of ['liquid-core', 'meet-home', 'meet-enter', 'meet-studio', 'meet-ivory', 'meet-pilotage']) {
+  for (const name of ['liquid-core', 'meet-home', 'meet-enter', 'meet-studio', 'meet-ivory', 'meet-pilotage', 'meet-orogeny', 'meet-control', 'meet-publish-1', 'meet-publish-2', 'meet-publish-3']) {
     const res = await fetch(`${baseUrl}/meet-assets/${name}.webp`);
     assert.equal(res.status, 200, `${name}.webp doit être servi`);
     assert.equal(res.headers.get('content-type'), 'image/webp');
@@ -265,9 +265,9 @@ test('aucune image avec filigrane/watermark de banque d\'images', () => {
   assert.ok(!/shutterstock|getty|istock|watermark|filigrane/i.test(meetHtml));
 });
 
-test('Orogeny 1.2 -- placeholder neutre conservé, aucun asset de substitution imposé tant que le vrai visuel n\'est pas fourni', () => {
+test('Orogeny 1.2 -- vrai visuel intégré (photo licenciée, sans filigrane), jamais un placeholder', () => {
   assert.match(meetHtml, /id="generationVisual"/);
-  assert.ok(!/meet-assets\/orogeny/.test(meetHtml));
+  assert.match(meetHtml, /src="\/meet-assets\/meet-orogeny\.webp"/);
 });
 
 // ── Read-only / aucune action destructive / aucun appel API ─────────
@@ -322,9 +322,9 @@ test('scène "Le projet" -- photo en plein cadre (pattern bleed), jamais un rect
   assert.ok(!meetHtml.includes('enter-frame'), 'ancienne classe de cadre contraint entièrement retirée');
 });
 
-test('scène Orogeny -- même traitement plein cadre que Storm Match, slot asset-friendly conservé', () => {
+test('scène Orogeny -- même traitement plein cadre que Storm Match, vrai visuel intégré', () => {
   assert.match(meetHtml, /<section class="stage bleed seq-generation"[^>]*data-dark/);
-  assert.match(meetHtml, /<div class="bleed-media generation-placeholder" id="generationVisual"/);
+  assert.match(meetHtml, /<div class="bleed-media" id="generationVisual"><img src="\/meet-assets\/meet-orogeny\.webp"/);
   assert.ok(!meetHtml.includes('generation-frame'), 'ancienne classe de cadre contraint entièrement retirée');
 });
 
@@ -352,4 +352,34 @@ test('reduced motion -- couvre aussi les nouveaux éléments plein cadre', () =>
   const snippet = meetHtml.slice(idx, idx + 400);
   assert.match(snippet, /\.bleed-media/);
   assert.match(snippet, /\.bleed-caption/);
+});
+
+// ── FERMETURE — Control et Publication : vrais visuels ───────────────
+
+test('Control -- vrai screenshot Storm Control intégré, jamais la composition abstraite', () => {
+  assert.match(meetHtml, /src="\/meet-assets\/meet-control\.webp"/);
+  assert.ok(!meetHtml.includes('control-scope'), 'ancienne composition abstraite entièrement retirée');
+});
+
+test('Publication -- fondu enchaîné réel des trois états Command Layer (enregistré, prêt à publier, publié), jamais les boîtes abstraites', () => {
+  assert.match(meetHtml, /src="\/meet-assets\/meet-publish-1\.webp"/);
+  assert.match(meetHtml, /src="\/meet-assets\/meet-publish-2\.webp"/);
+  assert.match(meetHtml, /src="\/meet-assets\/meet-publish-3\.webp"/);
+  assert.ok(!meetHtml.includes('publish-layers'), 'ancienne composition abstraite entièrement retirée');
+});
+
+test('Publication -- animation de fondu enchaîné réelle, jamais un simple fade-in statique', () => {
+  assert.match(meetHtml, /@keyframes publish-cycle/);
+  assert.match(meetHtml, /animation:publish-cycle 6s ease-in-out infinite/);
+});
+
+test('reduced motion -- Publication affiche uniquement l\'état final "publié", jamais l\'animation forcée', () => {
+  const idx = meetHtml.indexOf('prefers-reduced-motion:reduce');
+  const snippet = meetHtml.slice(idx, idx + 500);
+  assert.match(snippet, /\.cycle-frame\{opacity:0!important\}/);
+  assert.match(snippet, /\.cycle-frame:nth-child\(3\)\{opacity:1!important\}/);
+});
+
+test('aucune image avec filigrane -- vérification maintenue après ajout des nouveaux visuels', () => {
+  assert.ok(!/shutterstock|getty|istock|watermark|filigrane/i.test(meetHtml));
 });

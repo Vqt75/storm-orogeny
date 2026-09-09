@@ -77,7 +77,6 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 
 /* SEQUENCE 3 — hero génération Orogeny : asset-friendly, jamais un
    asset de substitution imposé comme vérité finale -- voir #generationVisual. */
-.generation-placeholder{background:linear-gradient(155deg,#171716,#0d0d0c)}
 
 /* SEQUENCE 8 — Liquid Core : moment de marque majeur, fond noir,
    chrome disparu. Visuel officiel fourni (badge produit avec son
@@ -117,22 +116,24 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 .move-answer{margin-top:26px;font-size:clamp(22px,3.2vw,30px);font-weight:680;letter-spacing:-.02em;line-height:1.35}
 
 /* SEQUENCE 6 — publish : couches qui se superposent puis basculent. */
-.publish-layers{position:relative;width:min(360px,80vw);height:180px;margin:0 auto 30px}
-.publish-layer{position:absolute;inset:0;border-radius:22px;box-shadow:var(--shadow-soft);transition:transform .8s var(--ease),opacity .8s var(--ease)}
-.publish-layer.draft{background:rgba(17,17,17,.08);transform:translateY(18px) scale(.94);opacity:.6}
-.publish-layer.live{background:linear-gradient(150deg,#111,#2b2b2e);transform:translateY(0) scale(1)}
-.seq-publish.in .publish-layer.draft{transform:translateY(30px) scale(.9);opacity:.35}
-.seq-publish.in .publish-layer.live{transform:translateY(-6px) scale(1.02)}
-.publish-badge{position:absolute;top:16px;left:16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#fff;opacity:.7}
+.publish-cycle{position:relative;width:min(560px,90vw);height:64px;margin:0 auto 30px}
+.cycle-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0}
+.seq-publish.in .cycle-frame{animation:publish-cycle 6s ease-in-out infinite}
+.seq-publish.in .cycle-frame:nth-child(1){animation-delay:0s}
+.seq-publish.in .cycle-frame:nth-child(2){animation-delay:2s}
+.seq-publish.in .cycle-frame:nth-child(3){animation-delay:4s}
+@keyframes publish-cycle{
+  0%{opacity:0}
+  8%{opacity:1}
+  25%{opacity:1}
+  33%{opacity:0}
+  100%{opacity:0}
+}
 
 /* SEQUENCE 7 — Ivory : silence, chrome disparu, canvas plus clair. */
 .seq-ivory{background:var(--ivory-canvas)}
 
-/* SEQUENCE 9 — Control : plan plus large, cadre qui s'élargit. */
-.control-scope{width:min(480px,90vw);height:140px;margin:0 auto 28px;border-radius:24px;border:1.5px dashed rgba(17,17,17,.18);display:flex;align-items:center;justify-content:center;gap:8px;transform:scale(.92);opacity:0;transition:transform .8s var(--ease),opacity .8s var(--ease)}
-.seq-control.in .control-scope{transform:scale(1);opacity:1}
-.control-scope .dot{width:34px;height:34px;border-radius:10px;background:rgba(17,17,17,.08)}
-.control-scope .dot.mid{background:#111}
+/* SEQUENCE 9 — Control : plan plus large, vrai screenshot. */
 
 /* SEQUENCE 10 — principe : synthèse, après avoir vu le système. */
 .seq-principle .stage-inner{max-width:600px}
@@ -156,7 +157,9 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation:none!important}
-  .stage-inner,.move-line,.publish-layer,.control-scope,#liquidCoreVisual,.lock-shackle,.lock-dot,.screen-frame,.bleed-media,.bleed-media img,.bleed-caption{opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
+  .stage-inner,.move-line,#liquidCoreVisual,.lock-shackle,.lock-dot,.screen-frame,.bleed-media,.bleed-media img,.bleed-caption{opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
+  .cycle-frame{opacity:0!important}
+  .cycle-frame:nth-child(3){opacity:1!important}
   .lock-shackle{transform:translateX(-50%) rotate(0deg) translateX(0)!important}
   .lock-body{box-shadow:0 0 22px 2px rgba(53,224,161,.16)!important}
   .scroll-hint{display:none}
@@ -184,12 +187,7 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 </section>
 
 <section class="stage bleed seq-generation" id="s-generation" data-title="Orogeny" data-dark>
-  <!-- Emplacement asset-friendly -- une photo/composition Orogeny
-       réelle remplacera ce fond dégradé sans changer le layout
-       (object-fit:cover déjà en place sur .bleed-media img une fois
-       l'asset ajouté ; en attendant, dégradé de substitution neutre,
-       jamais présenté comme définitif). -->
-  <div class="bleed-media generation-placeholder" id="generationVisual" aria-hidden="true"></div>
+  <div class="bleed-media" id="generationVisual"><img src="/meet-assets/meet-orogeny.webp" alt=""></div>
   <div class="bleed-caption">
     <h2>Orogeny 1.2</h2>
     <p class="tagline">La génération actuelle de Storm</p>
@@ -246,9 +244,10 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 
 <section class="stage seq-publish" id="s-publish" data-title="Publication">
   <div class="stage-inner">
-    <div class="publish-layers" aria-hidden="true">
-      <div class="publish-layer draft"></div>
-      <div class="publish-layer live"><span class="publish-badge">Publié</span></div>
+    <div class="publish-cycle" aria-hidden="true">
+      <img class="cycle-frame" src="/meet-assets/meet-publish-1.webp" alt="">
+      <img class="cycle-frame" src="/meet-assets/meet-publish-2.webp" alt="">
+      <img class="cycle-frame" src="/meet-assets/meet-publish-3.webp" alt="">
     </div>
     <h2 class="principle-lead" style="margin:0">Publication.</h2>
     <p class="scene-copy">Vous pouvez modifier sans publier. Quand une version est prête, vous choisissez le moment où elle devient visible. Jusque-là, rien ne change côté collaborateurs.</p>
@@ -284,8 +283,8 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 
 <section class="stage seq-control" id="s-control" data-title="Control">
   <div class="stage-inner">
-    <div class="control-scope" aria-hidden="true"><div class="dot"></div><div class="dot mid"></div><div class="dot"></div></div>
-    <h2 class="principle-lead" style="margin:0">Storm, à l'échelle de l'organisation.</h2>
+    <div class="screen-frame"><img src="/meet-assets/meet-control.webp" alt="Storm Control, avec la gouvernance de l'organisation et ses projets" loading="lazy"></div>
+    <h2 class="principle-lead" style="margin:26px 0 0">Storm, à l'échelle de l'organisation.</h2>
     <p class="scene-copy">Control donne la vue d'ensemble : projets, membres, accès, cycle de vie et données. Vous gérez Storm autour des projets sans entrer dans leur travail quotidien.</p>
   </div>
 </section>

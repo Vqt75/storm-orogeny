@@ -304,7 +304,7 @@ test('focus visible sur les éléments interactifs', () => {
 });
 
 test('images produit réelles ont un texte alt informatif', () => {
-  for (const name of ['meet-home', 'meet-studio', 'meet-ivory', 'meet-pilotage']) {
+  for (const name of ['meet-home-macbook', 'meet-studio', 'meet-ivory', 'meet-pilotage']) {
     const idx = meetHtml.indexOf(`/meet-assets/${name}.webp`);
     assert.match(meetHtml.slice(idx, idx + 150), /alt="[^"]+"/);
   }
@@ -382,4 +382,39 @@ test('reduced motion -- Publication affiche uniquement l\'état final "publié",
 
 test('aucune image avec filigrane -- vérification maintenue après ajout des nouveaux visuels', () => {
   assert.ok(!/shutterstock|getty|istock|watermark|filigrane/i.test(meetHtml));
+});
+
+test('Home -- mockup MacBook réel intégré, jamais le screenshot plat encadré précédent', () => {
+  assert.match(meetHtml, /src="\/meet-assets\/meet-home-macbook\.webp"/);
+  assert.ok(!meetHtml.includes('/meet-assets/meet-home.webp'), 'ancien visuel encadré retiré');
+});
+
+test('Home -- mockup MacBook jamais enfermé dans le cadre générique .screen-frame (pas de recadrage/coin arrondi sur un visuel qui porte déjà son propre cadre)', () => {
+  const idx = meetHtml.indexOf('meet-home-macbook.webp');
+  const before = meetHtml.slice(Math.max(0, idx - 200), idx);
+  assert.match(before, /class="mac-frame"/);
+  assert.ok(!before.includes('class="screen-frame"'), 'jamais le cadre générique sur ce visuel');
+});
+
+test('Home -- .mac-frame n\'introduit ni bordure ni recadrage (le mockup porte déjà son propre cadre et son ombre)', () => {
+  const idx = meetHtml.indexOf('.mac-frame{');
+  const rule = meetHtml.slice(idx, idx + 200);
+  assert.ok(!/border-radius|overflow:hidden/.test(rule), 'jamais de recadrage sur un visuel déjà encadré nativement');
+});
+
+test('Home -- conteneur élargi spécifiquement pour cette scène, jamais pour les autres (le mockup reste la pièce maîtresse)', () => {
+  assert.match(meetHtml, /\.seq-home \.stage-inner\{width:min\(1040px,100%\)\}/);
+  assert.ok(!meetHtml.includes('.seq-studio .stage-inner{width:min(1040px'), 'jamais élargi pour les autres scènes');
+});
+
+test('Home -- reduced motion couvre bien .mac-frame (même garde-fou que les autres visuels)', () => {
+  const idx = meetHtml.indexOf('prefers-reduced-motion:reduce');
+  const snippet = meetHtml.slice(idx, idx + 400);
+  assert.match(snippet, /\.mac-frame/);
+});
+
+test('Home -- alt texte fidèle au contenu réel du mockup, jamais générique/vide', () => {
+  const idx = meetHtml.indexOf('meet-home-macbook.webp');
+  const tag = meetHtml.slice(idx, idx + 200);
+  assert.match(tag, /alt="[^"]{15,}"/);
 });

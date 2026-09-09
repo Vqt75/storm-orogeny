@@ -53,6 +53,16 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 .stage.in .screen-frame{opacity:1;transform:scale(1)}
 .screen-frame img{width:100%;height:auto;display:block}
 
+/* Home (Meet Storm) -- mockup MacBook réel, jamais recadré ni encadré :
+   le laptop porte déjà son propre cadre et son ombre portée (fond
+   blanc retiré, ombre conservée). Conteneur volontairement plus large
+   que .screen-frame pour que le visuel reste la pièce maîtresse de la
+   scène, pas une illustration secondaire. */
+.mac-frame{width:min(1040px,92vw);margin:0 auto 34px;opacity:0;transform:scale(.97);transition:opacity 1s var(--ease),transform 1s var(--ease)}
+.stage.in .mac-frame{opacity:1;transform:scale(1)}
+.mac-frame img{width:100%;height:auto;display:block}
+.seq-home .stage-inner{width:min(1040px,100%)}
+
 /* Photos cinématiques plein cadre -- jamais un rectangle contraint
    dans le canvas : l'image occupe toute la largeur de la fenêtre, la
    scène perd son padding habituel pour la laisser respirer, le texte
@@ -157,7 +167,7 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation:none!important}
-  .stage-inner,.move-line,#liquidCoreVisual,.lock-shackle,.lock-dot,.screen-frame,.bleed-media,.bleed-media img,.bleed-caption{opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
+  .stage-inner,.move-line,#liquidCoreVisual,.lock-shackle,.lock-dot,.screen-frame,.mac-frame,.bleed-media,.bleed-media img,.bleed-caption{opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
   .cycle-frame{opacity:0!important}
   .cycle-frame:nth-child(3){opacity:1!important}
   .lock-shackle{transform:translateX(-50%) rotate(0deg) translateX(0)!important}
@@ -207,7 +217,7 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 
 <section class="stage seq-home" id="s-home" data-title="Home">
   <div class="stage-inner">
-    <div class="screen-frame"><img src="/meet-assets/meet-home.webp" alt="Storm Home, avec les projets en cours" loading="lazy"></div>
+    <div class="mac-frame"><img src="/meet-assets/meet-home-macbook.webp" alt="Storm Home affiché sur un MacBook : les projets en cours et un accès rapide à Découvrez Storm" loading="lazy"></div>
     <h2 class="principle-lead" style="margin:0">Tous vos projets, au même endroit.</h2>
     <p class="scene-copy">Home vous montre seulement les projets auxquels vous avez accès. Vous retrouvez votre contexte, reprenez là où vous vous étiez arrêté et entrez dans le bon espace sans chercher.</p>
   </div>

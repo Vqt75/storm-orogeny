@@ -11,11 +11,13 @@ import {
   ADJUDICATION_BATCH_03_ITEM_IDS,
   ADJUDICATION_BATCH_04_ITEM_IDS,
   ADJUDICATION_BATCH_05_ITEM_IDS,
+  ADJUDICATION_BATCH_06_ITEM_IDS,
   DEFAULT_ADJUDICATION_BATCH_01_PATH,
   DEFAULT_ADJUDICATION_BATCH_02_PATH,
   DEFAULT_ADJUDICATION_BATCH_03_PATH,
   DEFAULT_ADJUDICATION_BATCH_04_PATH,
   DEFAULT_ADJUDICATION_BATCH_05_PATH,
+  DEFAULT_ADJUDICATION_BATCH_06_PATH,
   DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
   EXPECTED_COMPARISON_MATRIX_FINGERPRINT
 } from './task-specific/human-review/generate-structural-adjudication-batch.js';
@@ -53,6 +55,13 @@ import {
   STRUCTURAL_ADJUDICATION_BATCH_05_EVENTS,
   STRUCTURAL_ADJUDICATION_BATCH_05_RECORDED_AT
 } from './task-specific/human-review/record-structural-adjudication-batch-05.js';
+import {
+  buildStructuralAdjudicationBatch06Log,
+  DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_06_LOG_PATH,
+  materialiseStructuralAdjudicationBatch06Log,
+  STRUCTURAL_ADJUDICATION_BATCH_06_EVENTS,
+  STRUCTURAL_ADJUDICATION_BATCH_06_RECORDED_AT
+} from './task-specific/human-review/record-structural-adjudication-batch-06.js';
 import {
   canonicaliseAdjudicatedPartition,
   constructStructuralAdjudicationLogWithEvent,
@@ -874,4 +883,190 @@ test('eighteen of twenty-six scenario families now have one effective human deci
     'scenario-family-preflight-34'
   ]);
   assert.equal([...batch04.events, ...batch05.events].every(event => event.provenance === HUMAN_ADJUDICATION_PROVENANCE), true);
+});
+
+test('batch 06 transcription is one valid complete eight-event HUMAN_ADJUDICATION chain', () => {
+  const matrix = loadMatrix();
+  const log = buildStructuralAdjudicationBatch06Log();
+  const validation = validateStructuralAdjudicationLog(log, matrix);
+  const completeness = evaluateStructuralAdjudicationCompleteness(log, matrix);
+  assert.equal(validation.ok, true);
+  assert.equal(validation.eventCount, 8);
+  assert.equal(completeness.complete, true);
+  assert.deepEqual(completeness.missingSourceItemIds, []);
+  assert.deepEqual(log.events.map(event => event.sourceItemId), ADJUDICATION_BATCH_06_ITEM_IDS);
+  assert.equal(log.events.every(event => event.provenance === HUMAN_ADJUDICATION_PROVENANCE), true);
+  assert.equal(log.events.every(event => event.recordedAt === STRUCTURAL_ADJUDICATION_BATCH_06_RECORDED_AT), true);
+  assert.equal(log.sourceMatrixFingerprint, EXPECTED_COMPARISON_MATRIX_FINGERPRINT);
+  assert.equal(log.status, 'PENDING_HUMAN_REVIEW');
+  assert.equal(log.generationAuthorized, false);
+  assert.equal(log.appendOnly, true);
+});
+
+test('batch 06 decisions, partitions, merge target, rationales and future rules match exactly', () => {
+  const log = buildStructuralAdjudicationBatch06Log();
+  const byId = new Map(log.events.map(event => [event.sourceItemId, event]));
+  const expectedDispositions = {
+    'scenario-family-preflight-24': 'mergeWithAnotherDisplayedBrief',
+    'scenario-family-preflight-25': 'distinct',
+    'scenario-family-preflight-27': 'tooBroad',
+    'scenario-family-preflight-28': 'tooBroad',
+    'scenario-family-preflight-30': 'tooBroad',
+    'scenario-family-preflight-31': 'distinct',
+    'scenario-family-preflight-32': 'tooBroad',
+    'scenario-family-preflight-34': 'distinct'
+  };
+  for (const source of STRUCTURAL_ADJUDICATION_BATCH_06_EVENTS) {
+    const event = byId.get(source.sourceItemId);
+    assert.equal(event.decision.fragmentationAssessment.value, expectedDispositions[source.sourceItemId]);
+    assert.equal(event.decision.reviewerScenarioFamilyPartition.value, 'reviewerDefinedFamilyGroups');
+    assert.equal(canonicalJson(event.decision), canonicalJson(source.decision));
+    assert.equal(event.humanRationale, source.humanRationale);
+    assert.equal(event.futureRule, source.futureRule);
+  }
+  assert.deepEqual(byId.get('scenario-family-preflight-24').decision, {
+    fragmentationAssessment: {
+      value: 'mergeWithAnotherDisplayedBrief',
+      mergeCanonicalReviewItemIds: ['scenario-family-preflight-34']
+    },
+    reviewerScenarioFamilyPartition: {
+      value: 'reviewerDefinedFamilyGroups',
+      canonicalPartition: [
+        ['equinoxe-q026'],
+        ['equinoxe-q028'],
+        ['equinoxe-q029'],
+        ['equinoxe-q031'],
+        ['equinoxe-q076']
+      ]
+    }
+  });
+  assert.deepEqual(byId.get('scenario-family-preflight-34').decision.fragmentationAssessment, {
+    value: 'distinct',
+    mergeCanonicalReviewItemIds: []
+  });
+});
+
+test('batch 06 contains no circular merge and rejects mutation, duplication and automated provenance', () => {
+  const matrix = loadMatrix();
+  const completeLog = buildStructuralAdjudicationBatch06Log();
+  const byId = new Map(completeLog.events.map(event => [event.sourceItemId, event]));
+  for (const event of completeLog.events) {
+    for (const targetId of event.decision.fragmentationAssessment.mergeCanonicalReviewItemIds) {
+      const target = byId.get(targetId);
+      assert.ok(target);
+      assert.equal(target.decision.fragmentationAssessment.mergeCanonicalReviewItemIds.includes(event.sourceItemId), false);
+    }
+  }
+  const emptyLog = createEmptyStructuralAdjudicationLog({
+    batchId: completeLog.batchId,
+    sourceMatrix: matrix,
+    sourceReviewerSeals: completeLog.sourceReviewerSeals,
+    authorizedSourceItemIds: completeLog.authorizedSourceItemIds,
+    humanDoctrine: completeLog.humanDoctrine
+  });
+  const first = STRUCTURAL_ADJUDICATION_BATCH_06_EVENTS[0];
+  const baseInput = {
+    eventId: 'adjudication-batch-06-event-001',
+    sourceItemId: first.sourceItemId,
+    decision: first.decision,
+    humanRationale: first.humanRationale,
+    futureRule: first.futureRule,
+    recordedAt: STRUCTURAL_ADJUDICATION_BATCH_06_RECORDED_AT,
+    provenance: HUMAN_ADJUDICATION_PROVENANCE
+  };
+  assert.throws(
+    () => constructStructuralAdjudicationLogWithEvent(emptyLog, { ...baseInput, provenance: 'AUTOMATED' }, matrix),
+    /provenance must be HUMAN_ADJUDICATION/u
+  );
+  assert.throws(
+    () => constructStructuralAdjudicationLogWithEvent(completeLog, {
+      ...baseInput,
+      eventId: 'adjudication-batch-06-event-009'
+    }, matrix),
+    /Duplicate structural adjudication sourceItemId/u
+  );
+  const tampered = structuredClone(completeLog);
+  tampered.events[0].decision.reviewerScenarioFamilyPartition.canonicalPartition[0][0] = 'equinoxe-q999';
+  assert.equal(validateStructuralAdjudicationLog(tampered, matrix).ok, false);
+});
+
+test('batch 06 materialization is deterministic and cannot mutate sealed sources, prior batches, its packet or seal', () => {
+  const recordsRoot = join(DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT, 'adjudication', 'records');
+  const sourcePaths = [
+    ...immutableSourcePaths(),
+    ...priorBatchArtifactPaths(),
+    DEFAULT_ADJUDICATION_BATCH_03_PATH,
+    DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_03_LOG_PATH,
+    structuralAdjudicationSealPathForJournal(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_03_LOG_PATH),
+    DEFAULT_ADJUDICATION_BATCH_04_PATH,
+    DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_04_LOG_PATH,
+    structuralAdjudicationSealPathForJournal(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_04_LOG_PATH),
+    DEFAULT_ADJUDICATION_BATCH_05_PATH,
+    DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH,
+    structuralAdjudicationSealPathForJournal(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_05_LOG_PATH),
+    DEFAULT_ADJUDICATION_BATCH_06_PATH,
+    structuralAdjudicationSealPathForJournal(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_06_LOG_PATH)
+  ];
+  const before = Object.fromEntries(sourcePaths.map(path => [path, sha256(path)]));
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'storm-structural-adjudication-06-'));
+  try {
+    const outputPath = join(temporaryRoot, 'log.json');
+    const first = materialiseStructuralAdjudicationBatch06Log({ outputPath });
+    const firstContent = readFileSync(outputPath, 'utf8');
+    const second = materialiseStructuralAdjudicationBatch06Log({ outputPath });
+    assert.deepEqual(second, first);
+    assert.equal(readFileSync(outputPath, 'utf8'), firstContent);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+  const after = Object.fromEntries(sourcePaths.map(path => [path, sha256(path)]));
+  assert.deepEqual(after, before);
+  assert.equal(existsSync(join(recordsRoot, 'adjudication-batch-06-scenario-families-03.human-adjudication-seal.json')), true);
+});
+
+test('versioned batch 06 log is deterministic, current, packet-aligned and sealed separately', () => {
+  const result = materialiseStructuralAdjudicationBatch06Log({
+    outputPath: DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_06_LOG_PATH,
+    checkOnly: true
+  });
+  const packetText = readFileSync(DEFAULT_ADJUDICATION_BATCH_06_PATH, 'utf8');
+  assert.equal(result.checkOnly, true);
+  assert.equal(result.eventCount, 8);
+  assert.equal(result.generationAuthorized, false);
+  assert.equal(result.status, 'PENDING_HUMAN_REVIEW');
+  assert.equal(ADJUDICATION_BATCH_06_ITEM_IDS.every(itemId => packetText.includes(`\`${itemId}\``)), true);
+  assert.equal(existsSync(structuralAdjudicationSealPathForJournal(DEFAULT_STRUCTURAL_ADJUDICATION_BATCH_06_LOG_PATH)), true);
+});
+
+test('all twenty-six scenario families and all twenty ambiguity items now have human adjudications', () => {
+  const matrix = loadMatrix();
+  const scenarioLogs = [
+    buildStructuralAdjudicationBatch04Log(),
+    buildStructuralAdjudicationBatch05Log(),
+    buildStructuralAdjudicationBatch06Log()
+  ];
+  const expectedScenarioItems = matrix.items
+    .filter(item => item.packetKind === 'SCENARIO_FAMILY_PREFLIGHT' && item.requiresAdjudication)
+    .map(item => item.canonicalReviewItemId)
+    .sort();
+  const adjudicatedScenarioItems = scenarioLogs
+    .flatMap(log => log.events.map(event => event.sourceItemId))
+    .sort();
+  assert.equal(expectedScenarioItems.length, 26);
+  assert.equal(new Set(adjudicatedScenarioItems).size, 26);
+  assert.deepEqual(adjudicatedScenarioItems, expectedScenarioItems);
+
+  const expectedAmbiguityItems = matrix.items
+    .filter(item => item.packetKind === 'AMBIGUITY_CAPACITY_FAMILIES' && item.requiresAdjudication)
+    .map(item => item.canonicalReviewItemId)
+    .sort();
+  const adjudicatedAmbiguityItems = [
+    buildStructuralAdjudicationBatch02Log(),
+    buildStructuralAdjudicationBatch03Log()
+  ].flatMap(log => log.events.map(event => event.sourceItemId)).sort();
+  assert.equal(expectedAmbiguityItems.length, 20);
+  assert.equal(new Set(adjudicatedAmbiguityItems).size, 20);
+  assert.deepEqual(adjudicatedAmbiguityItems, expectedAmbiguityItems);
+  assert.equal(scenarioLogs.flatMap(log => log.events).every(event => event.provenance === HUMAN_ADJUDICATION_PROVENANCE), true);
+  assert.equal(scenarioLogs.every(log => log.generationAuthorized === false && log.status === 'PENDING_HUMAN_REVIEW'), true);
 });

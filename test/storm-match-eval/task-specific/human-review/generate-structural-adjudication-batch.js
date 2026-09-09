@@ -66,6 +66,17 @@ export const ADJUDICATION_BATCH_05_ITEM_IDS = Object.freeze([
   'scenario-family-preflight-23'
 ]);
 
+export const ADJUDICATION_BATCH_06_ITEM_IDS = Object.freeze([
+  'scenario-family-preflight-24',
+  'scenario-family-preflight-25',
+  'scenario-family-preflight-27',
+  'scenario-family-preflight-28',
+  'scenario-family-preflight-30',
+  'scenario-family-preflight-31',
+  'scenario-family-preflight-32',
+  'scenario-family-preflight-34'
+]);
+
 export const EXPECTED_COMPARISON_MATRIX_FINGERPRINT = '2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd';
 export const DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT = join(import.meta.dirname, 'generated-structural-review');
 export const DEFAULT_ADJUDICATION_BATCH_01_PATH = join(
@@ -98,6 +109,12 @@ export const DEFAULT_ADJUDICATION_BATCH_05_PATH = join(
   'batches',
   'adjudication-batch-05-scenario-families-02.md'
 );
+export const DEFAULT_ADJUDICATION_BATCH_06_PATH = join(
+  DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  'adjudication',
+  'batches',
+  'adjudication-batch-06-scenario-families-03.md'
+);
 
 const PACKET_BASENAME_BY_KIND = Object.freeze({
   EQUIVALENCE_AND_PREFERRED: '01-equivalence-preferred',
@@ -128,6 +145,46 @@ const SEALED_ADJUDICATION_RECORD_BASENAMES = Object.freeze([
 const SEALED_ADJUDICATION_RECORD_BASENAMES_WITH_BATCH_04 = Object.freeze([
   ...SEALED_ADJUDICATION_RECORD_BASENAMES,
   'adjudication-batch-04-scenario-families-01'
+]);
+const SEALED_ADJUDICATION_RECORD_BASENAMES_WITH_BATCH_05 = Object.freeze([
+  ...SEALED_ADJUDICATION_RECORD_BASENAMES_WITH_BATCH_04,
+  'adjudication-batch-05-scenario-families-02'
+]);
+
+const SCENARIO_ADJUDICATION_DISPOSITIONS = Object.freeze([
+  'distinct',
+  'mergeWithAnotherDisplayedBrief',
+  'tooBroad',
+  'artificiallyFragmented',
+  'insufficientEvidence'
+]);
+
+const SCENARIO_ADJUDICATION_PARTITION_TYPES = Object.freeze([
+  'reviewerDefinedFamilyGroups',
+  'insufficientEvidence'
+]);
+
+const SCENARIO_ADJUDICATION_CONSEQUENCES = Object.freeze([
+  Object.freeze({
+    disposition: 'distinct',
+    consequence: 'Le brief reste une unité de scénario autonome, avec la partition interne explicitement retenue.'
+  }),
+  Object.freeze({
+    disposition: 'mergeWithAnotherDisplayedBrief',
+    consequence: 'Le brief est relié uniquement au ou aux targets explicitement sélectionnés ; la partition retenue demeure explicite.'
+  }),
+  Object.freeze({
+    disposition: 'tooBroad',
+    consequence: 'Les groupes de la partition retenue deviennent des unités de scénario distinctes.'
+  }),
+  Object.freeze({
+    disposition: 'artificiallyFragmented',
+    consequence: 'Le brief est marqué comme fragment d’un scénario plus large ; tout regroupement futur doit rester explicitement traçable.'
+  }),
+  Object.freeze({
+    disposition: 'insufficientEvidence',
+    consequence: 'La structure finale de ce brief reste non résolue et ne peut pas autoriser la génération.'
+  })
 ]);
 
 function readJson(path) {
@@ -421,12 +478,49 @@ export function buildStructuralAdjudicationBatch03({ generatedRoot = DEFAULT_GEN
   });
 }
 
-function buildScenarioAdjudicationBatch({ generatedRoot, itemIds, batchId, sealedRecordBasenames }) {
+function buildScenarioDecisionGuidance(source, byId, sealedItemIds) {
+  const mergeTargetIds = [...new Set([
+    ...source.reviewerA.decisions.fragmentationAssessment.mergeCanonicalReviewItemIds,
+    ...source.reviewerB.decisions.fragmentationAssessment.mergeCanonicalReviewItemIds
+  ])].sort();
+  const mergeTargets = mergeTargetIds.map(targetItemId => {
+    const target = byId.get(targetItemId);
+    if (!target || target.packetKind !== 'SCENARIO_FAMILY_PREFLIGHT') {
+      throw new Error(`Invalid scenario-family merge target: ${source.canonicalReviewItemId}/${targetItemId}`);
+    }
+    return {
+      targetItemId,
+      adjudicationStatus: sealedItemIds.has(targetItemId) ? 'SEALED' : 'PENDING_HUMAN_REVIEW'
+    };
+  });
+  return {
+    unresolvedReason: {
+      comparisonStatus: source.comparisonStatus,
+      findings: source.comparisonFindings.map(finding => ({
+        field: finding.field,
+        status: finding.status
+      }))
+    },
+    allowedDispositions: [...SCENARIO_ADJUDICATION_DISPOSITIONS],
+    allowedPartitionTypes: [...SCENARIO_ADJUDICATION_PARTITION_TYPES],
+    validDisplayedMergeTargets: mergeTargets,
+    possibleStructuralConsequences: SCENARIO_ADJUDICATION_CONSEQUENCES.map(value => ({ ...value }))
+  };
+}
+
+function buildScenarioAdjudicationBatch({
+  generatedRoot,
+  itemIds,
+  batchId,
+  sealedRecordBasenames,
+  includeDecisionGuidance = false
+}) {
   const matrix = readJson(join(generatedRoot, 'adjudication', 'reviewer-ab-comparison-matrix.json'));
   assertMatrixContract(matrix);
   const byId = new Map(matrix.items.map(item => [item.canonicalReviewItemId, item]));
   const equivalenceByEntryId = sealedEquivalenceByEntryId(generatedRoot);
   const sealedContexts = loadSealedAdjudicationContexts(generatedRoot, matrix, sealedRecordBasenames);
+  const sealedItemIds = new Set(sealedContexts.map(context => context.sourceItemId));
   const items = itemIds.map(sourceItemId => {
     const source = byId.get(sourceItemId);
     if (!source) throw new Error(`Missing adjudication batch item: ${sourceItemId}`);
@@ -493,6 +587,9 @@ function buildScenarioAdjudicationBatch({ generatedRoot, itemIds, batchId, seale
         }
       },
       existingAdjudicationContext,
+      ...(includeDecisionGuidance
+        ? { decisionGuidance: buildScenarioDecisionGuidance(source, byId, sealedItemIds) }
+        : {}),
       humanDecision: {
         decision: 'PENDING',
         rationale: 'PENDING',
@@ -530,6 +627,16 @@ export function buildStructuralAdjudicationBatch05({ generatedRoot = DEFAULT_GEN
     itemIds: ADJUDICATION_BATCH_05_ITEM_IDS,
     batchId: 'adjudication-batch-05-scenario-families-02',
     sealedRecordBasenames: SEALED_ADJUDICATION_RECORD_BASENAMES_WITH_BATCH_04
+  });
+}
+
+export function buildStructuralAdjudicationBatch06({ generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT } = {}) {
+  return buildScenarioAdjudicationBatch({
+    generatedRoot,
+    itemIds: ADJUDICATION_BATCH_06_ITEM_IDS,
+    batchId: 'adjudication-batch-06-scenario-families-03',
+    sealedRecordBasenames: SEALED_ADJUDICATION_RECORD_BASENAMES_WITH_BATCH_05,
+    includeDecisionGuidance: true
   });
 }
 
@@ -898,6 +1005,27 @@ function renderScenarioAdjudicationBatch(batch, title) {
       lines.push('> Ce contexte scellé est restitué sans réinterprétation et ne préremplit pas la décision scenario-family.', '');
     }
 
+    if (item.decisionGuidance) {
+      lines.push('### Cadre de décision et portée non résolue', '');
+      lines.push(`- Statut structurel non résolu : \`${item.decisionGuidance.unresolvedReason.comparisonStatus}\`.`);
+      lines.push(`- Champs concernés : ${item.decisionGuidance.unresolvedReason.findings.map(finding => `\`${finding.field}\` (\`${finding.status}\`)`).join(', ')}.`);
+      lines.push(`- Dispositions autorisées : ${item.decisionGuidance.allowedDispositions.map(value => `\`${value}\``).join(', ')}.`);
+      lines.push(`- Structures de partition autorisées : ${item.decisionGuidance.allowedPartitionTypes.map(value => `\`${value}\``).join(', ')}.`);
+      lines.push('- Targets de fusion affichés et valides :');
+      if (item.decisionGuidance.validDisplayedMergeTargets.length === 0) {
+        lines.push('  - aucun target de fusion n’est proposé dans les décisions A/B scellées.');
+      } else {
+        for (const target of item.decisionGuidance.validDisplayedMergeTargets) {
+          lines.push(`  - \`${target.targetItemId}\` — statut d’adjudication : \`${target.adjudicationStatus}\`.`);
+        }
+      }
+      lines.push('- Conséquences structurelles possibles :');
+      for (const consequence of item.decisionGuidance.possibleStructuralConsequences) {
+        lines.push(`  - \`${consequence.disposition}\` : ${consequence.consequence}`);
+      }
+      lines.push('');
+    }
+
     lines.push('### Human decision', '', '```text', 'decision: PENDING', 'rationale: PENDING', 'future_rule: PENDING', '```', '');
   });
   return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
@@ -909,6 +1037,10 @@ export function renderStructuralAdjudicationBatch04(batch) {
 
 export function renderStructuralAdjudicationBatch05(batch) {
   return renderScenarioAdjudicationBatch(batch, '# Adjudication structurelle — Batch 05 : scenario families 02');
+}
+
+export function renderStructuralAdjudicationBatch06(batch) {
+  return renderScenarioAdjudicationBatch(batch, '# Adjudication structurelle — Batch 06 : scenario families 03');
 }
 
 export function materialiseStructuralAdjudicationBatch01({
@@ -1031,6 +1163,30 @@ export function materialiseStructuralAdjudicationBatch05({
   };
 }
 
+export function materialiseStructuralAdjudicationBatch06({
+  generatedRoot = DEFAULT_GENERATED_STRUCTURAL_REVIEW_ROOT,
+  outputPath = DEFAULT_ADJUDICATION_BATCH_06_PATH,
+  checkOnly = false
+} = {}) {
+  const batch = buildStructuralAdjudicationBatch06({ generatedRoot });
+  const expected = renderStructuralAdjudicationBatch06(batch);
+  if (checkOnly) {
+    const actual = readFileSync(outputPath, 'utf8').replace(/\r\n/g, '\n');
+    if (actual !== expected.replace(/\r\n/g, '\n')) throw new Error(`Stale adjudication batch: ${outputPath}`);
+  } else {
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, expected, 'utf8');
+  }
+  return {
+    batchId: batch.batchId,
+    checkOnly,
+    generationAuthorized: batch.generationAuthorized,
+    itemCount: batch.itemCount,
+    sourceMatrixFingerprint: batch.sourceMatrixFingerprint,
+    status: batch.status
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const batchArgument = process.argv.find(argument => argument.startsWith('--batch='))?.split('=')[1] ?? '01';
   const materialisers = {
@@ -1038,7 +1194,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     '02': materialiseStructuralAdjudicationBatch02,
     '03': materialiseStructuralAdjudicationBatch03,
     '04': materialiseStructuralAdjudicationBatch04,
-    '05': materialiseStructuralAdjudicationBatch05
+    '05': materialiseStructuralAdjudicationBatch05,
+    '06': materialiseStructuralAdjudicationBatch06
   };
   const materialise = materialisers[batchArgument];
   if (!materialise) throw new Error(`Unsupported adjudication batch: ${batchArgument}`);

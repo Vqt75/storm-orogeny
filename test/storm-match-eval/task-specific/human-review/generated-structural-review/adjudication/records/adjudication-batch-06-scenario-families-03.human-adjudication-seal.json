@@ -1,0 +1,20 @@
+{
+  "batchId": "adjudication-batch-06-scenario-families-03",
+  "eventCount": 8,
+  "finalEventHash": "930474aea5e781ed99bc928f7dcd8d974dc3d5f6d0744ea7e6a7150eb8752d39",
+  "journalCanonicalSha256": "3ee3f0f9d03dccb6f9a33123cd0f6304239eeccd75c3dd3ce42d79f319d9bc9b",
+  "journalFingerprint": "b035bdae9fc7717c75aec93f6bfe10604ad7f218568f40bc0a988d863d286dbe",
+  "journalPath": "adjudication-batch-06-scenario-families-03.human-adjudication-log.json",
+  "provenance": "HUMAN_ADJUDICATION",
+  "schemaVersion": 3,
+  "sealHash": "0c1d259861195f7c9459803bd97cb440948833cd3c4ad29d333a4604688eef89",
+  "sealType": "STRUCTURAL_ADJUDICATION_BATCH_SEAL",
+  "sealedAt": "2026-09-09T16:24:26.923Z",
+  "sourceMatrixFingerprint": "2661f9530fc20272043a621cfbf43b836e883522cdc7dfae861e4a58e2db21dd",
+  "sourcePacketPath": "../batches/adjudication-batch-06-scenario-families-03.md",
+  "sourcePacketSha256": "b2bafc5663700d5749693c81eba835262879167ae671fe733451764b991ce8ce",
+  "sourceReviewerSeals": {
+    "reviewerA": "79ea358a594c5b91eee9e5fe453582cb515f11d542571816981b2b2155fde5a8",
+    "reviewerB": "3b24eefdf1b200fc94ebbd83003a796aa3fc1593d55efbbf0a4cf86749438549"
+  }
+}

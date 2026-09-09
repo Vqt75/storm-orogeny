@@ -112,18 +112,19 @@ test('modèle de thèmes non modifié -- aucune section thèmes ajoutée, Midnig
 
 // ── Aucun overclaim produit ───────────────────────────────────────────
 
-test('Liquid Core jamais présenté comme runtime déjà actif', () => {
+test('Storm Match jamais présenté comme runtime déjà actif', () => {
   const idx = meetHtml.indexOf('id="s-liquidcore"');
   const end = meetHtml.indexOf('</section>', idx);
   const snippet = meetHtml.slice(idx, end);
   assert.ok(!/[Dd]isponible|[Aa]ctif\b|déjà traitées|en cours de traitement/.test(snippet));
 });
 
-test('Storm Match apparaît uniquement dans le contexte Liquid Core attendu (jamais une scène séparée, jamais un claim de surface utilisateur)', () => {
+test('Storm Match apparaît uniquement dans sa propre scène (jamais une scène séparée, jamais un claim de surface utilisateur) -- Liquid Core y est mentionné comme le nom du versioning', () => {
   const idx = meetHtml.indexOf('id="s-liquidcore"');
   const end = meetHtml.indexOf('</section>', idx);
   const liquidCoreSection = meetHtml.slice(idx, end);
-  assert.match(liquidCoreSection, /Storm Match/, 'Storm Match doit être mentionné ici pour expliquer la relation avec Liquid Core');
+  assert.match(liquidCoreSection, /<h2>Storm Match<\/h2>/, 'Storm Match doit être le titre visible de cette scène');
+  assert.match(liquidCoreSection, /Liquid Core/, 'Liquid Core doit y être mentionné comme le nom du versioning');
 
   // Hors de cette section (et hors de l'alt du badge officiel), Storm
   // Match ne doit apparaître nulle part -- ni scène séparée, ni carte,
@@ -179,10 +180,10 @@ test('scène 7 -- Studio, copy explicative complète, ancien texte retiré', () 
   assert.ok(!meetHtml.includes('Ce qui doit être dit prend forme ici.'));
 });
 
-test('scène 8 -- Liquid Core, copy explicatif complet (pas seulement logo + tagline mystérieuse)', () => {
+test('scène 8 -- Storm Match, copy explicatif complet (pas seulement logo + tagline mystérieuse)', () => {
   assert.match(meetHtml, /Comprendre avant de répondre\./);
-  assert.match(meetHtml, /Liquid Core est conçu pour vérifier d'abord si une question est réellement couverte/);
-  assert.match(meetHtml, /Storm Match fait ce travail de correspondance en arrière-plan/);
+  assert.match(meetHtml, /Storm Match est conçu pour vérifier d'abord si une question est réellement couverte/);
+  assert.match(meetHtml, /C'est la version Liquid Core du moteur/);
 });
 
 test('scène 9 -- Publication, nouvelle headline et copy, anciens textes retirés', () => {
@@ -192,7 +193,7 @@ test('scène 9 -- Publication, nouvelle headline et copy, anciens textes retiré
 });
 
 test('scène 10 -- expérience collaborateurs, headline conservée, copy complet, mot Ivory absent', () => {
-  assert.match(meetHtml, /<h2>Pour les collaborateurs, Storm disparaît\.<\/h2>/);
+  assert.match(meetHtml, /<h2[^>]*>Pour les collaborateurs, Storm disparaît\.<\/h2>/);
   assert.match(meetHtml, /Pas de Studio, pas de Control, pas de coulisses/);
   const idx = meetHtml.lastIndexOf('<section', meetHtml.indexOf('id="s-ivory"'));
   const end = meetHtml.indexOf('</section>', idx);
@@ -311,4 +312,44 @@ test('images produit réelles ont un texte alt informatif', () => {
 
 test('aucune nouvelle capability créée pour Découvrez Storm', () => {
   assert.ok(!/CAP\.MEET|MEET_STORM\s*:\s*'/.test(homeHtml));
+});
+
+// ── FERMETURE — retrait de l'effet "carte contrainte", plein cadre ──
+
+test('scène "Le projet" -- photo en plein cadre (pattern bleed), jamais un rectangle contraint dans le canvas', () => {
+  assert.match(meetHtml, /<section class="stage bleed seq-enter"/);
+  assert.match(meetHtml, /<div class="bleed-media"><img src="\/meet-assets\/meet-enter\.webp"/);
+  assert.ok(!meetHtml.includes('enter-frame'), 'ancienne classe de cadre contraint entièrement retirée');
+});
+
+test('scène Orogeny -- même traitement plein cadre que Storm Match, slot asset-friendly conservé', () => {
+  assert.match(meetHtml, /<section class="stage bleed seq-generation"[^>]*data-dark/);
+  assert.match(meetHtml, /<div class="bleed-media generation-placeholder" id="generationVisual"/);
+  assert.ok(!meetHtml.includes('generation-frame'), 'ancienne classe de cadre contraint entièrement retirée');
+});
+
+test('scène "Storm disparaît" -- plus de carte blanche imbriquée, le screenshot flotte directement', () => {
+  assert.ok(!meetHtml.includes('ivory-frame'), 'ancienne carte imbriquée entièrement retirée');
+  const idx = meetHtml.indexOf('id="s-ivory"');
+  const end = meetHtml.indexOf('</section>', idx);
+  assert.match(meetHtml.slice(idx, end), /class="screen-frame"/);
+});
+
+test('écrans produit (Home/Studio/Ivory/Pilotage) -- flottent sans ombre ni carte, plus grands qu\'avant', () => {
+  const idx = meetHtml.indexOf('.screen-frame{');
+  const snippet = meetHtml.slice(idx, idx + 200);
+  assert.ok(!/box-shadow/.test(snippet), 'jamais d\'ombre de carte sur les écrans produit');
+  assert.match(snippet, /width:min\(760px/, 'notablement plus grand que la version carte initiale (560px)');
+});
+
+test('effet d\'échelle à l\'entrée sur les médias plein cadre -- jamais un simple fade-in statique', () => {
+  assert.match(meetHtml, /\.bleed-media img\{[^}]*transform:scale\(1\.1\)/);
+  assert.match(meetHtml, /\.stage\.bleed\.in \.bleed-media img\{transform:scale\(1\)\}/);
+});
+
+test('reduced motion -- couvre aussi les nouveaux éléments plein cadre', () => {
+  const idx = meetHtml.indexOf('prefers-reduced-motion:reduce');
+  const snippet = meetHtml.slice(idx, idx + 400);
+  assert.match(snippet, /\.bleed-media/);
+  assert.match(snippet, /\.bleed-caption/);
 });

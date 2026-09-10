@@ -268,42 +268,7 @@ test('mixWithWhite -- fonction pure, résultat déterministe, jamais de couleur 
   assert.equal(mixWithWhite('#1E3A8A', 0), '#ffffff');
 });
 
-// ── Home -- média riche (À la une) ────────────────────────────────────
-
-test('Home "À la une" -- l\'image réelle de l\'article (asset de couverture déjà calculé par le Compiler) est utilisée quand elle existe, jamais un faux média', () => {
-  assert.match(ivoryJs, /const featuredAsset = featuredSource && featuredSource\.asset;/);
-  assert.match(ivoryJs, /\$\{featuredAsset \? `<div class="tct-home-feature-media">\$\{renderAsset\(featuredAsset, 'tct-home-feature-media-img'\)\}<\/div>` : ''\}/);
-});
-
-test('Home "À la une" -- classe has-media conditionnelle, jamais appliquée quand l\'article n\'a pas d\'image', () => {
-  assert.match(ivoryJs, /class="tct-home-feature\$\{featuredAsset \? ' has-media' : ''\}/);
-});
-
-test('Home "À la une" -- mode sans média reste la mise en page existante inchangée (repli)', () => {
-  const idx = ivoryJs.indexOf('.tct-home-feature-inner {');
-  const css = ivoryJs.slice(idx, idx + 400);
-  assert.match(css, /display:grid/);
-  assert.match(css, /grid-template-columns:repeat\(12,minmax\(0,1fr\)\)/);
-});
-
-test('Home "À la une" -- mode média riche responsive sur les trois points de rupture (desktop/tablette/mobile), jamais une image qui casse la mise en page', () => {
-  assert.match(ivoryJs, /\.tct-home-feature\.has-media \.tct-home-feature-inner \{\s*display:grid;\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,1\.15fr\);/);
-  assert.match(ivoryJs, /@media \(max-width:980px\) \{[\s\S]*?\.tct-home-feature\.has-media \.tct-home-feature-inner \{\s*display:block;/);
-  assert.match(ivoryJs, /\.tct-home-feature\.has-media \.tct-home-feature-media \{ margin-top:40px; height:auto; min-height:0; aspect-ratio:4\/3;/);
-});
-
-test('Home "À la une" -- l\'image réutilise renderAsset existant, jamais un second rendu d\'image dupliqué', () => {
-  const featuredIdx = ivoryJs.indexOf('const featuredAsset');
-  const snippet = ivoryJs.slice(featuredIdx, featuredIdx + 1300);
-  assert.match(snippet, /renderAsset\(featuredAsset, 'tct-home-feature-media-img'\)/);
-});
-
-// ── Fixture synthétique -- Home media-rich / media-sparse, exécution réelle ──
-// Le manque de seed de production avec article publié + image n'est pas
-// un blocker produit (aucune modification des seeds pour ce test) --
-// une fixture synthétique minimale suffit à exécuter réellement
-// renderHome() et vérifier son HTML produit, plutôt que de se limiter
-// à des assertions sur le code source.
+// ── Home V2.1 -- hero (ouverture + média héros) ───────────────────────
 
 function homeFixture(overrides = {}) {
   return {
@@ -314,91 +279,131 @@ function homeFixture(overrides = {}) {
   };
 }
 
-test('fixture media-rich -- renderHome() exécuté réellement avec un article.asset produit le mode has-media et l\'image', () => {
-  const news = { items: [{
-    id: 'a1', title: 'Article de test', tag: 'Chantier', date: '2026-01-01',
-    asset: { url: '/public/projects/x/assets/y.jpg', alt: 'Photo du chantier' }
-  }] };
+test('Home V2.1 -- média héros réel (asset featured déjà calculé par le Compiler) utilisé quand il existe, jamais un faux média', () => {
+  const news = { items: [{ id: 'a1', title: 'Article de test', asset: { url: '/public/projects/x/assets/y.jpg', alt: 'Photo du chantier' } }] };
   const html = renderHome(homeFixture(), { news });
-  assert.match(html, /class="tct-home-feature has-media/, 'le mode media-rich doit s\'activer réellement');
-  assert.match(html, /tct-home-feature-media-img/, 'l\'image doit être réellement rendue');
-  assert.match(html, /src="\/public\/projects\/x\/assets\/y\.jpg"/, 'la vraie URL de l\'asset doit apparaître');
+  assert.match(html, /class="tct-home-hero tct-reveal"/, 'jamais no-visual quand un asset réel existe');
+  assert.match(html, /tct-home-hero-img/);
+  assert.match(html, /src="\/public\/projects\/x\/assets\/y\.jpg"/);
   assert.match(html, /alt="Photo du chantier"/);
 });
 
-test('fixture media-sparse -- renderHome() exécuté réellement sans article.asset garde le fallback attendu, jamais de trou/placeholder', () => {
+test('Home V2.1 -- média héros réutilise renderAsset existant, jamais un second rendu d\'image dupliqué', () => {
+  const idx = ivoryJs.indexOf('const heroVisual = featuredAsset ? `');
+  const snippet = ivoryJs.slice(idx, idx + 400);
+  assert.match(snippet, /renderAsset\(featuredAsset, 'tct-home-hero-img'\)/);
+});
+
+test('Home V2.1 -- media-sparse : classe no-visual appliquée, hero passe en une colonne, jamais un espace réservé vide', () => {
   const news = { items: [{ id: 'a1', title: 'Article de test', asset: null }] };
   const html = renderHome(homeFixture(), { news });
-  assert.ok(!html.includes('has-media'), 'jamais le mode media-rich sans asset réel');
-  assert.ok(!html.includes('tct-home-feature-media-img'), 'jamais une balise image vide/placeholder');
-  assert.match(html, /class="tct-home-feature tct-reveal"/, 'la mise en page texte existante doit rester intacte');
+  assert.match(html, /class="tct-home-hero no-visual tct-reveal"/);
+  assert.ok(!html.includes('tct-home-hero-visual'), 'aucun conteneur média vide rendu');
 });
 
-test('fixture -- aucun featured du tout (projet sans actualité) : Home reste fonctionnelle, aucune section vide affichée', () => {
+test('Home V2.1 -- sans featured du tout, hero reste fonctionnel (une colonne), aucune section vide affichée', () => {
   const html = renderHome(homeFixture({ featured: null }), { news: { items: [] } });
-  assert.ok(!html.includes('tct-home-feature'), 'aucune section "À la une" rendue si featured est absent -- jamais un bloc vide affiché par défaut');
+  assert.match(html, /no-visual/);
 });
 
-// ── Home -- recomposition (ouverture fusionnée, momentum, clôture) ───
-
-test('Home -- ouverture fusionnée, jamais deux masses hero empilées (ancien bug : landing-title + home-title à quasi pleine hauteur d\'écran chacun)', () => {
-  assert.match(ivoryJs, /<div class="tct-home-opening">/);
-  assert.ok(!ivoryJs.includes('class="tct-home-landing"'), 'ancien conteneur pleine hauteur (100svh) retiré');
-  assert.ok(!ivoryJs.includes('class="tct-home-stage"'), 'ancien conteneur stage retiré, fusionné dans opening');
+test('Home V2.1 -- média héros média-sparse : le CSS .no-visual repasse bien en une seule colonne', () => {
+  const idx = ivoryJs.indexOf('.tct-home-hero.no-visual {');
+  assert.ok(idx > 0);
+  assert.match(ivoryJs.slice(idx, idx + 100), /grid-template-columns:1fr/);
 });
 
-test('Home -- un seul h1, jamais un second titre à échelle hero dans la même ouverture', () => {
-  const html = renderHome({ statement: 'x', now: { label: 'Titre principal' } }, {});
+// ── Home V2.1 -- recomposition depuis le handoff (structure réelle) ──
+
+test('Home V2.1 -- un seul h1, toujours issu de l\'ouverture (statement/message), jamais un second titre concurrent', () => {
+  const html = renderHome({ statement: 'x', now: { label: 'Titre jalon' } }, {});
   assert.equal((html.match(/<h1/g) || []).length, 1);
+  assert.match(html, /<h1 id="tct-home-title">x<\/h1>/);
 });
 
-test('Home -- moment du projet (momentum) regroupe présent et suivant dans une seule respiration, jamais deux sections pleine largeur séparées', () => {
-  assert.match(ivoryJs, /const nowNextGrid = showMilestones && \(presentText \|\| nextDate \|\| nextTitle\) \? `/);
-  assert.match(ivoryJs, /<div class="tct-home-momentum\$\{presentText \? '' : ' is-next-only'\} tct-reveal"/);
+test('Home V2.1 -- home.message devient le paragraphe de soutien de l\'ouverture quand home.statement existe aussi et diffère, jamais dupliqué', () => {
+  const html = renderHome({ statement: 'TITRE_TEST', message: 'MESSAGE_SOUTIEN_TEST' }, {});
+  assert.match(html, /<h1 id="tct-home-title">TITRE_TEST<\/h1>/);
+  assert.match(html, /<p>MESSAGE_SOUTIEN_TEST<\/p>/);
 });
 
-test('Home -- aucune donnée inventée dans le moment du projet -- uniquement présent/next issus du Manifest, jamais de barre de progression ni de pourcentage fabriqué', () => {
-  const idx = ivoryJs.indexOf('const nowNextGrid');
-  const end = ivoryJs.indexOf('const featuredAsset');
-  const snippet = ivoryJs.slice(idx, end);
-  assert.ok(!/%|percent|progress-bar/i.test(snippet), 'jamais de pourcentage ou de barre de progression inventée dans ce bloc');
+test('Home V2.1 -- sans home.statement, home.message seul porte le h1, jamais dupliqué en paragraphe', () => {
+  const html = renderHome({ message: 'MESSAGE_UNIQUE_TEST' }, {});
+  const occurrences = (html.match(/MESSAGE_UNIQUE_TEST/g) || []).length;
+  assert.equal(occurrences, 1);
+  assert.match(html, /<h1 id="tct-home-title">MESSAGE_UNIQUE_TEST<\/h1>/);
 });
 
-test('Home -- clôture fusionnée (dernière actualité + questions), jamais deux sections pleine largeur consécutives', () => {
-  assert.match(ivoryJs, /<section class="tct-home-closing tct-reveal"/);
-  assert.ok(!ivoryJs.includes('const latestNews ='), 'ancien bloc séparé retiré, fusionné dans closing');
-  assert.ok(!ivoryJs.includes('const questionsBlock ='), 'ancien bloc séparé retiré, fusionné dans closing');
+test('Home V2.1 -- identité projet (manifest.project.name) affichée comme micro-label réel, jamais inventée si absente', () => {
+  const html = renderHome({ message: 'x' }, { project: { name: 'PROJET_TEST' } });
+  assert.match(html, /<div class="tct-home-project-id">PROJET_TEST<\/div>/);
+  const htmlSansNom = renderHome({ message: 'x' }, {});
+  assert.ok(!htmlSansNom.includes('tct-home-project-id'), 'jamais de micro-label vide sans donnée réelle');
 });
 
-test('Home -- fixture réaliste complète : aucun contenu Manifest perdu dans la recomposition (statement, now, next, featured+asset, latest, askPrompt tous rendus)', () => {
+test('Home V2.1 -- points d\'entrée (jump + explore) sont des liens fixes vers des destinations produit réelles, jamais une donnée Manifest inventée', () => {
+  const html = renderHome({ message: 'x' }, {});
+  assert.match(html, /href="#spaces" data-tct-route/);
+  assert.match(html, /href="#timeline" data-tct-route/);
+  assert.match(html, /href="#questions" data-tct-route/);
+});
+
+test('Home V2.1 -- showAskPrompt=false retire les points d\'entrée vers Questions, jamais affichés malgré tout', () => {
+  const html = renderHome({ message: 'x', showAskPrompt: false }, {});
+  assert.ok(!html.includes('href="#questions"'));
+});
+
+test('Home V2.1 -- "Ce qui change vraiment pour vous" réutilise une section Principes existante de Le Projet, jamais un nouveau champ Studio', () => {
+  const sections = [{ type: 'choices', items: [{ title: 'Principe test 1' }, { title: 'Principe test 2' }] }];
+  const html = renderHome({ message: 'x' }, { projectSections: sections });
+  assert.match(html, /Ce qui change vraiment pour vous/);
+  assert.match(html, /Principe test 1/);
+});
+
+test('Home V2.1 -- sans section Principes disponible, "Ce qui change" est absente, jamais un contenu inventé pour combler', () => {
+  const html = renderHome({ message: 'x' }, { projectSections: [] });
+  assert.ok(!html.includes('tct-home-change'));
+});
+
+test('Home V2.1 -- repère de progression réel (X / Y étapes franchies), jamais le pseudo-numéro d\'étape déconnecté d\'un jalon réel', () => {
+  const timeline = { milestones: [{ status: 'done' }, { status: 'done' }, { status: 'done' }, { status: 'future' }] };
+  const html = renderHome({ message: 'x', next: { label: 'l' } }, { timeline });
+  assert.match(html, /<strong>3 \/ 4<\/strong>/);
+  assert.match(html, /étapes déjà franchies/);
+});
+
+test('Home V2.1 -- aucune structure momentum vide réservée quand ni jalon courant ni suivant n\'existent', () => {
+  const html = renderHome({ message: 'x', now: null, next: null }, { timeline: { milestones: [] } });
+  assert.ok(!html.includes('tct-home-momentum'));
+});
+
+test('Home V2.1 -- fixture réaliste complète : aucun contenu Manifest perdu dans la recomposition', () => {
   const home = {
     statement: 'Déclaration de test unique.',
-    now: { label: 'Titre now unique' },
-    next: { date: 'DATE_TEST', label: 'Titre next unique', description: 'Description next unique.' },
+    now: { label: 'Titre now unique', description: 'Description now unique.' },
+    next: { date: 'DATE_TEST', label: 'Titre next unique' },
     featured: { title: 'Titre featured unique', summary: 'Résumé featured unique.', source: { module: 'news', id: 'a1' } },
-    latest: { title: 'Titre latest unique', tag: 'TAG_TEST' },
-    askPrompt: 'Question prompt unique ?'
+    latest: { title: 'Titre latest unique' }
   };
   const news = { items: [{ id: 'a1', asset: null }] };
-  const html = renderHome(home, { news });
-  for (const needle of ['Déclaration de test unique.', 'Titre now unique', 'DATE_TEST', 'Titre next unique', 'Description next unique.', 'Titre featured unique', 'Résumé featured unique.', 'Titre latest unique', 'TAG_TEST', 'Question prompt unique ?']) {
-    assert.ok(html.includes(needle), `donnée perdue dans la recomposition : "${needle}"`);
+  const html = renderHome(home, { news, timeline: { milestones: [{ status: 'done' }] } });
+  for (const needle of ['Déclaration de test unique.', 'Titre now unique', 'Description now unique.', 'Titre featured unique']) {
+    assert.ok(html.includes(needle), `donnée perdue : "${needle}"`);
   }
 });
 
-test('Home -- reduced motion : les nouveaux groupes (opening, momentum, closing) restent couverts par les règles .tct-reveal existantes, jamais un nouvel oubli', () => {
-  assert.match(ivoryJs, /class="tct-home-landing-title tct-reveal"/);
-  assert.match(ivoryJs, /class="tct-home-stage-meta tct-reveal"/);
-  assert.match(ivoryJs, /class="tct-home-title tct-reveal"/);
-  assert.match(ivoryJs, /class="tct-home-momentum\$\{presentText \? '' : ' is-next-only'\} tct-reveal"/);
-  assert.match(ivoryJs, /class="tct-home-closing tct-reveal"/);
+test('Home V2.1 -- reduced motion : toutes les nouvelles sections portent .tct-reveal, couvertes par la règle globale existante', () => {
+  assert.match(ivoryJs, /class="tct-home-hero\$\{featuredAsset \? '' : ' no-visual'\} tct-reveal"/);
+  assert.match(ivoryJs, /class="tct-home-momentum tct-reveal"/);
+  assert.match(ivoryJs, /class="tct-home-change tct-reveal"/);
+  assert.match(ivoryJs, /class="tct-home-explore tct-reveal"/);
+  assert.match(ivoryJs, /class="tct-home-news tct-reveal"/);
 });
 
-test('Home -- aucun appel backend supplémentaire introduit par la recomposition (uniquement des données déjà passées à renderHome)', () => {
+test('Home V2.1 -- aucun appel réseau introduit, fonction de rendu pure', () => {
   const idx = ivoryJs.indexOf('function renderHome');
   const end = ivoryJs.indexOf('\nfunction ', idx + 10);
   const body = ivoryJs.slice(idx, end);
-  assert.ok(!/fetch\(|XMLHttpRequest|api\(/.test(body), 'renderHome doit rester une fonction pure de rendu, jamais un appel réseau');
+  assert.ok(!/fetch\(|XMLHttpRequest|api\(/.test(body));
 });
 
 // ── Le Projet -- composition finale, fixture réelle exécutée ─────────
@@ -469,7 +474,8 @@ test('Le Projet -- espacement des sections resserré et cohérent -- jamais deux
   for (const sel of ['.tct-project-figures {', '.tct-project-choices {', '.tct-project-text {', '.tct-project-media {', '.tct-project-gallery {']) {
     const idx = ivoryJs.indexOf(sel);
     assert.ok(idx > 0, `${sel} doit exister`);
-    const css = ivoryJs.slice(idx, idx + 250);
+    const closeIdx = ivoryJs.indexOf('}', idx);
+    const css = ivoryJs.slice(idx, closeIdx + 1);
     const maxValues = [...css.matchAll(/,(\d+)px\)/g)].map(m => Number(m[1]));
     for (const v of maxValues) {
       assert.ok(v <= 110, `${sel} porte encore un padding max de ${v}px (attendu ≤110px après resserrement)`);
@@ -809,7 +815,7 @@ test('Questions -- aucun titre à échelle hero (ancien bug : jusqu\'à 5.15rem 
 });
 
 test('Questions -- densité compacte assumée, plus resserrée que les autres surfaces (aucune valeur de padding au-delà de 76px)', () => {
-  for (const sel of ['.tct-questions-page {', '.tct-questions-opening {', '.tct-question-workbench {', '.tct-question-result {', '.tct-question-contact {']) {
+  for (const sel of ['.tct-questions-page {', '.tct-questions-top {', '.tct-question-workbench {', '.tct-question-result {', '.tct-question-contact {']) {
     const idx = ivoryJs.indexOf(sel);
     assert.ok(idx > 0, `${sel} doit exister`);
     const css = ivoryJs.slice(idx, idx + 220);
@@ -951,100 +957,520 @@ test('scroll-jack -- touch et clavier restent des handlers entièrement séparé
   assert.ok(!/pointerType === 'touch'|ArrowLeft|ArrowRight/.test(wheelBlock), 'la logique touch/clavier ne doit jamais être dans le bloc wheel');
 });
 
-// ── Correction sémantique Home -- message d'accueil ≠ jalon courant ──
-// Bug corrigé : home.message servait de repli au headline "En ce
-// moment" quand home.now était null, produisant un faux jalon (texte
-// générique + compteur d'étape réel mais sans rapport). Décision
-// produit : home.message rejoint l'ouverture (landingStatement),
-// jamais le bloc "En ce moment", qui ne s'affiche plus que si un vrai
-// jalon status:'current' existe.
 
-test('Case 1 -- sans jalon courant + message présent : message visible dans l\'ouverture, aucun "En ce moment", aucun faux phaseMeta, "À suivre" visible', () => {
+// ── Home V2.1 -- moment du projet (En ce moment / À suivre réels) ────
+// Doctrine figée : home.message n'est jamais un repli de home.now.label.
+// "En ce moment" n'existe que si un vrai jalon status:'current' existe.
+
+test('Home V2.1 -- Case 1 : sans jalon courant, momentum montre "À suivre", jamais un faux "En ce moment"', () => {
   const home = {
     message: 'Un nouveau lieu pour mieux travailler ensemble.',
     now: null,
     next: { date: '15 septembre 2026', label: 'Choix des quartiers d\'équipe' },
     showMilestones: true
   };
-  const timeline = { progress: { currentStepLabel: 'Étape 4', totalSteps: 9 } };
-  const html = renderHome(home, { timeline });
-
-  assert.match(html, /<h1 id="tct-home-title" class="tct-home-landing-title tct-reveal"[^>]*>Un nouveau lieu pour mieux travailler ensemble\.<\/h1>/, 'le message doit devenir le h1 de l\'ouverture');
-  assert.ok(!html.includes('En ce moment'), 'aucun label "En ce moment" sans jalon courant réel');
-  assert.ok(!html.includes('tct-home-phase'), 'aucun phaseMeta affiché sans jalon courant réel (compteur d\'étape non lié à un faux présent)');
-  assert.ok(!html.includes('tct-live-dot'), 'aucun point "live" sans jalon courant réel');
+  const html = renderHome(home, {});
+  assert.match(html, /<h1 id="tct-home-title">Un nouveau lieu pour mieux travailler ensemble\.<\/h1>/);
+  assert.ok(!html.includes('En ce moment'));
   assert.match(html, /À suivre · 15 septembre 2026/);
   assert.match(html, /Choix des quartiers d.équipe/);
 });
 
-test('Case 2 -- jalon courant explicite : "En ce moment" visible, titre = home.now.label, phaseMeta visible, message ne remplace jamais le jalon, "À suivre" reste correct', () => {
+test('Home V2.1 -- Case 2 : jalon courant explicite, momentum montre "En ce moment" avec le libellé du jalon, jamais le message', () => {
   const home = {
     message: 'Un nouveau lieu pour mieux travailler ensemble.',
     now: { label: 'Aménagement en cours', description: 'Les mobiliers sont livrés étage par étage.' },
     next: { date: '15 septembre 2026', label: 'Choix des quartiers d\'équipe' },
     showMilestones: true
   };
-  const timeline = { progress: { currentStepLabel: 'Étape 4', totalSteps: 9 } };
-  const html = renderHome(home, { timeline });
-
-  assert.match(html, /<span>En ce moment<\/span>/);
-  assert.match(html, /<h1 id="tct-home-title" class="tct-home-title tct-reveal"[^>]*>Aménagement en cours<\/h1>/);
-  assert.match(html, /<span class="tct-home-phase">Étape 4 sur 9<\/span>/);
-  assert.match(html, /Un nouveau lieu pour mieux travailler ensemble\./, 'le message doit rester visible dans l\'ouverture (landingStatement) -- rattaché à l\'ouverture, jamais retiré');
-  assert.match(html, /À suivre · 15 septembre 2026/);
-});
-
-test('Case 3 -- home.message n\'est jamais perdu après la correction (visible dans l\'ouverture même quand un jalon courant existe aussi, via landingStatement si home.statement est aussi fourni)', () => {
-  const home = {
-    statement: 'Un nouveau lieu pour mieux travailler ensemble.',
-    message: 'Un nouveau lieu pour mieux travailler ensemble.',
-    now: { label: 'Aménagement en cours' },
-    showMilestones: true
-  };
-  const html = renderHome(home, { timeline: null });
-  assert.match(html, /Un nouveau lieu pour mieux travailler ensemble\./, 'le contenu doit apparaître au moins une fois (ici via home.statement, qui prime sur home.message dans landingStatement)');
-});
-
-test('Case 3b -- sans home.statement, home.message seul alimente bien landingStatement (jamais perdu, jamais dupliqué)', () => {
-  const home = { message: 'MESSAGE_UNIQUE_TEST', now: null, showMilestones: true };
   const html = renderHome(home, {});
-  const occurrences = (html.match(/MESSAGE_UNIQUE_TEST/g) || []).length;
-  assert.equal(occurrences, 1, 'le message doit apparaître exactement une fois, jamais dupliqué');
+  assert.match(html, /<div class="tct-home-moment-status">En ce moment<\/div>/);
+  assert.match(html, /<h2 id="tct-momentum-title">Aménagement en cours<\/h2>/);
+  assert.ok(!html.includes('Aménagement en cours</h1>'), 'le jalon courant ne doit jamais devenir le h1 de l\'ouverture -- il vit dans momentum, pas dans le hero');
+  assert.match(html, /Un nouveau lieu pour mieux travailler ensemble\./, 'le message reste visible dans l\'ouverture, jamais retiré');
 });
 
-test('Case 4 -- aucune structure vide réservée quand home.now est null (pas de conteneur momentum-now vide, pas de colonne de grille fantôme)', () => {
-  const home = { message: 'x', now: null, next: { date: 'd', label: 'l' }, showMilestones: true };
-  const html = renderHome(home, {});
-  assert.ok(!html.includes('tct-home-present'), 'aucun conteneur "Situation actuelle" vide');
-  assert.match(html, /tct-home-momentum is-next-only/, 'le modificateur is-next-only doit s\'appliquer pour éviter une colonne de grille vide');
+test('Home V2.1 -- home.message n\'est jamais perdu même quand un jalon courant existe (visible dans l\'ouverture via statement+message ou message seul)', () => {
+  const html = renderHome({ statement: 'STATEMENT_TEST', message: 'MESSAGE_TEST', now: { label: 'x' }, showMilestones: true }, {});
+  assert.ok(html.includes('STATEMENT_TEST') && html.includes('MESSAGE_TEST'));
 });
 
-test('Case 4b -- aucun bloc momentum du tout si ni présent ni suivant n\'existent (jamais un conteneur totalement vide)', () => {
-  const home = { message: 'x', now: null, next: null, showMilestones: true };
-  const html = renderHome(home, {});
+test('Home V2.1 -- aucune structure momentum vide réservée quand ni jalon courant ni suivant n\'existent (déjà couvert, reconfirmé après recomposition)', () => {
+  const html = renderHome({ message: 'x', now: null, next: null, showMilestones: true }, { timeline: { milestones: [] } });
   assert.ok(!html.includes('tct-home-momentum'));
 });
 
-test('Case 5 -- home.now === null n\'empêche jamais l\'affichage de "À la une" / clôture (featured, latest, questions) ni des autres invariants Home', () => {
+test('Home V2.1 -- home.now === null n\'empêche jamais l\'affichage du hero média, de "Ce qui change", "Entrez par" ni de la matière récente', () => {
   const home = {
     message: 'x', now: null,
-    featured: { title: 'FEATURED_TEST', source: { module: 'news', id: 'a1' } },
-    latest: { title: 'LATEST_TEST' },
-    askPrompt: 'ASK_TEST'
+    featured: { title: 'FEATURED_TEST', source: { module: 'news', id: 'a1' } }
   };
-  const html = renderHome(home, { news: { items: [{ id: 'a1', asset: null }] } });
-  assert.ok(html.includes('FEATURED_TEST') && html.includes('LATEST_TEST') && html.includes('ASK_TEST'));
+  const html = renderHome(home, {
+    news: { items: [{ id: 'a1', asset: { url: '/x.jpg', alt: 'a' } }] },
+    projectSections: [{ type: 'choices', items: [{ title: 'CHANGE_TEST' }] }]
+  });
+  assert.ok(html.includes('FEATURED_TEST') && html.includes('CHANGE_TEST') && html.includes('Entrez par ce qui vous concerne'));
 });
 
-test('phaseMeta ne dépend plus de showMilestones seul mais de hasCurrentMilestone -- jamais affiché sans home.now même si progress existe', () => {
-  const body = ivoryJs.slice(ivoryJs.indexOf('function renderHome'), ivoryJs.indexOf('function renderHome') + 3000);
-  assert.match(body, /const hasCurrentMilestone = Boolean\(showMilestones && home\.now && home\.now\.label\);/);
-  assert.match(body, /const phaseMeta = hasCurrentMilestone && progress/);
-});
-
-test('un seul h1 dans les deux cas (avec et sans jalon courant), jamais deux titres concurrents', () => {
-  const withCurrent = renderHome({ now: { label: 'x' }, showMilestones: true }, {});
+test('Home V2.1 -- un seul h1 dans les deux cas (avec et sans jalon courant), jamais deux titres concurrents', () => {
+  const withCurrent = renderHome({ message: 'x', now: { label: 'y' }, showMilestones: true }, {});
   const withoutCurrent = renderHome({ message: 'x', now: null }, {});
   assert.equal((withCurrent.match(/<h1/g) || []).length, 1);
   assert.equal((withoutCurrent.match(/<h1/g) || []).length, 1);
+});
+
+test('Home V2.1 -- hasCurrentMilestone reste la seule condition du bloc "En ce moment", jamais showMilestones seul', () => {
+  const idx = ivoryJs.indexOf('function renderHome');
+  const body = ivoryJs.slice(idx, idx + 4000);
+  assert.match(body, /const hasCurrentMilestone = Boolean\(showMilestones && home\.now && home\.now\.label\);/);
+});
+
+// ── Vérification post-validation -- stamp héros + gating des entrées ──
+
+test('Stamp héros -- purement informatif (aucun lien, aucun bouton, aucun rôle interactif), jamais de Liquid Glass dessus', () => {
+  const idx = ivoryJs.indexOf('const heroVisual = featuredAsset ? `');
+  const snippet = ivoryJs.slice(idx, idx + 500);
+  assert.match(snippet, /<div class="tct-home-hero-stamp">/, 'doit rester un simple div, jamais un <a>/<button>');
+  assert.ok(!/<a[^>]*tct-home-hero-stamp|tct-home-hero-stamp[^`]*href/.test(snippet));
+
+  const cssIdx = ivoryJs.indexOf('.tct-home-hero-stamp {');
+  const css = ivoryJs.slice(cssIdx, cssIdx + 300);
+  assert.ok(!/backdrop-filter/.test(css), 'jamais de verre sur une simple légende informative');
+  assert.match(css, /background:color-mix\(in srgb, var\(--tct-canvas\) 97%, transparent\)/, 'surface quasi opaque pour une bonne lisibilité');
+});
+
+test('Entrées Home -- Espaces et Le Projet sont des destinations stables, jamais conditionnées à showAskPrompt (qui ne gouverne que Questions)', () => {
+  const html = renderHome({ message: 'x', showAskPrompt: false }, {});
+  assert.match(html, /href="#spaces"/, 'Espaces doit rester visible même si showAskPrompt est faux');
+  assert.match(html, /href="#timeline"/, 'Le Projet doit rester visible même si showAskPrompt est faux');
+  assert.ok(!html.includes('href="#questions"'), 'Questions doit disparaître -- c\'est bien son propre contrat');
+});
+
+test('Entrées Home -- Espaces et Le Projet toujours présentes par défaut (aucun signal contractuel réel n\'existe aujourd\'hui pour les désactiver -- audité dans le Compiler, NAV_ORDER ne contient même pas "timeline")', () => {
+  const html = renderHome({ message: 'x' }, {});
+  assert.match(html, /href="#spaces"/);
+  assert.match(html, /href="#timeline"/);
+  assert.match(html, /href="#questions"/);
+});
+
+// ── Le Projet V2.1 -- récit continu (handoff), fixture réelle ────────
+
+test('Le Projet V2.1 -- ouverture inversée : paragraphe avant le titre dans le DOM (matchant le handoff), micro-label eyebrow décoratif retiré', () => {
+  const html = renderProject({ intro: { title: 'TITRE_TEST', body: 'PARAGRAPHE_TEST' }, sections: [] }, {});
+  const pIdx = html.indexOf('PARAGRAPHE_TEST');
+  const h1Idx = html.indexOf('TITRE_TEST');
+  assert.ok(pIdx > 0 && pIdx < h1Idx, 'le paragraphe doit précéder le titre dans le DOM');
+  assert.ok(!html.includes('tct-project-opening-eyebrow'));
+});
+
+test('Le Projet V2.1 -- les sections narratives (text/focus) reçoivent un numéro de chapitre courant, jamais les chiffres/principes/citation/média', () => {
+  const project = {
+    intro: {},
+    sections: [
+      { type: 'text', title: 'A', body: 'a' },
+      { type: 'keyFigures', items: [{ value: '1', label: 'x' }] },
+      { type: 'text', title: 'B', body: 'b' },
+      { type: 'choices', items: [{ title: 'x' }] },
+      { type: 'quote', quote: 'x' },
+      { type: 'text', title: 'C', body: 'c' }
+    ]
+  };
+  const html = renderProject(project, {});
+  const numbers = [...html.matchAll(/tct-project-chapter-num">(\d+)</g)].map(m => m[1]);
+  assert.deepEqual(numbers, ['01', '02', '03'], 'seules les 3 sections text doivent être numérotées, dans l\'ordre');
+});
+
+test('Le Projet V2.1 -- aucune perte de contenu : intro, chapitres, chiffres, principes, citation, timeline tous rendus simultanément', () => {
+  const project = {
+    intro: { title: 'INTRO_TITRE', body: 'INTRO_CORPS' },
+    sections: [
+      { type: 'text', title: 'CHAPITRE_TITRE', body: 'CHAPITRE_CORPS' },
+      { type: 'keyFigures', items: [{ value: 'VAL_TEST', label: 'LABEL_TEST' }] },
+      { type: 'choices', items: [{ title: 'PRINCIPE_TEST', body: 'PRINCIPE_CORPS' }] },
+      { type: 'quote', quote: 'CITATION_TEST' },
+      { type: 'timeline' }
+    ]
+  };
+  const context = { timeline: { milestones: [{ status: 'current', label: 'JALON_TEST', date: 'DATE_TEST' }] } };
+  const html = renderProject(project, context);
+  for (const needle of ['INTRO_TITRE', 'INTRO_CORPS', 'CHAPITRE_TITRE', 'CHAPITRE_CORPS', 'VAL_TEST', 'LABEL_TEST', 'PRINCIPE_TEST', 'PRINCIPE_CORPS', 'CITATION_TEST', 'JALON_TEST']) {
+    assert.ok(html.includes(needle), `donnée perdue : "${needle}"`);
+  }
+});
+
+test('Le Projet V2.1 -- rails Chiffres clés et Principes toujours présents avec data-tct-rail, mécanique jamais touchée', () => {
+  const project = { intro: {}, sections: [
+    { type: 'keyFigures', items: [{ value: '1', label: 'x' }] },
+    { type: 'choices', items: [{ title: 'a', body: 'b' }] }
+  ] };
+  const html = renderProject(project, {});
+  assert.match(html, /data-tct-rail data-tct-rail-family="figures"/);
+  assert.match(html, /data-tct-rail data-tct-rail-family="choices"/);
+});
+
+test('Le Projet V2.1 -- timeline garde son mécanisme dédié (ol sémantique, aria-current, adaptatif), jamais convertie en rail générique -- décision inchangée', () => {
+  const html = renderProject({ intro: {}, sections: [{ type: 'timeline' }] }, { timeline: { milestones: [{ status: 'current', label: 'a', date: '1' }] } });
+  assert.match(html, /<ol class="tct-project-milestones">/);
+  assert.match(html, /aria-current="step"/);
+  assert.ok(!html.includes('tct-project-milestones" data-tct-rail'));
+});
+
+test('Le Projet V2.1 -- timeline traitée comme conclusion (hairline de transition), jamais un simple bloc posé après tout le reste sans signal', () => {
+  const idx = ivoryJs.indexOf('.tct-project-trajectory {');
+  const css = ivoryJs.slice(idx, idx + 150);
+  assert.match(css, /border-top:1px solid var\(--tct-hairline-soft\)/);
+});
+
+test('Le Projet V2.1 -- media-sparse : sans keyFigures/choices/média, la page reste fonctionnelle, aucune section vide/placeholder', () => {
+  const html = renderProject({ intro: { title: 'x' }, sections: [{ type: 'text', title: 'a', body: 'b' }] }, {});
+  assert.ok(!html.includes('tct-project-figures') && !html.includes('tct-project-choices') && !html.includes('tct-project-media'));
+});
+
+test('Le Projet V2.1 -- media-rich : une image narrative reste intégrée (jamais dupliquée artificiellement pour remplir)', () => {
+  const html = renderProject({ intro: {}, sections: [{ type: 'image', asset: { url: '/x.jpg', alt: 'Photo test' } }] }, {});
+  const occurrences = (html.match(/x\.jpg/g) || []).length;
+  assert.equal(occurrences, 1);
+});
+
+test('Le Projet V2.1 -- un seul h1 (ouverture), jamais un second titre à échelle hero dans le flux narratif', () => {
+  const html = renderProject({ intro: { title: 'x' }, sections: [{ type: 'text', title: 'y', body: 'z' }] }, {});
+  assert.equal((html.match(/<h1/g) || []).length, 1);
+});
+
+test('Le Projet V2.1 -- aucun nouveau champ Manifest requis, aucune dépendance Studio/Compiler/backend introduite', () => {
+  const idx = ivoryJs.indexOf('function renderProject(project, context');
+  const end = ivoryJs.indexOf('\n// ── Espaces', idx);
+  const body = ivoryJs.slice(idx, end > 0 ? end : idx + 2000);
+  assert.ok(!/fetch\(|XMLHttpRequest|api\(/.test(body));
+});
+
+// ── Actualités + Article V2.1 -- marges actives, non-invention ───────
+
+test('Actualités V2.1 -- lead déterministe (premier article de l\'ordre existant), jamais un flag Studio inventé', () => {
+  const items = [{ id: 'a1', title: 'PREMIER_TEST' }, { id: 'a2', title: 'DEUXIEME_TEST' }];
+  const html = renderNews({ intro: {}, items });
+  const leadIdx = html.indexOf('tct-news-lead');
+  const archiveIdx = html.indexOf('tct-news-row');
+  assert.ok(html.slice(leadIdx, leadIdx + 300).includes('PREMIER_TEST'));
+  assert.ok(html.slice(archiveIdx, archiveIdx + 300).includes('DEUXIEME_TEST'));
+});
+
+test('Actualités V2.1 -- fonctionne avec un seul article (lead seul, aucune archive, layout jamais cassé)', () => {
+  const html = renderNews({ intro: {}, items: [{ id: 'a1', title: 'SEUL_TEST' }] });
+  assert.ok(html.includes('SEUL_TEST'));
+  assert.ok(!html.includes('tct-news-row'));
+});
+
+test('Actualités V2.1 -- densité variable de l\'archive déjà en place (compact au-delà des 2 premières entrées), jamais le même poids partout', () => {
+  assert.match(ivoryJs, /const compact = index >= 2;/);
+});
+
+test('Actualités V2.1 -- aucun filtre inventé (confirmation reconduite -- le produit n\'en possède toujours pas)', () => {
+  assert.ok(!ivoryJs.includes('tct-news-filter'));
+});
+
+test('Article V2.1 -- marges actives : les médias inline (image/galerie) peuvent sortir de la colonne de lecture, jamais le texte', () => {
+  const idxMedia = ivoryJs.indexOf('.tct-news-inline-media {');
+  const cssMedia = ivoryJs.slice(idxMedia, idxMedia + 200);
+  assert.match(cssMedia, /width:calc\(100% \+ 2 \* min\(6vw,32px\)\)/);
+
+  const idxReading = ivoryJs.indexOf('.tct-news-article-reading {');
+  const cssReading = ivoryJs.slice(idxReading, idxReading + 100);
+  assert.ok(!/width:calc\(100% \+/.test(cssReading), 'le texte lui-même ne doit jamais sortir de sa colonne');
+});
+
+test('Article V2.1 -- rupture de marge plafonnée (jamais au-delà de la marge propre de la section, aucun risque de débordement horizontal)', () => {
+  const idx = ivoryJs.indexOf('.tct-news-inline-media {');
+  const css = ivoryJs.slice(idx, idx + 200);
+  assert.match(css, /max\(-6vw,-32px\)/);
+});
+
+test('Article V2.1 -- rupture de marge désactivée sur mobile (texte déjà pleine largeur, aucune marge active pertinente à cette échelle)', () => {
+  assert.match(ivoryJs, /\.tct-news-inline-media, \.tct-news-inline-gallery \{ width:100%; margin-left:0; margin-right:0; \}/);
+});
+
+test('Article V2.1 -- aucune perte de contenu : fixture riche (titre, chapeau, date, tag, paragraphe, intertitre, liste, image, document) tous rendus', () => {
+  const item = {
+    id: 'a1', title: 'TITRE_TEST', tag: 'TAG_TEST', date: 'DATE_TEST', summary: 'CHAPEAU_TEST',
+    blocks: [
+      { type: 'paragraph', runs: [{ text: 'PARAGRAPHE_TEST' }] },
+      { type: 'heading', runs: [{ text: 'INTERTITRE_TEST' }] },
+      { type: 'bulletList', items: [{ runs: [{ text: 'PUCE_TEST' }] }] },
+      { type: 'image', asset: { url: '/x.jpg', alt: 'ALT_IMAGE_TEST' } },
+      { type: 'document', asset: { url: '/x.pdf' }, title: 'DOC_TEST' }
+    ]
+  };
+  const html = renderNewsArticle(item, [item], 0);
+  for (const needle of ['TITRE_TEST', 'TAG_TEST', 'DATE_TEST', 'CHAPEAU_TEST', 'PARAGRAPHE_TEST', 'INTERTITRE_TEST', 'PUCE_TEST', 'ALT_IMAGE_TEST', 'DOC_TEST']) {
+    assert.ok(html.includes(needle), `donnée perdue : "${needle}"`);
+  }
+});
+
+test('Suggestions V2.1 -- reflète exactement la capacité réelle (un seul lien de continuation), jamais un carousel ou plusieurs recommandations artificielles', () => {
+  const item = { id: '1', title: 'x' };
+  const older = { id: '0', title: 'ARTICLE_PRECEDENT_TEST' };
+  const html = renderNewsArticle(item, [item, older], 0);
+  assert.match(html, /Lire aussi : ARTICLE_PRECEDENT_TEST/);
+  assert.ok(!html.includes('data-tct-rail'), 'jamais un rail pour une suggestion unique');
+  const suggestionLinks = (html.match(/tct-news-next-story/g) || []).length;
+  assert.equal(suggestionLinks, 1, 'jamais plus d\'une suggestion mise en scène');
+});
+
+test('Suggestions V2.1 -- dernier article de la liste : aucune suggestion inventée pour combler', () => {
+  const item = { id: '1', title: 'x' };
+  const html = renderNewsArticle(item, [item], 0);
+  assert.ok(!html.includes('tct-news-next-story'));
+});
+
+test('Aucun type de bloc "citation isolée" inventé dans renderNewsBlocks -- le modèle de données actuel ne le supporte pas, jamais fabriqué pour cette passe', () => {
+  const idx = ivoryJs.indexOf('function renderNewsBlocks');
+  const end = ivoryJs.indexOf('\nfunction ', idx + 10);
+  const body = ivoryJs.slice(idx, end);
+  assert.ok(!/block\.type === 'quote'/.test(body));
+});
+
+// ── Complétion compositionnelle réelle -- split lead/archive, marge active ──
+
+test('Actualités -- vrai split côte à côte lead/archive (conteneur .tct-news-grid partagé), jamais un empilement vertical de deux sections indépendantes', () => {
+  const html = renderNews({ intro: {}, items: [{ id: 'a1', title: 'A' }, { id: 'a2', title: 'B' }] });
+  assert.match(html, /<div class="tct-news-grid">\s*<article class="tct-news-lead/, 'lead et archive doivent partager le même conteneur grid');
+  const idx = ivoryJs.indexOf('.tct-news-grid {');
+  const css = ivoryJs.slice(idx, idx + 250);
+  assert.match(css, /grid-template-columns:1\.35fr 1fr/, 'vraie asymétrie de largeur, pas une grille uniforme');
+  assert.match(css, /border-top:1px solid var\(--tct-hairline-soft\)/);
+});
+
+test('Actualités -- séparation structurelle réelle entre lead et archive (bordure verticale), jamais une simple juxtaposition sans couture', () => {
+  const idx = ivoryJs.indexOf('.tct-news-lead {\n    padding');
+  const css = ivoryJs.slice(idx, idx + 200);
+  assert.match(css, /border-right:1px solid var\(--tct-hairline-soft\)/);
+});
+
+test('Actualités -- différence d\'échelle réelle entre titre lead et titres archive (rapport > 2x au maximum)', () => {
+  const leadIdx = ivoryJs.indexOf('.tct-news-lead h2 {');
+  const leadCss = ivoryJs.slice(leadIdx, leadIdx + 350);
+  const leadMax = Number(leadCss.match(/font-size:clamp\([^,]+,[^,]+,(\d+(?:\.\d+)?)rem\)/)[1]);
+  const rowIdx = ivoryJs.indexOf('.tct-news-row h3 {');
+  const rowCss = ivoryJs.slice(rowIdx, rowIdx + 350);
+  const rowMax = Number(rowCss.match(/font-size:clamp\([^,]+,[^,]+,(\d+(?:\.\d+)?)rem\)/)[1]);
+  assert.ok(leadMax / rowMax >= 2, `écart d'échelle insuffisant : lead ${leadMax}rem vs archive ${rowMax}rem`);
+});
+
+test('Actualités -- lead sans média reste pleinement dominant (aucun trou, la mise en page ne dépend pas de la présence d\'une image)', () => {
+  const html = renderNews({ intro: {}, items: [{ id: 'a1', title: 'TITRE_SANS_MEDIA', summary: 'RESUME_TEST' }, { id: 'a2', title: 'B' }] });
+  assert.ok(html.includes('TITRE_SANS_MEDIA') && html.includes('RESUME_TEST'));
+  assert.ok(!html.includes('tct-news-lead-media'));
+});
+
+test('Actualités -- un seul article : modificateur is-lead-only retire la bordure flottante, jamais une couture sans contenu en face', () => {
+  const html = renderNews({ intro: {}, items: [{ id: 'a1', title: 'A' }] });
+  assert.match(html, /tct-news-grid is-lead-only/);
+  const idx = ivoryJs.indexOf('.tct-news-grid.is-lead-only .tct-news-lead {');
+  assert.match(ivoryJs.slice(idx, idx + 80), /border-right:0/);
+});
+
+test('Article -- le chapeau devient la matière de la marge active (position sticky, colonne dédiée), jamais rendu une seconde fois dans le header', () => {
+  const item = { id: '1', title: 'x', summary: 'CHAPEAU_UNIQUE_TEST', blocks: [] };
+  const html = renderNewsArticle(item, [item], 0);
+  const occurrences = (html.match(/CHAPEAU_UNIQUE_TEST/g) || []).length;
+  assert.equal(occurrences, 1);
+  const headerEnd = html.indexOf('</header>');
+  assert.ok(!html.slice(0, headerEnd).includes('CHAPEAU_UNIQUE_TEST'), 'jamais dans le header');
+  assert.match(html, /<aside class="tct-news-article-margin">\s*<p>CHAPEAU_UNIQUE_TEST/);
+});
+
+test('Article -- marge active sticky sur desktop, repli naturel dans le flux sur mobile (jamais de vide si aucun chapeau)', () => {
+  const idx = ivoryJs.indexOf('.tct-news-article-margin {');
+  const css = ivoryJs.slice(idx, idx + 150);
+  assert.match(css, /position:sticky/);
+  const mobileIdx = ivoryJs.indexOf('.tct-news-article-margin { position:static');
+  assert.ok(mobileIdx > 0, 'repli mobile doit exister (position:static)');
+
+  const htmlSansChapeau = renderNewsArticle({ id: '1', title: 'x', blocks: [] }, [{ id: '1' }], 0);
+  assert.ok(!htmlSansChapeau.includes('tct-news-article-margin'), 'aucune structure de marge vide sans chapeau réel');
+});
+
+test('Article -- header conserve son rapport d\'échelle (titre dominant 8/12, métadonnées 2/12), non retouché car déjà conforme', () => {
+  const idx = ivoryJs.indexOf('.tct-news-article-opening h1 {');
+  assert.match(ivoryJs.slice(idx, idx + 60), /grid-column:3 \/ span 8/);
+});
+
+// ── Questions V2.1 -- titre et saisie dans le même geste ──────────────
+
+test('Questions -- titre et saisie fusionnés dans le même conteneur (.tct-questions-top), jamais deux blocs empilés séparés', () => {
+  const html = renderQuestions({ intro: {}, items: [] }, false);
+  assert.match(html, /<header class="tct-questions-top tct-reveal"[\s\S]*?<h1>[\s\S]*?<div class="tct-question-workbench"[\s\S]*?<\/header>/, 'titre et champ de saisie doivent partager le même header');
+});
+
+test('Questions -- micro-label "Questions" redondant retiré (n\'apportait aucune information au-dessus d\'un titre qui dit déjà la même chose)', () => {
+  assert.ok(!ivoryJs.includes('tct-questions-opening-eyebrow'));
+});
+
+test('Questions -- composition à deux colonnes réelle (titre+description | saisie), jamais une simple pile verticale', () => {
+  const idx = ivoryJs.indexOf('.tct-questions-top {');
+  const css = ivoryJs.slice(idx, idx + 250);
+  assert.match(css, /display:grid/);
+  assert.match(css, /grid-template-columns:minmax\(0,\.85fr\) minmax\(320px,1\.15fr\)/);
+});
+
+test('Questions -- résultat intégré au canvas, jamais une card dans une card (aucun fond/bordure/ombre sur le conteneur de réponse)', () => {
+  const idx = ivoryJs.indexOf('.tct-question-result {');
+  const css = ivoryJs.slice(idx, idx + 100);
+  assert.ok(!/background|border|box-shadow/.test(css));
+});
+
+test('Questions -- aucune théâtralisation IA (pas de marque Storm, pas de badge de confiance inventé) dans les templates de réponse', () => {
+  const idx = ivoryJs.indexOf('const answerMarkup = entry =>');
+  const end = ivoryJs.indexOf('const showAnswer', idx);
+  const body = ivoryJs.slice(idx, end);
+  assert.ok(!/Storm|%\s*fiable|IA vérifiée|confiance/i.test(body));
+});
+
+test('Questions -- réponse prioritaire (titre de l\'entrée réelle), jamais la question brute de l\'utilisateur répétée en énorme (doctrine déjà fixée, reconfirmée)', () => {
+  const idx = ivoryJs.indexOf('const answerMarkup = entry =>');
+  const body = ivoryJs.slice(idx, idx + 400);
+  assert.match(body, /<h2>\$\{esc\(entry\.title\)\}<\/h2>/);
+});
+
+test('Questions -- escalade réelle utilise les capacités existantes uniquement (transmission vers contact), jamais un routage inventé', () => {
+  const idx = ivoryJs.indexOf('const unknownMarkup');
+  const body = ivoryJs.slice(idx, idx + 700);
+  assert.match(body, /data-tct-open-contact/);
+});
+
+test('Questions -- structure FAQ existante (ol sémantique) préservée, jamais transformée en accordion sans raison', () => {
+  const html = renderQuestions({ intro: {}, items: [{ id: 'q1', title: 'A' }] }, false);
+  assert.match(html, /<ol>\s*\n\s*<li>/);
+  assert.ok(!ivoryJs.includes('tct-question-accordion'));
+});
+
+test('Questions -- aucun changement au moteur (matchFaq reste la seule autorité), cette passe est strictement renderer/UI', () => {
+  assert.match(ivoryJs, /exact Pangea matchFaq stays authoritative/);
+});
+
+// ── Espaces/Ambassadeurs/Équipe -- intégration V2.1, discipline micro-label ──
+// Passe d'intégration, pas de redesign : ces trois surfaces conservent
+// leur mécanique (rails protégés, filtres conditionnels, absence de
+// rail générique sur la liste Espaces) déjà validée dans les passes
+// précédentes. Seuls trois micro-labels redondants ont été retirés,
+// cohérents avec la discipline déjà appliquée sur toutes les autres
+// surfaces V2.1.
+
+test('Espaces -- micro-label "Espaces" redondant retiré de l\'ouverture, titre et description conservés', () => {
+  const html = renderSpaces({ intro: { title: 'TITRE_TEST', description: 'DESC_TEST' }, items: [] });
+  assert.ok(!html.includes('tct-spaces-opening-eyebrow'));
+  assert.ok(html.includes('TITRE_TEST') && html.includes('DESC_TEST'));
+});
+
+test('Ambassadeurs -- micro-label "Ambassadeurs" redondant retiré de l\'ouverture, titre et description conservés', () => {
+  const idx = ivoryJs.indexOf('function renderAmbassadors');
+  const body = ivoryJs.slice(idx, idx + 2500);
+  assert.ok(!body.includes('tct-ambassadors-opening-eyebrow'));
+  assert.match(body, /<h1>Des relais au plus près du terrain\.<\/h1>/);
+});
+
+test('Équipe -- micro-label "Équipe projet" redondant retiré (le h2 dit déjà la même chose), contenu réel toujours rendu', () => {
+  const html = renderProject({ intro: {}, sections: [{ type: 'team' }] }, { team: { members: [{ name: 'NOM_TEST', title: 'ROLE_TEST' }] } });
+  assert.ok(!html.includes('<span>Équipe projet</span>'));
+  assert.match(html, /<h2>Ce projet est porté par une équipe\.<\/h2>/);
+  assert.ok(html.includes('NOM_TEST') && html.includes('ROLE_TEST'));
+});
+
+test('Espaces -- aucun rail générique introduit sur la liste principale, décision antérieure toujours en vigueur', () => {
+  const html = renderSpaces({ intro: {}, items: [{ id: 's1', title: 'A', usageTags: [] }, { id: 's2', title: 'B', usageTags: [] }] });
+  assert.ok(!html.includes('data-tct-rail'));
+});
+
+test('Ambassadeurs et Équipe -- rails protégés intacts (familles ambassadors/team, sémantique <ul><li>), mécanique jamais touchée par cette passe', () => {
+  const idxA = ivoryJs.indexOf('data-tct-rail-family="ambassadors"');
+  const idxT = ivoryJs.indexOf('data-tct-rail-family="team"');
+  assert.ok(idxA > 0 && idxT > 0);
+});
+
+test('Aucune nouvelle donnée inventée sur ces trois surfaces (aucun nouveau champ Manifest, aucun texte marketing ajouté)', () => {
+  const idx = ivoryJs.indexOf('function renderSpaces');
+  const end = ivoryJs.indexOf('function renderAmbassadors');
+  const body = ivoryJs.slice(idx, end);
+  assert.ok(!/Vos ambassadeurs sont là pour vous/i.test(body));
+});
+
+// ── Espaces + Ambassadeurs + Équipe -- intégration V2.1 (changements réels) ──
+
+test('Espaces -- usageTags réels affichés comme chips (donnée déjà calculée, jamais visible auparavant), jamais un label inventé', () => {
+  const idx = ivoryJs.indexOf('function renderSpaceIndexItem');
+  const body = ivoryJs.slice(idx, idx + 1600);
+  assert.match(body, /tct-space-chip/);
+  assert.match(body, /tags\.slice\(0, 3\)\.map\(tag => `<span class="tct-space-chip">\$\{esc\(tag\)\}<\/span>`\)/);
+});
+
+test('Espaces -- chips absentes si aucun usageTag réel (jamais de pastille vide inventée)', () => {
+  const idx = ivoryJs.indexOf('${tags.length ? `');
+  assert.ok(idx > 0);
+});
+
+test('Espaces -- liste principale jamais convertie en rail générique (décision produit déjà prise, reconfirmée)', () => {
+  const idx = ivoryJs.indexOf('function renderSpaces(spaces)');
+  const body = ivoryJs.slice(idx, idx + 600);
+  assert.match(body, /DÉCISION STRUCTURELLE EXPLICITE/);
+});
+
+test('Équipe -- distincte visuellement d\'Ambassadeurs : le rôle porte davantage de poids que le nom (institutionnel), inverse d\'Ambassadeurs où le nom domine', () => {
+  const idx = ivoryJs.indexOf('.tct-project-person-copy strong {');
+  const strongCss = ivoryJs.slice(idx, idx + 120);
+  assert.match(strongCss, /font-size:\.82rem/);
+  const spanIdx = ivoryJs.indexOf('.tct-project-person-copy span {');
+  const spanCss = ivoryJs.slice(spanIdx, spanIdx + 320);
+  assert.match(spanCss, /font-size:1\.05rem/, 'le rôle (span) doit être visuellement plus fort que le nom (strong)');
+});
+
+test('Équipe -- rail family "team" toujours intact, sémantique <ul><li> préservée', () => {
+  const html_ = renderProject({ intro: {}, sections: [{ type: 'team' }] }, { team: { members: [{ name: 'A', title: 'B' }] } });
+  assert.match(html_, /<ul class="tct-project-team-grid" data-tct-rail data-tct-rail-family="team"/);
+  assert.match(html_, /<li class="tct-project-person">/);
+});
+
+test('Aucune nouvelle donnée introduite -- usageTags/team/ambassadeurs sont des champs déjà existants, jamais un nouveau champ Manifest', () => {
+  assert.ok(!ivoryJs.includes('item.newSpaceField'));
+  const idx = ivoryJs.indexOf('const tags = (Array.isArray(item.usageTags)');
+  assert.ok(idx > 0, 'usageTags doit rester le champ déjà existant, jamais renommé/dupliqué');
+});
+
+// ── Passe d'intégration transverse finale V2.1 -- corrections réelles ──
+
+test('Audit transversal -- micro-label "Actualités" décoratif retiré, cohérence avec Le Projet/Questions (aucune information réelle apportée)', () => {
+  assert.ok(!ivoryJs.includes('tct-news-opening-eyebrow'));
+});
+
+test('Audit transversal -- Ambassadeurs rattrapé sur un résidu de padding jamais traité (jusqu\'à 210px), jamais touché lors des passes précédentes', () => {
+  const idx = ivoryJs.indexOf('.tct-ambassadors-roster { padding');
+  const css = ivoryJs.slice(idx, idx + 80);
+  const maxValues = [...css.matchAll(/,(\d+)px\)/g)].map(m => Number(m[1]));
+  for (const v of maxValues) assert.ok(v <= 100, `padding encore excessif : ${v}px`);
+});
+
+test('Audit transversal -- exactement les quatre familles de rail protégées, aucune dérive après l\'ensemble des passes V2.1', () => {
+  const families = [...ivoryJs.matchAll(/data-tct-rail-family="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(new Set(families), new Set(['team', 'figures', 'choices', 'ambassadors']));
+});
+
+test('Audit transversal -- Liquid Glass toujours limité aux mêmes contrôles flottants légitimes (aucun nouvel usage introduit pendant les passes V2.1)', () => {
+  const legitimate = ['tct-header', 'tct-space-image-action', 'tct-space-viewer-close', 'tct-inspector-close', 'tct-plan-inspector', 'tct-inspector-toolbar', 'tct-pdf-reader-bar', 'tct-nav', 'tct-mood-fab'];
+  const lines = ivoryJs.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].includes('backdrop-filter:') || lines[i].trim().startsWith('@supports')) continue;
+    const before = lines.slice(Math.max(0, i - 15), i + 1).join('\n');
+    const matchesKnown = legitimate.some(sel => before.includes(sel));
+    assert.ok(matchesKnown, `backdrop-filter trouvé hors des contrôles flottants connus, près de : ${lines[i].trim()}`);
+  }
+});
+
+test('Audit transversal -- résistance structurelle confirmée sur contenu extrême (chapeau très long, titre très long, 20 personnes, timeline sans jalon courant) sans erreur ni rupture', () => {
+  const longSummary = 'x'.repeat(300);
+  const item = { id: '1', title: 'x', summary: longSummary, blocks: [] };
+  const html = renderNewsArticle(item, [item], 0);
+  assert.ok(html.includes(longSummary));
+
+  const many = Array.from({ length: 20 }, (_, i) => ({ name: `P${i}`, title: 'R' }));
+  const htmlTeam = renderProject({ intro: {}, sections: [{ type: 'team' }] }, { team: { members: many } });
+  assert.equal((htmlTeam.match(/tct-project-person"/g) || []).length, 20);
 });

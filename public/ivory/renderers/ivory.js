@@ -386,11 +386,9 @@ function renderHome(home, context = {}) {
 
   const timeline = context.timeline || null;
   const news = context.news || null;
-  // Neutralisation bornée (branchement Orogeny) : current/upcoming ne
-  // sont plus recalculés ici -- home.now/home.next viennent déjà
-  // entièrement du Compiler (Phase 2D). Même chose pour "latest" :
-  // plus d'exclusion du featured recalculée ici, on lit simplement le
-  // premier article compilé. Structure, DA et responsive inchangés.
+  const projectName = (context.project && context.project.name && String(context.project.name).trim()) || '';
+  const projectSections = Array.isArray(context.projectSections) ? context.projectSections : [];
+
   const showMilestones = home.showMilestones !== false;
   const showAskPrompt = home.showAskPrompt !== false;
   const featuredSource = home.featured && home.featured.source && home.featured.source.module === 'news'
@@ -398,124 +396,189 @@ function renderHome(home, context = {}) {
     : null;
   const latest = home.latest || null;
 
-  // Home v2.4 -- correction sémantique (diagnostic validé) : le
-  // "message d'accueil" Studio (home.message) est un contenu éditorial
-  // d'OUVERTURE, jamais un substitut de jalon courant. Avant cette
-  // correction, il servait de repli au headline "En ce moment" quand
-  // home.now était null, produisant un faux jalon (un texte générique
-  // affiché à côté d'un compteur d'étape "Étape N sur M" bien réel,
-  // lui-même dérivé de progress.currentStepLabel indépendamment de
-  // home.now -- cf. diagnostic). home.message rejoint maintenant
-  // landingStatement (l'ouverture), jamais le bloc "En ce moment".
-  const landingStatement = (home.statement && String(home.statement).trim())
+  // Ivory V2.1 -- Home recomposée depuis le handoff (vérité visuelle),
+  // reconnectée aux vraies données Manifest (vérité fonctionnelle).
+  // Aucune donnée inventée : chaque zone du handoff sans source réelle
+  // correspondante (date d'emménagement, effectif "640 collaborateurs")
+  // est omise plutôt que fabriquée -- voir le rapport de passe.
+
+  // Ouverture -- statement (Studio "Récit") reste prioritaire pour le
+  // H1 ; message (Studio "Message d'accueil") devient le paragraphe de
+  // soutien s'il existe ET diffère du H1, jamais dupliqué. Sans
+  // statement, message porte seul le H1 (comportement déjà validé).
+  const primaryStatement = (home.statement && String(home.statement).trim())
     || (home.hero && home.hero.statement && String(home.hero.statement).trim())
-    || (home.message && String(home.message).trim())
-    || 'Un nouveau lieu de travail prend forme.';
+    || '';
+  const messageText = (home.message && String(home.message).trim()) || '';
+  const headlineText = primaryStatement || messageText || 'Un nouveau lieu de travail prend forme.';
+  const supportingText = (primaryStatement && messageText && messageText !== primaryStatement) ? messageText : '';
 
   // "En ce moment" n'existe que si un vrai jalon status:'current' a
   // été trouvé par le Compiler (home.now non nul) -- jamais de repli
-  // vers home.message ni vers un texte générique. Un projet sans
-  // jalon courant est un état produit valide : Home ne doit rien
-  // inventer pour le combler (aucun label, aucun phaseMeta, aucun
-  // conteneur vide réservé -- voir plus bas).
+  // vers home.message ni vers un texte générique (doctrine figée,
+  // inchangée dans cette passe).
   const hasCurrentMilestone = Boolean(showMilestones && home.now && home.now.label);
-  const headline = hasCurrentMilestone ? home.now.label : '';
-  const presentText = hasCurrentMilestone ? (home.now.description || '') : '';
-  const progress = timeline && timeline.progress || null;
-  // phaseMeta (ex. "Étape 4 sur 9") vient de progress, calculé par le
-  // Compiler indépendamment de home.now (repli doneCount+1 -- resté
-  // intentionnellement inchangé, utile ailleurs). Ivory ne doit
-  // l'afficher que lorsqu'il décrit un jalon réellement courant --
-  // jamais comme preuve visuelle d'un home.now qui n'existe pas.
-  const phaseMeta = hasCurrentMilestone && progress && progress.currentStepLabel && progress.totalSteps
-    ? `${progress.currentStepLabel} sur ${progress.totalSteps}`
-    : '';
-
+  const nowLabel = hasCurrentMilestone ? home.now.label : '';
+  const nowDescription = hasCurrentMilestone ? (home.now.description || '') : '';
   const nextDate = (home.next && home.next.date) || '';
   const nextTitle = (home.next && home.next.label) || '';
   const nextDescription = (home.next && home.next.description) || '';
 
-  const nowNextGrid = showMilestones && (presentText || nextDate || nextTitle) ? `
-    <div class="tct-home-momentum${presentText ? '' : ' is-next-only'} tct-reveal" data-tct-reveal>
-      ${presentText ? `
-        <div class="tct-home-present">
-          <span>Situation actuelle</span>
-          <p>${esc(presentText)}</p>
-        </div>` : ''}
-      ${(nextDate || nextTitle) ? `
-        <div class="tct-home-nextline" aria-labelledby="tct-next-title">
-          <div class="tct-home-nextline-label">À suivre${nextDate ? ` · ${esc(nextDate)}` : ''}</div>
-          ${nextTitle ? `<h2 id="tct-next-title">${esc(nextTitle)}</h2>` : ''}
-          ${nextDescription ? `<p>${esc(nextDescription)}</p>` : ''}
-          ${timeline ? `<a class="tct-text-link tct-home-nextline-link" href="#timeline" data-tct-route>Voir les grandes étapes <span aria-hidden="true">→</span></a>` : ''}
-        </div>` : ''}
+  const momentumStatus = hasCurrentMilestone
+    ? 'En ce moment'
+    : (nextTitle ? `À suivre${nextDate ? ` · ${esc(nextDate)}` : ''}` : '');
+  const momentumTitle = hasCurrentMilestone ? nowLabel : nextTitle;
+  const momentumDescription = hasCurrentMilestone ? nowDescription : nextDescription;
+
+  // Repère de progression réel -- "3 / 9 étapes déjà franchies" compte
+  // les jalons status:'done' (donnée déjà exposée dans
+  // timeline.milestones, jamais recalculée dans le Compiler). Jamais
+  // le pseudo-numéro d'étape "Étape N" (progress.currentStepLabel),
+  // qui reste un repli interne sans lien garanti avec un jalon réel.
+  const milestonesList = (timeline && Array.isArray(timeline.milestones)) ? timeline.milestones : [];
+  const doneCount = milestonesList.filter(m => m && m.status === 'done').length;
+  const totalSteps = milestonesList.length;
+  const stepsStat = (showMilestones && totalSteps > 0)
+    ? { value: `${doneCount} / ${totalSteps}`, label: 'étapes déjà franchies' }
+    : null;
+
+  const momentum = (momentumTitle || stepsStat) ? `
+    <section class="tct-home-momentum tct-reveal" data-tct-reveal aria-labelledby="tct-momentum-title">
+      ${momentumTitle ? `
+      <div class="tct-home-moment-main">
+        ${momentumStatus ? `<div class="tct-home-moment-status">${momentumStatus}</div>` : ''}
+        <h2 id="tct-momentum-title">${esc(momentumTitle)}</h2>
+        ${momentumDescription ? `<p>${esc(momentumDescription)}</p>` : ''}
+      </div>` : '<div class="tct-home-moment-main"></div>'}
+      ${stepsStat ? `
+      <div class="tct-home-moment-stat">
+        <strong>${esc(stepsStat.value)}</strong>
+        <span>${esc(stepsStat.label)}</span>
+      </div>` : ''}
+    </section>` : '';
+
+  // Média héros -- l'article "à la une" (asset déjà calculé par le
+  // Compiler) porte la présence visuelle de l'ouverture. Sans média,
+  // l'ouverture reste à une seule colonne, jamais un espace réservé
+  // vide (voir CSS .no-visual).
+  const featuredAsset = featuredSource && featuredSource.asset;
+  const heroVisual = featuredAsset ? `
+    <div class="tct-home-hero-visual">
+      ${renderAsset(featuredAsset, 'tct-home-hero-img')}
+      ${home.featured.title ? `
+      <div class="tct-home-hero-stamp">
+        <b>${esc(home.featured.title)}</b>
+        ${home.featured.summary ? esc(home.featured.summary) : ''}
+      </div>` : ''}
     </div>` : '';
 
-  const featuredAsset = featuredSource && featuredSource.asset;
-  const featured = home.featured ? `
-    <section class="tct-home-feature${featuredAsset ? ' has-media' : ''} tct-reveal" data-tct-reveal aria-labelledby="tct-featured-title">
-      <div class="tct-home-feature-inner">
-        <div class="tct-home-feature-meta">
-          <span>À la une</span>
-          ${featuredSource && featuredSource.tag ? `<span>${esc(featuredSource.tag)}</span>` : ''}
-          ${featuredSource && featuredSource.date ? `<span>${esc(featuredSource.date)}</span>` : ''}
-        </div>
-        <div class="tct-home-feature-title-wrap">
-          <h2 id="tct-featured-title">${esc(home.featured.title)}</h2>
-        </div>
-        <div class="tct-home-feature-aside">
-          ${home.featured.summary ? `<p>${esc(home.featured.summary)}</p>` : ''}
-          <a class="tct-text-link" href="#${esc(home.featured.source && home.featured.source.module || 'news')}" data-tct-route>
-            Découvrir <span aria-hidden="true">→</span>
-          </a>
-        </div>
-        ${featuredAsset ? `<div class="tct-home-feature-media">${renderAsset(featuredAsset, 'tct-home-feature-media-img')}</div>` : ''}
+  // Espaces et Le Projet sont des destinations produit stables --
+  // aucun signal contractuel réel n'existe aujourd'hui pour les
+  // désactiver (audité en lecture seule : NAV_ORDER, le seul mécanisme
+  // réel de gating de navigation du Compiler, ne contient même pas
+  // 'timeline' -- modules.timeline n'a donc aucune valeur de proxy
+  // pour "Le Projet est disponible"). Ne pas déduire une disponibilité
+  // de page à partir d'un sous-contenu ou d'un champ sans sémantique
+  // explicite. Questions garde son seul signal réel existant
+  // (showAskPrompt) -- pas de second flag redondant sans réalité
+  // produit distincte.
+  const jumpLinks = [
+    { href: '#spaces', label: 'Voir les espaces' },
+    { href: '#timeline', label: 'Comprendre le projet' },
+    showAskPrompt ? { href: '#questions', label: 'Poser une question' } : null
+  ].filter(Boolean);
+
+  const hero = `
+    <section class="tct-home-hero${featuredAsset ? '' : ' no-visual'} tct-reveal" data-tct-reveal>
+      <div class="tct-home-hero-copy">
+        ${projectName ? `<div class="tct-home-project-id">${esc(projectName)}</div>` : ''}
+        <h1 id="tct-home-title">${renderLandingStatement(headlineText)}</h1>
+        ${supportingText ? `<p>${esc(supportingText)}</p>` : ''}
+        ${jumpLinks.length ? `
+        <div class="tct-home-jump">
+          ${jumpLinks.map(l => `<a href="${l.href}" data-tct-route>${esc(l.label)}</a>`).join('')}
+        </div>` : ''}
       </div>
+      ${heroVisual}
+    </section>`;
+
+  // "Ce qui change vraiment pour vous" -- réutilise la première section
+  // de type "choices" (Principes) déjà rédigée dans Le Projet, jamais
+  // un nouveau champ Studio. Absente si aucune section de ce type
+  // n'existe -- pas de contenu inventé pour combler.
+  const changeSection = projectSections.find(s => s && s.type === 'choices' && Array.isArray(s.items) && s.items.length);
+  const changeItems = changeSection ? changeSection.items.slice(0, 3) : [];
+  const changeStory = changeItems.length ? `
+    <section class="tct-home-change tct-reveal" data-tct-reveal aria-labelledby="tct-change-title">
+      <h2 id="tct-change-title">Ce qui change vraiment pour vous.</h2>
+      <ul class="tct-home-change-list">
+        ${changeItems.map((item, i) => `
+        <li><span>${String(i + 1).padStart(2, '0')}</span><b>${esc(item.title || item.body || '')}</b></li>`).join('')}
+      </ul>
+      <a class="tct-text-link" href="#timeline" data-tct-route>Comprendre le projet <span aria-hidden="true">→</span></a>
     </section>` : '';
 
-  // Clôture partagée -- "dernière actualité" et "questions" étaient
-  // deux sections pleine largeur séparées, chacune avec sa propre
-  // respiration verticale généreuse : exactement le pattern "bloc →
-  // blanc → bloc → blanc" à corriger. Fusionnées en une seule section
-  // à deux colonnes -- aucune donnée perdue, juste un seul geste de
-  // clôture au lieu de deux consécutifs.
-  const closing = (latest || showAskPrompt) ? `
-    <section class="tct-home-closing tct-reveal" data-tct-reveal>
-      ${latest ? `
-        <a class="tct-home-latest" href="#news" data-tct-route aria-labelledby="tct-latest-title">
-          <div class="tct-home-latest-label">Dernière actualité${latest.date ? ` · ${esc(latest.date)}` : ''}</div>
-          <div class="tct-home-latest-copy">
-            ${latest.tag ? `<span>${esc(latest.tag)}</span>` : ''}
-            <h2 id="tct-latest-title">${esc(latest.title)}</h2>
-          </div>
-          <span class="tct-round-link" aria-hidden="true">→</span>
-        </a>` : ''}
-      ${showAskPrompt ? `
-        <div class="tct-home-questions" aria-labelledby="tct-home-questions-title">
-          <div class="tct-home-questions-overline">Questions</div>
-          <h2 id="tct-home-questions-title">${esc(home.askPrompt || 'Une question sur le projet ?')}</h2>
-          <a class="tct-home-question-action" href="#questions" data-tct-route>
-            <span>Poser une question</span><span class="tct-question-arrow" aria-hidden="true">→</span>
-          </a>
-        </div>` : ''}
-    </section>` : '';
+  // Points d'entrée éditoriaux -- navigation fixe vers des destinations
+  // produit stables (Espaces/Le Projet/Questions), jamais une donnée
+  // Manifest. Espaces et Le Projet inconditionnels (aucun signal
+  // contractuel réel pour les désactiver aujourd'hui) ; Questions
+  // suit son seul signal existant, showAskPrompt.
+  const exploreItems = [
+    { n: '01', title: 'Me projeter', body: 'Espaces, plans, capacités, usages : voir comment le projet fonctionnera concrètement.', href: '#spaces' },
+    { n: '02', title: 'Comprendre', body: 'Le pourquoi du projet, ses choix et les grandes étapes.', href: '#timeline' },
+    showAskPrompt ? { n: '03', title: 'Être rassuré', body: 'Questions pratiques et points de contact humains si besoin.', href: '#questions' } : null
+  ].filter(Boolean);
+  const explore = `
+    <section class="tct-home-explore tct-reveal" data-tct-reveal aria-labelledby="tct-explore-title">
+      <h2 id="tct-explore-title">Entrez par ce qui vous concerne.</h2>
+      <div class="tct-home-explore-track">
+        ${exploreItems.map(item => `
+        <a class="tct-home-explore-item" href="${item.href}" data-tct-route>
+          <div class="tct-home-explore-number">${item.n}</div>
+          <div><h3>${esc(item.title)}</h3><p>${esc(item.body)}</p></div>
+          <span class="tct-home-explore-arrow" aria-hidden="true">→</span>
+        </a>`).join('')}
+      </div>
+    </section>`;
+
+  // Matière récente -- si le média héros a déjà montré l'article à la
+  // une, la liste ne le répète pas ; sans média héros, l'article reste
+  // inclus ici pour ne perdre aucune donnée.
+  const newsItemsList = (news && Array.isArray(news.items)) ? news.items : [];
+  const featuredNewsId = featuredSource && featuredSource.id;
+  const otherNews = newsItemsList.filter(n => n && n.id !== featuredNewsId).slice(0, featuredAsset ? 4 : 3);
+  // Sans média héros, l'article "à la une" garde sa présence textuelle
+  // propre (home.featured.title, pouvant différer du titre natif de
+  // l'article source) en tête de liste -- jamais perdu faute d'image.
+  const recentNews = (!featuredAsset && home.featured)
+    ? [{ id: featuredNewsId || 'featured', date: (featuredSource && featuredSource.date) || '', title: home.featured.title }, ...otherNews]
+    : otherNews;
+  const newsList = recentNews.length ? `
+    <section class="tct-home-news tct-reveal" data-tct-reveal aria-labelledby="tct-home-news-title">
+      <h2 id="tct-home-news-title">Dernières nouvelles</h2>
+      <div class="tct-home-news-list">
+        ${recentNews.map(item => `
+        <a class="tct-home-news-row" href="#news-${esc(item.id)}" data-tct-route>
+          ${item.date ? `<time>${esc(item.date)}</time>` : ''}
+          <span>${esc(item.title)}</span>
+        </a>`).join('')}
+      </div>
+    </section>` : (latest ? `
+    <section class="tct-home-news tct-reveal" data-tct-reveal aria-labelledby="tct-home-news-title">
+      <h2 id="tct-home-news-title">Dernière actualité</h2>
+      <a class="tct-home-news-row" href="#news" data-tct-route>
+        ${latest.date ? `<time>${esc(latest.date)}</time>` : ''}
+        <span>${esc(latest.title)}</span>
+      </a>
+    </section>` : '');
 
   return `
     <section id="home" class="tct-section tct-home is-active" aria-labelledby="tct-home-title">
-      <div class="tct-home-opening">
-        ${hasCurrentMilestone ? `
-        <p class="tct-home-landing-title tct-reveal" data-tct-reveal>${renderLandingStatement(landingStatement)}</p>
-        <div class="tct-home-stage-meta tct-reveal" data-tct-reveal>
-          <span class="tct-live-dot" aria-hidden="true"></span>
-          <span>En ce moment</span>
-          ${phaseMeta ? `<span class="tct-home-phase">${esc(phaseMeta)}</span>` : ''}
-        </div>
-        <h1 id="tct-home-title" class="tct-home-title tct-reveal" data-tct-reveal>${esc(headline)}</h1>` : `
-        <h1 id="tct-home-title" class="tct-home-landing-title tct-reveal" data-tct-reveal>${renderLandingStatement(landingStatement)}</h1>`}
-        ${nowNextGrid}
-      </div>
-      ${featured}
-      ${closing}
+      ${hero}
+      ${momentum}
+      ${changeStory}
+      ${explore}
+      ${newsList}
     </section>`;
 }
 function projectInitials(name) {
@@ -609,14 +672,13 @@ function renderProjectTeam(team) {
   return `
     <section class="tct-project-section tct-project-team tct-reveal" data-tct-reveal>
       <div class="tct-project-team-heading">
-        <span>Équipe projet</span>
         <h2>Ce projet est porté par une équipe.</h2>
       </div>
       <ul class="tct-project-team-grid" data-tct-rail data-tct-rail-family="team" aria-label="Équipe du projet">${people}</ul>
     </section>`;
 }
 
-function renderProjectSection(section, context = {}) {
+function renderProjectSection(section, context = {}, chapterNumber = null) {
   if (!section || !section.type) return '';
   const type = String(section.type);
 
@@ -626,9 +688,12 @@ function renderProjectSection(section, context = {}) {
   if (type === 'text') {
     return `
       <section class="tct-project-section tct-project-text tct-reveal" data-tct-reveal>
-        <div class="tct-project-reading">
-          ${section.title ? `<h2>${esc(section.title)}</h2>` : ''}
-          ${section.body ? `<p>${inlineRichText(section.body)}</p>` : ''}
+        <div class="tct-project-chapter">
+          ${chapterNumber ? `<div class="tct-project-chapter-num">${String(chapterNumber).padStart(2, '0')}</div>` : ''}
+          <div class="tct-project-reading">
+            ${section.title ? `<h2>${esc(section.title)}</h2>` : ''}
+            ${section.body ? `<p>${inlineRichText(section.body)}</p>` : ''}
+          </div>
         </div>
       </section>`;
   }
@@ -636,9 +701,9 @@ function renderProjectSection(section, context = {}) {
   if (type === 'focus') {
     return `
       <section class="tct-project-section tct-project-focus tct-reveal" data-tct-reveal>
-        <div class="tct-project-focus-inner">
-          <span>Focus</span>
-          <div>
+        <div class="tct-project-chapter">
+          ${chapterNumber ? `<div class="tct-project-chapter-num">${String(chapterNumber).padStart(2, '0')}</div>` : ''}
+          <div class="tct-project-focus-inner">
             ${section.title ? `<h2>${esc(section.title)}</h2>` : ''}
             ${section.body ? `<p>${inlineRichText(section.body)}</p>` : ''}
           </div>
@@ -722,16 +787,27 @@ function renderProject(project, context = {}) {
   const intro = source.intro && typeof source.intro === 'object' ? source.intro : {};
   const sections = Array.isArray(source.sections) ? source.sections : [];
 
+  // V2.1 -- récit continu : les sections narratives (text/focus)
+  // reçoivent un numéro de chapitre courant (01, 02...), matchant le
+  // handoff. Les autres types (chiffres, principes, citation, média,
+  // timeline, équipe) s'intègrent sans leur propre "chapitre" --
+  // continuation visuelle du récit, jamais un module à part entière.
+  let chapterIndex = 0;
+  const flow = sections.map(section => {
+    const isChapter = section && (section.type === 'text' || section.type === 'focus');
+    if (isChapter) chapterIndex += 1;
+    return renderProjectSection(section, context, isChapter ? chapterIndex : null);
+  }).join('');
+
   return `
     <section id="timeline" class="tct-section tct-project-page">
       <header class="tct-project-opening tct-reveal" data-tct-reveal>
-        <div class="tct-project-opening-eyebrow">Le projet</div>
+        ${(intro.body || intro.description) ? `<p>${inlineRichText(intro.body || intro.description || '')}</p>` : ''}
         <h1>${esc(intro.title || '')}</h1>
-        <p>${inlineRichText(intro.body || intro.description || '')}</p>
       </header>
 
       <div class="tct-project-flow">
-        ${sections.map(section => renderProjectSection(section, context)).join('')}
+        ${flow}
       </div>
     </section>`;
 }
@@ -846,6 +922,10 @@ function renderSpaceIndexItem(item, originalIndex, sequenceIndex) {
         <span>${esc(item.location || item.type || (inspectable ? 'Plan' : 'Espace'))}</span>
         <h2><a href="#space-${encodeURIComponent(key)}" data-tct-route>${esc(item.title || 'Un espace du projet')}</a></h2>
         ${item.comment ? `<p>${inlineRichText(item.comment)}</p>` : ''}
+        ${tags.length ? `
+        <div class="tct-space-story-chips">
+          ${tags.slice(0, 3).map(tag => `<span class="tct-space-chip">${esc(tag)}</span>`).join('')}
+        </div>` : ''}
         <a class="tct-text-link" href="#space-${encodeURIComponent(key)}" data-tct-route>Découvrir cet espace <span aria-hidden="true">→</span></a>
       </div>
     </article>`;
@@ -1018,7 +1098,6 @@ function renderSpaces(spaces) {
     <section id="spaces" class="tct-section tct-spaces-page">
       <div class="tct-spaces-index" data-tct-spaces-index>
         <header class="tct-spaces-opening tct-reveal" data-tct-reveal>
-          <div class="tct-spaces-opening-eyebrow">Espaces</div>
           <h1>${esc(openingTitle)}</h1>
           <p>${inlineRichText(openingDescription)}</p>
         </header>
@@ -1055,7 +1134,6 @@ function renderNewsArticle(item, allItems, index) {
           ${meta.extra ? `<em>${esc(meta.extra)}</em>` : ''}
         </div>
         <h1>${esc(item.title)}</h1>
-        ${item.summary ? `<p>${inlineRichText(item.summary)}</p>` : ''}
       </header>
 
       ${asset && asset.url ? `
@@ -1065,9 +1143,10 @@ function renderNewsArticle(item, allItems, index) {
         </figure>` : ''}
 
       <div class="tct-news-article-body tct-reveal" data-tct-reveal>
-        <aside class="tct-news-article-date" aria-hidden="true">
-          <span>${esc(meta.date)}</span>
-        </aside>
+        ${item.summary ? `
+        <aside class="tct-news-article-margin">
+          <p>${inlineRichText(item.summary)}</p>
+        </aside>` : ''}
         <div class="tct-news-article-reading">
           ${renderNewsBlocks(item.blocks, item.body)}
         </div>
@@ -1102,17 +1181,15 @@ function renderNews(news) {
     const asset = newsAsset(lead);
     return `
       <article class="tct-news-lead tct-reveal" data-tct-reveal>
-        <div class="tct-news-lead-date">
+        <div class="tct-news-lead-meta">
           <span>Dernière actualité</span>
           <time>${esc(meta.date)}</time>
           ${meta.extra ? `<em>${esc(meta.extra)}</em>` : ''}
+          ${lead.tag ? `<span class="tct-news-tag">${esc(lead.tag)}</span>` : ''}
         </div>
-        <div class="tct-news-lead-copy">
-          ${lead.tag ? `<div class="tct-news-tag">${esc(lead.tag)}</div>` : ''}
-          <h2>${esc(lead.title)}</h2>
-          ${lead.summary ? `<p>${inlineRichText(lead.summary)}</p>` : ''}
-          <a class="tct-text-link" href="#news-${encodeURIComponent(String(lead.id))}" data-tct-route>Lire l’actualité <span aria-hidden="true">→</span></a>
-        </div>
+        <h2>${esc(lead.title)}</h2>
+        ${lead.summary ? `<p>${inlineRichText(lead.summary)}</p>` : ''}
+        <a class="tct-text-link" href="#news-${encodeURIComponent(String(lead.id))}" data-tct-route>Lire l’actualité <span aria-hidden="true">→</span></a>
         ${asset && asset.url ? `
           <div class="tct-news-lead-media" data-tct-drift>
             ${renderAsset(asset, 'tct-news-lead-img')}
@@ -1125,16 +1202,12 @@ function renderNews(news) {
     const compact = index >= 2;
     return `
       <article class="tct-news-row ${compact ? 'is-compact' : ''} tct-reveal" data-tct-reveal>
-        <div class="tct-news-row-date">
+        <div class="tct-news-row-meta">
           <time>${esc(meta.date)}</time>
-          ${meta.extra ? `<em>${esc(meta.extra)}</em>` : ''}
-        </div>
-        <div class="tct-news-row-copy">
           ${item.tag ? `<span>${esc(item.tag)}</span>` : ''}
-          <h3><a href="#news-${encodeURIComponent(String(item.id))}" data-tct-route>${esc(item.title)}</a></h3>
-          ${!compact && item.summary ? `<p>${inlineRichText(item.summary)}</p>` : ''}
-          ${!compact ? `<a class="tct-news-row-action" href="#news-${encodeURIComponent(String(item.id))}" data-tct-route>Lire <span aria-hidden="true">→</span></a>` : ''}
         </div>
+        <h3><a href="#news-${encodeURIComponent(String(item.id))}" data-tct-route>${esc(item.title)}</a></h3>
+        ${!compact && item.summary ? `<p>${inlineRichText(item.summary)}</p>` : ''}
       </article>`;
   }).join('');
 
@@ -1144,18 +1217,19 @@ function renderNews(news) {
     <section id="news" class="tct-section tct-news-page">
       <div class="tct-news-index" data-tct-news-index>
         <header class="tct-news-opening tct-reveal" data-tct-reveal>
-          <div class="tct-news-opening-eyebrow">Actualités</div>
           <h1>${esc(openingTitle)}</h1>
           <p>${esc(intro.description || 'Les dernières nouvelles, décisions et temps forts du projet.')}</p>
         </header>
 
-        ${items.length ? leadHtml : '<p class="tct-empty">Aucune actualité publiée pour le moment.</p>'}
-
-        ${previous.length ? `
-          <section class="tct-news-archive" aria-labelledby="tct-news-archive-title">
+        ${items.length ? `
+        <div class="tct-news-grid${previous.length ? '' : ' is-lead-only'}">
+          ${leadHtml}
+          ${previous.length ? `
+          <aside class="tct-news-archive" aria-labelledby="tct-news-archive-title">
             <div class="tct-news-archive-head" id="tct-news-archive-title">Le fil précédent</div>
             <div class="tct-news-archive-list">${archive}</div>
-          </section>` : ''}
+          </aside>` : ''}
+        </div>` : '<p class="tct-empty">Aucune actualité publiée pour le moment.</p>'}
       </div>
 
       <div class="tct-news-article-shell" data-tct-news-article-view hidden>
@@ -1312,34 +1386,34 @@ function renderQuestions(questions, allowDemoFallback) {
 
   return `
     <section id="questions" class="tct-section tct-questions-page">
-      <header class="tct-questions-opening tct-reveal" data-tct-reveal>
-        <div class="tct-questions-opening-eyebrow">Questions</div>
-        <h1>${esc(openingTitle)}</h1>
-        <p>${esc(openingDescription)}</p>
-      </header>
-
-      <section class="tct-question-workbench tct-reveal" data-tct-reveal aria-labelledby="tct-question-label">
-        <label id="tct-question-label" for="tct-question-input">Votre question</label>
-        <div class="tct-question-input-line">
-          <input
-            type="text"
-            id="tct-question-input"
-            autocomplete="off"
-            spellcheck="true"
-            placeholder="Écrivez votre question…"
-            aria-describedby="tct-question-examples">
-          <button type="button" id="tct-ask-btn" aria-label="Rechercher une réponse">
-            <span aria-hidden="true">→</span>
-          </button>
+      <header class="tct-questions-top tct-reveal" data-tct-reveal>
+        <div class="tct-questions-top-copy">
+          <h1>${esc(openingTitle)}</h1>
+          <p>${esc(openingDescription)}</p>
         </div>
-        <p id="tct-question-examples" class="tct-question-examples">
-          Essayez par exemple : <button type="button" data-tct-question-example="Quand aura lieu le déménagement ?">Quand déménageons-nous ?</button>
-          <span>·</span>
-          <button type="button" data-tct-question-example="Y aura-t-il des espaces pour travailler au calme ?">Où pourrai-je travailler au calme ?</button>
-          <span>·</span>
-          <button type="button" data-tct-question-example="Est-ce que chacun aura un casier ?">Est-ce qu’il y aura des casiers ?</button>
-        </p>
-      </section>
+        <div class="tct-question-workbench" aria-labelledby="tct-question-label">
+          <label id="tct-question-label" for="tct-question-input">Votre question</label>
+          <div class="tct-question-input-line">
+            <input
+              type="text"
+              id="tct-question-input"
+              autocomplete="off"
+              spellcheck="true"
+              placeholder="Écrivez votre question…"
+              aria-describedby="tct-question-examples">
+            <button type="button" id="tct-ask-btn" aria-label="Rechercher une réponse">
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+          <p id="tct-question-examples" class="tct-question-examples">
+            Essayez par exemple : <button type="button" data-tct-question-example="Quand aura lieu le déménagement ?">Quand déménageons-nous ?</button>
+            <span>·</span>
+            <button type="button" data-tct-question-example="Y aura-t-il des espaces pour travailler au calme ?">Où pourrai-je travailler au calme ?</button>
+            <span>·</span>
+            <button type="button" data-tct-question-example="Est-ce que chacun aura un casier ?">Est-ce qu’il y aura des casiers ?</button>
+          </p>
+        </div>
+      </header>
 
       <div id="tct-question-result" class="tct-question-result" aria-live="polite" hidden></div>
 
@@ -1492,7 +1566,6 @@ function renderAmbassadors(ambassadors) {
   return `
     <section id="ambassadors" class="tct-section tct-ambassadors-page">
       <header class="tct-ambassadors-opening tct-reveal" data-tct-reveal>
-        <div class="tct-ambassadors-opening-eyebrow">Ambassadeurs</div>
         <h1>Des relais au plus près du terrain.</h1>
         <p>${esc(openingDescription)}</p>
       </header>
@@ -1833,365 +1906,226 @@ const STYLE = `
   }
   .tct-round-link:hover { transform:translateX(4px); background:var(--tct-ink); color:#fff; border-color:var(--tct-ink); }
 
-  /* HOME — recomposition HXI : l'ouverture (déclaration + "en ce
-     moment" + titre) ne réserve plus la quasi-totalité de l'écran à
-     elle seule (l'ancien .tct-home-landing avait
-     min-height:calc(100svh - 74px) autour d'un texte volontairement
-     petit depuis la passe typographique -- la cause principale du
-     "trop blanc" sur cette page). Une seule zone d'ouverture
-     continue ; le moment du projet (présent/suivant) rejoint cette
-     même zone au lieu d'un bloc pleine largeur séparé ; "dernière
-     actualité" et "questions" sont fusionnées en une seule clôture à
-     deux colonnes au lieu de deux sections pleine largeur
-     consécutives. */
+  /* HOME V2.1 -- recomposition depuis le handoff visuel (vérité
+     composition), reconnectée aux vraies données Manifest (vérité
+     fonctionnelle). Grammaire propre à Home : une arrivée forte
+     (hero deux colonnes), un signal de situation (momentum), ce qui
+     change concrètement (réutilise Le Projet), des points d'entrée
+     éditoriaux, puis la matière récente. Jamais de card générique
+     répétée, jamais de micro-label décoratif sans donnée réelle. */
   .tct-home { padding-top:0; padding-bottom:0; }
-  .tct-home-opening {
-    display:flex;
-    flex-direction:column;
-    padding:clamp(56px,7vw,100px) 0 clamp(44px,5.5vw,72px);
-  }
-  .tct-home-landing-title {
-    margin:0 0 26px;
-    max-width:36ch;
-    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(1.5rem,2.3vw,2.05rem);
-    line-height:1.2;
-    font-weight:400;
-    letter-spacing:-.03em;
-    text-wrap:balance;
-  }
-  .tct-home-landing-accent { color:var(--tct-expression-accent,var(--tct-ink)); }
-  .tct-home-stage-meta {
-    display:flex;
+
+  /* Ouverture -- deux colonnes (texte | média héros), s'effondre en
+     une seule colonne sans média réel (jamais un espace réservé vide
+     à la place d'une image absente). */
+  .tct-home-hero {
+    display:grid;
+    grid-template-columns:minmax(0,.9fr) minmax(360px,1.1fr);
+    gap:clamp(32px,4vw,64px);
     align-items:center;
-    gap:9px;
-    min-height:22px;
+    min-height:min(560px,64vh);
+    padding:clamp(56px,6.5vw,92px) 0;
+    border-bottom:1px solid var(--tct-hairline-soft);
+  }
+  .tct-home-hero.no-visual { grid-template-columns:1fr; min-height:auto; }
+  .tct-home-hero-copy { display:flex; flex-direction:column; }
+  .tct-home-project-id {
     margin-bottom:18px;
     color:var(--tct-muted);
-    font-size:.68rem;
+    font-size:.72rem;
     font-weight:500;
-    letter-spacing:.01em;
+    letter-spacing:.02em;
   }
-  .tct-live-dot {
-    position:relative;
-    width:8px;
-    height:8px;
-    flex:0 0 auto;
-    border-radius:50%;
-    background:var(--tct-ink);
-    box-shadow:
-      0 0 0 8px color-mix(in srgb, var(--tct-expression-accent) 14%, transparent),
-      0 0 26px color-mix(in srgb, var(--tct-expression-accent) 26%, transparent);
-  }
-  .tct-live-dot::before,
-  .tct-live-dot::after {
-    content:'';
-    position:absolute;
-    border-radius:50%;
-    pointer-events:none;
-  }
-  .tct-live-dot::before {
-    inset:-12px;
-    background:color-mix(in srgb, var(--tct-expression-accent) 25%, transparent);
-    opacity:.38;
-    transform:scale(.76);
-    animation:tct-now-breathe 3.4s cubic-bezier(.16,1,.3,1) infinite;
-  }
-  .tct-live-dot::after {
-    inset:-20px;
-    background:radial-gradient(circle, color-mix(in srgb, var(--tct-expression-accent-secondary,var(--tct-expression-accent)) 18%, transparent) 0%, transparent 74%);
-    opacity:.24;
-    transform:scale(.82);
-    animation:tct-now-breathe-wide 5.2s cubic-bezier(.16,1,.3,1) infinite;
-    animation-delay:.9s;
-  }
-  @keyframes tct-now-breathe {
-    0%,100% { opacity:.34; transform:scale(.76); }
-    46% { opacity:.14; transform:scale(1.42); }
-    68% { opacity:.2; transform:scale(1.1); }
-  }
-  @keyframes tct-now-breathe-wide {
-    0%,100% { opacity:.22; transform:scale(.82); }
-    55% { opacity:.08; transform:scale(1.64); }
-  }
-  .tct-home-phase {
-    margin-left:auto;
-    color:var(--tct-faint);
-    font-size:.65rem;
-    text-transform:uppercase;
-    letter-spacing:.12em;
-  }
-  .tct-home-title {
-    margin:0;
+  .tct-home-hero-copy h1 {
+    margin:0 0 22px;
     max-width:14ch;
     font-family:var(--tct-font-primary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:var(--tct-type-hero);
-    line-height:.96;
+    line-height:.94;
     font-weight:400;
     letter-spacing:-.062em;
     text-wrap:balance;
   }
+  .tct-home-landing-accent { color:var(--tct-expression-accent,var(--tct-ink)); }
+  .tct-home-hero-copy p {
+    margin:0 0 30px;
+    max-width:42ch;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size:clamp(1.05rem,1.3vw,1.25rem);
+    line-height:1.5;
+    color:var(--tct-muted);
+  }
+  .tct-home-jump { display:flex; gap:22px; flex-wrap:wrap; margin-top:auto; padding-top:6px; }
+  .tct-home-jump a {
+    font-size:.82rem;
+    font-weight:600;
+    color:var(--tct-ink);
+    text-decoration:none;
+    border-bottom:1px solid color-mix(in srgb, var(--tct-ink) 30%, transparent);
+    padding-bottom:3px;
+    transition:border-color .2s ease;
+  }
+  .tct-home-jump a:hover, .tct-home-jump a:focus-visible { border-color:var(--tct-ink); }
 
-  /* Moment du projet -- présent et suivant dans la même respiration
-     visuelle plutôt que deux blocs séparés par du vide. Un hairline
-     signale la transition sans nécessiter un grand espace blanc. */
+  .tct-home-hero-visual { position:relative; height:100%; min-height:340px; border-radius:20px; overflow:hidden; }
+  .tct-home-hero-img { width:100%; height:100%; object-fit:cover; display:block; }
+  .tct-home-hero-stamp {
+    position:absolute;
+    left:20px;
+    bottom:20px;
+    max-width:300px;
+    padding:14px 16px;
+    border-radius:14px;
+    background:color-mix(in srgb, var(--tct-canvas) 97%, transparent);
+    font-size:.78rem;
+    line-height:1.45;
+    color:var(--tct-muted);
+  }
+  .tct-home-hero-stamp b { display:block; margin-bottom:4px; font-size:.86rem; color:var(--tct-ink); }
+
+  /* Moment du projet -- statut + jalon réel (En ce moment) OU
+     prochaine étape (À suivre), jamais les deux en même temps, jamais
+     de faux présent fabriqué. Repère de progression réel à droite
+     (compte de jalons "done", jamais un numéro d'étape supposé). */
   .tct-home-momentum {
     display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);
-    gap:clamp(28px,4vw,56px);
-    margin-top:clamp(36px,5vw,56px);
-    padding-top:clamp(28px,4vw,38px);
-    border-top:1px solid var(--tct-hairline-soft);
+    grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);
+    border-bottom:1px solid var(--tct-hairline-soft);
   }
-  .tct-home-momentum.is-next-only { grid-template-columns:1fr; }
-  .tct-home-present > span,
-  .tct-home-nextline-label {
-    display:block;
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.13em;
-    font-size:.59rem;
-    font-weight:600;
+  .tct-home-moment-main {
+    padding:clamp(30px,4vw,42px) clamp(24px,3vw,40px) clamp(30px,4vw,42px) 0;
+    border-right:1px solid var(--tct-hairline-soft);
   }
-  .tct-home-present p {
-    margin:14px 0 0;
-    color:var(--tct-muted);
-    font-size:clamp(.92rem,1vw,1rem);
-    line-height:1.65;
-    max-width:28ch;
+  .tct-home-moment-status {
+    margin-bottom:10px;
+    color:var(--tct-expression-accent,var(--tct-ink));
+    font-size:.72rem;
+    font-weight:700;
+    letter-spacing:.01em;
   }
-  .tct-home-nextline-label { margin-bottom:12px; }
-  .tct-home-nextline h2 {
-    margin:0;
-    font-size:clamp(1.18rem,1.55vw,1.55rem);
+  .tct-home-moment-main h2 {
+    margin:0 0 8px;
+    font-size:clamp(1.5rem,2.3vw,2.1rem);
+    line-height:1.05;
     font-weight:500;
-    line-height:1.22;
     letter-spacing:-.03em;
   }
-  .tct-home-nextline p {
-    max-width:44rem;
-    margin:12px 0 0;
-    color:var(--tct-muted);
-    font-size:.84rem;
-    line-height:1.6;
-  }
-  .tct-home-nextline-link { margin-top:18px; display:inline-block; }
+  .tct-home-moment-main p { margin:0; max-width:56ch; color:var(--tct-muted); line-height:1.55; font-size:.92rem; }
+  .tct-home-moment-stat { padding:clamp(30px,4vw,42px) 0 clamp(30px,4vw,42px) clamp(24px,3vw,40px); display:flex; flex-direction:column; justify-content:center; }
+  .tct-home-moment-stat strong { font-size:clamp(1.6rem,2.4vw,2.2rem); letter-spacing:-.03em; }
+  .tct-home-moment-stat span { display:block; margin-top:6px; font-size:.72rem; color:var(--tct-faint); }
 
-  /* Featured content becomes a full-width editorial event instead of a card. */
-  .tct-home-feature {
-    position:relative;
-    width:100vw;
-    margin-left:calc(50% - 50vw);
-    background:var(--tct-soft);
-    overflow:hidden;
-  }
-
-  .tct-home-feature-inner {
-    width:min(1420px, calc(100% - 64px));
-    min-height:min(690px,76vh);
-    margin:0 auto;
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-items:center;
-    padding:clamp(64px,7vw,108px) 0;
-  }
-  .tct-home-feature-meta {
-    grid-column:1 / span 2;
-    align-self:start;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    padding-top:8px;
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.13em;
-    font-size:.58rem;
-    font-weight:600;
-  }
-  .tct-home-feature-meta span:first-child { color:var(--tct-ink); }
-  .tct-home-feature-title-wrap { grid-column:3 / span 7; }
-  .tct-home-feature h2 {
-    margin:0;
-    max-width:15ch;
+  /* Ce qui change vraiment pour vous -- réutilise une section
+     "Principes" existante de Le Projet, jamais une nouvelle donnée. */
+  .tct-home-change { padding:clamp(48px,6vw,80px) 0; border-bottom:1px solid var(--tct-hairline-soft); }
+  .tct-home-change h2 {
+    margin:0 0 30px;
+    max-width:16ch;
     font-family:var(--tct-font-primary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:var(--tct-type-title);
-    line-height:.98;
+    line-height:1.02;
     font-weight:400;
-    letter-spacing:-.055em;
+    letter-spacing:-.045em;
     text-wrap:balance;
   }
-  .tct-home-feature-aside {
-    grid-column:10 / span 3;
-    align-self:end;
-    padding-bottom:8px;
-  }
-  .tct-home-feature-aside p {
-    margin:0;
-    color:var(--tct-muted);
-    font-size:.92rem;
-    line-height:1.65;
-  }
-
-  /* Média riche -- l'image réelle du premier article (déjà dérivée par
-     le Compiler comme asset de couverture) prend une vraie colonne,
-     pleine hauteur, jamais une petite vignette à côté du texte. Le
-     texte se resserre en conséquence -- aucune donnée cachée, juste
-     une composition plus généreuse pour l'image. Repli intact si
-     l'article n'a pas d'image (grille par défaut ci-dessus). */
-  .tct-home-feature.has-media .tct-home-feature-inner {
+  .tct-home-change-list { list-style:none; margin:0 0 24px; padding:0; border-top:1px solid var(--tct-hairline-soft); }
+  .tct-home-change-list li {
     display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
-    grid-template-areas:"meta media" "title media" "aside media";
-    grid-template-rows:auto 1fr auto;
-    column-gap:clamp(32px,4vw,64px);
-    align-items:start;
+    grid-template-columns:40px 1fr;
+    gap:16px;
+    padding:16px 0;
+    border-bottom:1px solid var(--tct-hairline-soft);
+    font-size:.94rem;
+    line-height:1.5;
   }
-  .tct-home-feature.has-media .tct-home-feature-meta { grid-area:meta; padding-top:0; }
-  .tct-home-feature.has-media .tct-home-feature-title-wrap { grid-area:title; }
-  .tct-home-feature.has-media .tct-home-feature-aside { grid-area:aside; align-self:start; padding-bottom:0; margin-top:8px; }
-  .tct-home-feature.has-media .tct-home-feature-media {
-    grid-area:media;
-    height:100%;
-    min-height:320px;
-    border-radius:22px;
-    overflow:hidden;
-  }
-  .tct-home-feature-media-img { width:100%; height:100%; object-fit:cover; display:block; }
+  .tct-home-change-list li span { color:var(--tct-expression-accent,var(--tct-ink)); font-weight:700; font-size:.82rem; }
 
-  /* Clôture -- dernière actualité + questions, une seule respiration
-     de fin au lieu de deux sections pleine largeur consécutives
-     (l'ancienne .tct-home-questions seule atteignait
-     min-height:min(650px,72vh)). */
-  .tct-home-closing {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    column-gap:clamp(32px,4vw,64px);
-    border-top:1px solid var(--tct-hairline-soft);
-    padding:clamp(48px,6vw,80px) 0;
+  /* Points d'entrée -- navigation éditoriale fixe vers des
+     destinations produit stables, jamais une donnée Manifest. */
+  .tct-home-explore { padding:clamp(48px,6vw,80px) 0; border-bottom:1px solid var(--tct-hairline-soft); }
+  .tct-home-explore h2 {
+    margin:0 0 30px;
+    max-width:18ch;
+    font-family:var(--tct-font-primary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size:var(--tct-type-title);
+    line-height:1.02;
+    font-weight:400;
+    letter-spacing:-.045em;
+    text-wrap:balance;
   }
-  .tct-home-latest {
+  .tct-home-explore-track { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--tct-hairline-soft); }
+  .tct-home-explore-item {
+    position:relative;
     display:flex;
     flex-direction:column;
-    gap:16px;
-    padding-right:clamp(24px,3vw,40px);
+    justify-content:space-between;
+    gap:26px;
+    min-height:200px;
+    padding:26px 26px 24px 0;
     border-right:1px solid var(--tct-hairline-soft);
     text-decoration:none;
     color:inherit;
   }
-  .tct-home-latest-label {
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.13em;
-    font-size:.59rem;
-    font-weight:600;
-  }
-  .tct-home-latest-copy span {
-    display:block;
-    margin-bottom:6px;
-    color:var(--tct-faint);
-    font-size:.62rem;
-    text-transform:uppercase;
-    letter-spacing:.1em;
-  }
-  .tct-home-latest-copy h2 {
-    margin:0;
-    max-width:26ch;
-    font-size:clamp(1.05rem,1.5vw,1.45rem);
-    font-weight:500;
-    line-height:1.25;
-    letter-spacing:-.026em;
-  }
-  .tct-home-latest .tct-round-link { margin-top:auto; align-self:flex-start; justify-self:auto; }
-  .tct-home-latest:hover .tct-round-link,
-  .tct-home-latest:focus-visible .tct-round-link { transform:translateX(4px); background:var(--tct-ink); color:#fff; border-color:var(--tct-ink); }
+  .tct-home-explore-item:last-child { border-right:0; padding-right:0; }
+  .tct-home-explore-number { color:var(--tct-faint); font-size:.72rem; font-weight:700; }
+  .tct-home-explore-item h3 { margin:0 0 8px; font-size:clamp(1.2rem,1.6vw,1.5rem); font-weight:500; letter-spacing:-.03em; }
+  .tct-home-explore-item p { margin:0; max-width:30ch; color:var(--tct-muted); font-size:.82rem; line-height:1.5; }
+  .tct-home-explore-arrow { align-self:flex-start; font-size:1.1rem; transition:transform .25s cubic-bezier(.2,.8,.2,1); }
+  .tct-home-explore-item:hover .tct-home-explore-arrow,
+  .tct-home-explore-item:focus-visible .tct-home-explore-arrow { transform:translateX(5px); }
 
-  .tct-home-questions {
-    display:flex;
-    flex-direction:column;
-    gap:16px;
-    padding-left:clamp(24px,3vw,40px);
-  }
-  .tct-home-questions-overline {
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
-    font-weight:600;
-  }
-  .tct-home-questions h2 {
-    margin:0;
-    max-width:17ch;
+  /* Matière récente -- liste compacte, jamais la page Actualités en
+     miniature. */
+  .tct-home-news { padding:clamp(40px,5vw,64px) 0; }
+  .tct-home-news h2 {
+    margin:0 0 20px;
     font-family:var(--tct-font-primary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(1.3rem,2vw,1.9rem);
-    line-height:1.1;
-    font-weight:400;
-    letter-spacing:-.032em;
-    text-wrap:balance;
-  }
-  .tct-home-question-action {
-    display:inline-flex;
-    align-items:center;
-    gap:16px;
-    margin-top:auto;
-    color:var(--tct-ink);
-    text-decoration:none;
-    font-size:.86rem;
+    font-size:clamp(1.1rem,1.4vw,1.35rem);
     font-weight:500;
+    letter-spacing:-.02em;
   }
-  .tct-question-arrow {
-    width:44px;
-    height:44px;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    border-radius:50%;
-    background:var(--tct-ink);
-    color:#fff;
-    font-size:1rem;
-    transition:transform .25s cubic-bezier(.2,.8,.2,1);
+  .tct-home-news-list { border-top:1px solid var(--tct-hairline-soft); }
+  .tct-home-news-row {
+    display:flex;
+    align-items:baseline;
+    gap:16px;
+    padding:15px 0;
+    border-bottom:1px solid var(--tct-hairline-soft);
+    text-decoration:none;
+    color:var(--tct-ink);
+    font-size:.9rem;
   }
-  .tct-home-question-action:hover .tct-question-arrow,
-  .tct-home-question-action:focus-visible .tct-question-arrow { transform:translateX(5px); }
+  .tct-home-news-row time { flex:0 0 auto; color:var(--tct-faint); font-size:.72rem; }
+  .tct-home-news-row:hover, .tct-home-news-row:focus-visible { color:var(--tct-expression-accent,var(--tct-ink)); }
 
   /* PROJECT v2.5.2 — Le projet is a continuous editorial narrative.
      POC-only fallback copy is used until Studio / Compiler publish semantic
      project sections. Layout choices never enter the Manifest. */
-  .tct-project-page { padding-top:clamp(86px,9vw,150px); padding-bottom:clamp(110px,12vw,180px); }
+  .tct-project-page { padding-top:clamp(56px,6vw,88px); padding-bottom:clamp(64px,7vw,104px); }
   .tct-project-opening {
     display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-items:start;
-    padding:clamp(56px,6vw,84px) 0 clamp(48px,5vw,72px);
+    grid-template-columns:minmax(0,.62fr) minmax(0,1.38fr);
+    column-gap:clamp(32px,4vw,64px);
+    align-items:end;
+    padding:0 0 clamp(48px,5vw,72px);
+    border-bottom:1px solid var(--tct-hairline-soft);
   }
-  .tct-project-opening-eyebrow {
-    grid-column:1 / span 2;
-    padding-top:.65rem;
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
-    font-weight:600;
+  .tct-project-opening > p {
+    margin:0 0 .5rem;
+    color:var(--tct-muted);
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size:clamp(1rem,1.2vw,1.15rem);
+    line-height:1.6;
   }
   .tct-project-opening h1 {
-    grid-column:3 / span 7;
     margin:0;
-    max-width:10.8ch;
+    max-width:14ch;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:var(--tct-type-hero);
     line-height:.96;
     font-weight:400;
     letter-spacing:-.04em;
     text-wrap:balance;
-  }
-  .tct-project-opening > p {
-    grid-column:10 / span 3;
-    align-self:end;
-    margin:0 0 .45rem;
-    color:var(--tct-muted);
-    font-size:clamp(.92rem,1vw,1rem);
-    line-height:1.72;
   }
 
   .tct-project-flow { display:block; }
@@ -2200,29 +2134,16 @@ const STYLE = `
   .tct-project-focus {
     width:100vw;
     margin-left:calc(50% - 50vw);
-    padding:clamp(64px,7vw,104px) 0;
+    padding:clamp(48px,6vw,80px) 0;
     background:var(--tct-soft-2);
   }
-  .tct-project-focus-inner {
+  .tct-project-focus .tct-project-chapter {
     width:min(1420px,calc(100% - 64px));
     margin:0 auto;
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
   }
-  .tct-project-focus-inner > span {
-    grid-column:1 / span 2;
-    padding-top:.6rem;
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
-    font-weight:600;
-  }
-  .tct-project-focus-inner > div { grid-column:4 / span 7; }
   .tct-project-focus h2 {
     margin:0;
-    max-width:12ch;
+    max-width:16ch;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:var(--tct-type-title);
     line-height:.99;
@@ -2232,7 +2153,7 @@ const STYLE = `
   }
   .tct-project-focus p {
     max-width:43rem;
-    margin:30px 0 0;
+    margin:24px 0 0;
     color:var(--tct-muted);
     font-size:clamp(.95rem,1vw,1.04rem);
     line-height:1.75;
@@ -2287,10 +2208,22 @@ const STYLE = `
     line-height:1.55;
   }
 
-  .tct-project-text { padding:clamp(56px,7vw,96px) 0 clamp(64px,7vw,104px); }
+  .tct-project-text { padding:clamp(48px,6vw,80px) 0; }
+  .tct-project-chapter {
+    display:grid;
+    grid-template-columns:minmax(64px,140px) 1fr;
+    column-gap:clamp(24px,3vw,48px);
+    align-items:start;
+  }
+  .tct-project-chapter-num {
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size:clamp(2rem,3vw,2.7rem);
+    line-height:.8;
+    letter-spacing:-.04em;
+    color:var(--tct-expression-accent,var(--tct-ink));
+  }
   .tct-project-reading {
-    width:min(700px,58vw);
-    margin-left:25%;
+    width:min(680px,100%);
   }
   .tct-project-reading h2 {
     margin:0;
@@ -2301,13 +2234,13 @@ const STYLE = `
     text-wrap:balance;
   }
   .tct-project-reading p {
-    margin:30px 0 0;
+    margin:24px 0 0;
     color:var(--tct-muted);
     font-size:clamp(.98rem,1.05vw,1.08rem);
     line-height:1.78;
   }
 
-  .tct-project-trajectory { padding:clamp(30px,4vw,58px) 0 clamp(126px,13vw,194px); }
+  .tct-project-trajectory { padding:clamp(48px,5vw,72px) 0 clamp(64px,7vw,104px); border-top:1px solid var(--tct-hairline-soft); margin-top:clamp(8px,1vw,16px); }
   .tct-project-trajectory-head {
     display:flex;
     align-items:baseline;
@@ -2522,16 +2455,9 @@ const STYLE = `
     padding:clamp(48px,6vw,84px) 0 clamp(40px,5vw,70px);
   }
   .tct-project-team-heading { grid-column:1 / span 4; }
-  .tct-project-team-heading > span {
-    color:var(--tct-faint);
-    font-size:.59rem;
-    font-weight:600;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-  }
   .tct-project-team-heading h2 {
     max-width:10ch;
-    margin:22px 0 0;
+    margin:0;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:var(--tct-type-title);
     line-height:1;
@@ -2572,15 +2498,19 @@ const STYLE = `
   .tct-project-person-copy { margin-top:18px; }
   .tct-project-person-copy strong {
     display:block;
-    font-size:.88rem;
-    font-weight:500;
+    font-size:.82rem;
+    font-weight:450;
+    color:var(--tct-muted);
   }
   .tct-project-person-copy span {
     display:block;
     margin-top:5px;
-    color:var(--tct-muted);
-    font-size:.72rem;
-    line-height:1.45;
+    color:var(--tct-ink);
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:1.05rem;
+    font-weight:500;
+    letter-spacing:-.01em;
+    line-height:1.25;
   }
 
   .tct-project-media { padding:clamp(56px,6vw,88px) 0; }
@@ -2641,17 +2571,8 @@ const STYLE = `
     align-items:start;
     padding-bottom:clamp(48px,5.5vw,76px);
   }
-  .tct-spaces-opening-eyebrow {
-    grid-column:1 / span 2;
-    padding-top:.62rem;
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
-    font-weight:600;
-  }
   .tct-spaces-opening h1 {
-    grid-column:3 / span 7;
+    grid-column:1 / span 8;
     margin:0;
     max-width:9.8ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -2705,6 +2626,20 @@ const STYLE = `
     color:var(--tct-muted);
     font-size:.88rem;
     line-height:1.68;
+  }
+  .tct-space-story-chips {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:20px;
+  }
+  .tct-space-chip {
+    padding:6px 12px;
+    border:1px solid var(--tct-hairline-soft);
+    border-radius:999px;
+    color:var(--tct-muted);
+    font-size:.72rem;
+    line-height:1;
   }
 
   .tct-spaces-lead-media-button,
@@ -2812,7 +2747,7 @@ const STYLE = `
     display:flex;
     gap:22px;
     flex-wrap:wrap;
-    margin:0 0 clamp(88px,10vw,144px);
+    margin:0 0 clamp(48px,6vw,80px);
   }
   .tct-space-filters button {
     padding:0 0 6px;
@@ -3188,18 +3123,17 @@ const STYLE = `
   }
 
   @media (max-width:720px) {
-    .tct-spaces-page { padding-top:72px; padding-bottom:108px; }
-    .tct-spaces-opening { display:block; padding-bottom:48px; }
-    .tct-spaces-opening-eyebrow { margin-bottom:36px; padding-top:0; }
+    .tct-spaces-page { padding-top:44px; padding-bottom:56px; }
+    .tct-spaces-opening { display:block; padding-bottom:40px; }
     .tct-spaces-opening h1 { max-width:9.4ch; font-size:clamp(3rem,14.6vw,4.95rem); }
-    .tct-spaces-opening > p { max-width:34rem; margin-top:34px; }
+    .tct-spaces-opening > p { max-width:34rem; margin-top:20px; }
 
     .tct-spaces-lead { display:block; padding-bottom:56px; }
     .tct-spaces-lead-media { min-height:360px; }
     .tct-spaces-lead-copy { margin-top:36px; padding:0; }
     .tct-spaces-lead-copy h2 { max-width:10ch; font-size:clamp(1.5rem,6vw,1.95rem); }
 
-    .tct-space-filters { gap:16px 22px; margin-bottom:86px; }
+    .tct-space-filters { gap:16px 22px; margin-bottom:48px; }
 
     .tct-spaces-sequence { gap:64px; }
     .tct-space-story,
@@ -3270,17 +3204,8 @@ const STYLE = `
     align-items:start;
     padding-bottom:clamp(40px,5vw,64px);
   }
-  .tct-news-opening-eyebrow {
-    grid-column:1 / span 2;
-    padding-top:.6rem;
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
-    font-weight:600;
-  }
   .tct-news-opening h1 {
-    grid-column:3 / span 7;
+    grid-column:1 / span 8;
     margin:0;
     max-width:9.6ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -3299,152 +3224,121 @@ const STYLE = `
     line-height:1.72;
   }
 
-  .tct-news-lead {
+  .tct-news-grid {
     display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-items:start;
-    padding:clamp(24px,3vw,42px) 0 clamp(56px,6vw,84px);
+    grid-template-columns:1.35fr 1fr;
+    column-gap:clamp(32px,4vw,56px);
+    border-top:1px solid var(--tct-hairline-soft);
   }
-  .tct-news-lead-date {
-    grid-column:1 / span 3;
+  .tct-news-grid.is-lead-only { grid-template-columns:1fr; }
+  .tct-news-grid.is-lead-only .tct-news-lead { border-right:0; padding-right:0; }
+
+  .tct-news-lead {
+    padding:clamp(32px,4vw,48px) clamp(32px,4vw,48px) clamp(40px,5vw,64px) 0;
+    border-right:1px solid var(--tct-hairline-soft);
     display:flex;
     flex-direction:column;
-    align-items:flex-start;
-    gap:16px;
   }
-  .tct-news-lead-date > span,
-  .tct-news-archive-head {
+  .tct-news-lead-meta {
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .tct-news-lead-meta > span:first-child {
     color:var(--tct-faint);
     text-transform:uppercase;
     letter-spacing:.14em;
     font-size:.59rem;
     font-weight:600;
   }
-  .tct-news-lead-date time {
-    max-width:8ch;
-    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(2.65rem,4.8vw,5.1rem);
-    line-height:.93;
-    letter-spacing:-.045em;
-  }
-  .tct-news-lead-date em,
-  .tct-news-row-date em,
-  .tct-news-article-meta em {
-    color:var(--tct-faint);
-    font-size:.64rem;
-    font-style:normal;
-  }
-  .tct-news-lead-copy { grid-column:5 / span 7; }
-  .tct-news-tag,
-  .tct-news-row-copy > span {
+  .tct-news-lead-meta time { color:var(--tct-muted); font-size:.76rem; font-weight:500; }
+  .tct-news-lead-meta em { color:var(--tct-faint); font-size:.7rem; font-style:normal; }
+  .tct-news-tag {
     color:var(--tct-expression-accent,var(--tct-ink));
     font-size:.62rem;
     font-weight:600;
-    letter-spacing:.12em;
+    letter-spacing:.1em;
     text-transform:uppercase;
   }
-  .tct-news-lead-copy h2 {
+  .tct-news-lead h2 {
     margin:20px 0 0;
-    max-width:12ch;
-    font-size:clamp(2.4rem,4.3vw,4.8rem);
-    line-height:.99;
+    max-width:16ch;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:clamp(2.2rem,3.6vw,4rem);
+    line-height:1;
     font-weight:400;
-    letter-spacing:-.055em;
+    letter-spacing:-.05em;
     text-wrap:balance;
   }
-  .tct-news-lead-copy p {
-    max-width:44rem;
-    margin:28px 0 0;
+  .tct-news-lead p {
+    max-width:46ch;
+    margin:22px 0 0;
     color:var(--tct-muted);
     font-size:clamp(.94rem,1vw,1.03rem);
-    line-height:1.72;
+    line-height:1.68;
   }
+  .tct-news-lead > .tct-text-link { margin-top:22px; align-self:flex-start; }
   .tct-news-lead-media {
-    grid-column:5 / -1;
-    margin-top:clamp(46px,6vw,84px);
+    margin-top:clamp(32px,4vw,48px);
+    border-radius:16px;
     overflow:hidden;
   }
   .tct-news-lead-img {
     display:block;
     width:100%;
-    max-height:72vh;
+    max-height:52vh;
     object-fit:cover;
     transform:translate3d(0,var(--tct-media-drift,0px),0) scale(1.018);
     will-change:transform;
   }
 
   .tct-news-archive {
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    align-items:start;
-    padding:0 0 clamp(50px,6vw,90px);
+    padding:clamp(32px,4vw,48px) 0 clamp(40px,5vw,64px) clamp(32px,4vw,48px);
   }
   .tct-news-archive-head {
-    grid-column:1 / span 2;
-    padding-top:.4rem;
+    margin-bottom:24px;
+    color:var(--tct-faint);
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    font-size:.59rem;
+    font-weight:600;
   }
-  .tct-news-archive-list {
-    grid-column:4 / -1;
-    display:grid;
-    gap:clamp(36px,3.5vw,52px);
-  }
-  .tct-news-row {
-    display:grid;
-    grid-template-columns:3fr 7fr;
-    gap:clamp(32px,4vw,70px);
-    align-items:start;
-  }
-  .tct-news-row-date {
+  .tct-news-archive-list { display:grid; gap:0; }
+  .tct-news-row { padding:20px 0; border-top:1px solid var(--tct-hairline-soft); }
+  .tct-news-archive-list > .tct-news-row:first-child { border-top:0; padding-top:0; }
+  .tct-news-row-meta {
     display:flex;
-    flex-direction:column;
+    align-items:baseline;
     gap:10px;
+    color:var(--tct-faint);
+    font-size:.68rem;
   }
-  .tct-news-row-date time {
-    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(1.7rem,2.8vw,2.9rem);
-    line-height:1;
-    letter-spacing:-.04em;
+  .tct-news-row-meta time { font-weight:500; }
+  .tct-news-row-meta span {
+    color:var(--tct-expression-accent,var(--tct-ink));
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    font-size:.62rem;
   }
-  .tct-news-row-copy h3 {
-    margin:14px 0 0;
-    max-width:22ch;
-    font-size:clamp(1.5rem,2.55vw,2.75rem);
-    line-height:1.04;
-    font-weight:450;
-    letter-spacing:-.045em;
-    text-wrap:balance;
-  }
-  .tct-news-row-copy h3 a { text-decoration:none; }
-  .tct-news-row-copy h3 a:hover { text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:5px; }
-  .tct-news-row-copy p {
-    max-width:42rem;
-    margin:20px 0 0;
-    color:var(--tct-muted);
-    font-size:.88rem;
-    line-height:1.68;
-  }
-  .tct-news-row-action {
-    display:inline-flex;
-    gap:7px;
-    margin-top:19px;
-    color:var(--tct-ink);
-    text-decoration:none;
-    font-size:.76rem;
+  .tct-news-row h3 {
+    margin:8px 0 0;
+    font-size:clamp(1.05rem,1.35vw,1.3rem);
+    line-height:1.25;
     font-weight:500;
+    letter-spacing:-.02em;
   }
-  .tct-news-row-action span { transition:transform .22s ease; }
-  .tct-news-row-action:hover span { transform:translateX(3px); }
-
-  .tct-news-row.is-compact { gap:clamp(28px,4vw,64px); }
-  .tct-news-row.is-compact .tct-news-row-date time { font-size:clamp(1.35rem,2.1vw,2.05rem); }
-  .tct-news-row.is-compact .tct-news-row-copy h3 {
-    max-width:28ch;
-    margin-top:10px;
-    font-size:clamp(1.18rem,1.7vw,1.75rem);
-    line-height:1.12;
+  .tct-news-row h3 a { text-decoration:none; color:inherit; }
+  .tct-news-row h3 a:hover, .tct-news-row h3 a:focus-visible { text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:4px; }
+  .tct-news-row p {
+    margin:8px 0 0;
+    color:var(--tct-muted);
+    font-size:.82rem;
+    line-height:1.55;
   }
+  .tct-news-row.is-compact h3 { font-size:.98rem; }
+  .tct-news-row.is-compact p { display:none; }
 
   /* Article: wide opening, narrow reading column, date as composition. */
   .tct-news-article-shell { padding-top:0; }
@@ -3523,19 +3417,19 @@ const STYLE = `
     align-items:start;
     padding-bottom:clamp(56px,6vw,84px);
   }
-  .tct-news-article-date {
-    grid-column:1 / span 3;
+  .tct-news-article-margin {
+    grid-column:1 / span 4;
     position:sticky;
     top:110px;
+    padding-right:clamp(12px,1.5vw,24px);
+    border-right:1px solid var(--tct-hairline-soft);
   }
-  .tct-news-article-date span {
-    display:block;
-    max-width:8ch;
+  .tct-news-article-margin p {
+    margin:0;
+    color:var(--tct-muted);
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(2.3rem,4vw,4.1rem);
-    line-height:.95;
-    letter-spacing:-.045em;
-    color:var(--tct-faint);
+    font-size:clamp(.92rem,1.1vw,1.05rem);
+    line-height:1.55;
   }
   .tct-news-article-reading { grid-column:5 / span 6; }
   .tct-news-article-reading p {
@@ -3579,6 +3473,15 @@ const STYLE = `
   .tct-news-inline-media,
   .tct-news-inline-gallery {
     margin:clamp(54px,6vw,82px) 0;
+    width:calc(100% + 2 * min(6vw,32px));
+    margin-left:max(-6vw,-32px);
+    margin-right:max(-6vw,-32px);
+  }
+  .tct-news-inline-media {
+    margin:clamp(54px,6vw,82px) 0;
+    width:calc(100% + 2 * min(6vw,32px));
+    margin-left:max(-6vw,-32px);
+    margin-right:max(-6vw,-32px);
   }
   .tct-news-inline-image {
     display:block;
@@ -3756,10 +3659,9 @@ const STYLE = `
   .tct-news-next-story { max-width:34rem; line-height:1.45; }
 
   @media (max-width:980px) {
-    .tct-news-opening h1 { grid-column:3 / span 7; }
-    .tct-news-opening > p { grid-column:10 / span 3; }
-    .tct-news-lead-copy { grid-column:5 / -1; }
-    .tct-news-archive-list { grid-column:4 / -1; }
+    .tct-news-grid { grid-template-columns:1fr; }
+    .tct-news-lead { border-right:0; padding-right:0; padding-bottom:40px; }
+    .tct-news-archive { padding-left:0; border-top:1px solid var(--tct-hairline-soft); padding-top:32px; }
     .tct-news-article-opening h1 { grid-column:3 / -1; }
     .tct-news-article-opening > p { grid-column:4 / span 7; }
     .tct-news-article-reading { grid-column:4 / span 7; }
@@ -3768,37 +3670,27 @@ const STYLE = `
   @media (max-width:720px) {
     .tct-news-page { padding-top:48px; padding-bottom:64px; }
     .tct-news-opening { display:block; padding-bottom:48px; }
-    .tct-news-opening-eyebrow { margin-bottom:36px; padding-top:0; }
     .tct-news-opening h1 { max-width:9ch; font-size:clamp(3rem,14.6vw,4.95rem); }
     .tct-news-opening > p { max-width:34rem; margin-top:34px; }
 
-    .tct-news-lead { display:block; padding:12px 0 56px; }
-    .tct-news-lead-date { gap:12px; margin-bottom:42px; }
-    .tct-news-lead-date time { max-width:none; font-size:clamp(1.9rem,8vw,2.6rem); }
-    .tct-news-lead-copy h2 { max-width:11ch; font-size:clamp(2.45rem,11.7vw,4.1rem); }
-    .tct-news-lead-copy p { margin-top:24px; }
-    .tct-news-lead-media { margin-top:52px; }
+    .tct-news-lead { padding:0 0 40px; }
+    .tct-news-lead h2 { max-width:11ch; font-size:clamp(2.45rem,11.7vw,4.1rem); }
+    .tct-news-lead p { margin-top:20px; }
+    .tct-news-lead-media { margin-top:32px; }
 
-    .tct-news-archive { display:block; padding-bottom:30px; }
-    .tct-news-archive-head { margin-bottom:52px; padding-top:0; }
-    .tct-news-archive-list { gap:44px; }
-    .tct-news-row { display:block; }
-    .tct-news-row-date { margin-bottom:22px; }
-    .tct-news-row-date time,
-    .tct-news-row.is-compact .tct-news-row-date time { font-size:clamp(1.75rem,8vw,2.5rem); }
-    .tct-news-row-copy h3,
-    .tct-news-row.is-compact .tct-news-row-copy h3 { max-width:20ch; font-size:clamp(1.5rem,7vw,2.25rem); }
+    .tct-news-archive { padding:32px 0 0; border-top:1px solid var(--tct-hairline-soft); }
+    .tct-news-archive-head { margin-bottom:28px; }
+    .tct-news-row h3 { max-width:none; font-size:clamp(1.15rem,5vw,1.5rem); }
 
     .tct-news-back { margin-bottom:36px; }
     .tct-news-article-opening { display:block; padding-bottom:44px; }
     .tct-news-article-meta { margin-bottom:38px; padding-top:0; }
     .tct-news-article-opening h1 { max-width:10.8ch; font-size:clamp(2.2rem,9vw,3.2rem); line-height:1.02; }
-    .tct-news-article-opening > p { margin-top:36px; }
     .tct-news-article-media { margin-bottom:48px; }
 
     .tct-news-article-body { display:block; padding-bottom:52px; }
-    .tct-news-article-date { position:static; margin-bottom:54px; }
-    .tct-news-article-date span { max-width:none; font-size:clamp(1.7rem,7vw,2.3rem); }
+    .tct-news-inline-media, .tct-news-inline-gallery { width:100%; margin-left:0; margin-right:0; }
+    .tct-news-article-margin { position:static; margin-bottom:32px; padding-right:0; padding-bottom:24px; border-right:0; border-bottom:1px solid var(--tct-hairline-soft); }
     .tct-news-article-reading h2 { margin-top:62px; }
 
     .tct-news-article-exit { display:block; padding-top:40px; }
@@ -3834,26 +3726,17 @@ const STYLE = `
     padding-bottom:clamp(48px,5vw,72px);
   }
 
-  .tct-questions-opening {
+  .tct-questions-top {
     display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
+    grid-template-columns:minmax(0,.85fr) minmax(320px,1.15fr);
+    column-gap:clamp(32px,4vw,64px);
     align-items:start;
-    padding-bottom:clamp(32px,3.5vw,48px);
+    padding-bottom:clamp(40px,5vw,64px);
+    border-bottom:1px solid var(--tct-hairline-soft);
   }
-  .tct-questions-opening-eyebrow {
-    grid-column:1 / span 2;
-    padding-top:.58rem;
-    color:var(--tct-faint);
-    text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
-    font-weight:600;
-  }
-  .tct-questions-opening h1 {
-    grid-column:3 / span 7;
+  .tct-questions-top-copy h1 {
     margin:0;
-    max-width:10ch;
+    max-width:11ch;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:var(--tct-type-hero);
     line-height:.97;
@@ -3861,23 +3744,20 @@ const STYLE = `
     letter-spacing:-.04em;
     text-wrap:balance;
   }
-  .tct-questions-opening > p {
-    grid-column:10 / span 3;
-    align-self:end;
-    margin:0 0 .4rem;
+  .tct-questions-top-copy p {
+    margin:20px 0 0;
+    max-width:34ch;
     color:var(--tct-muted);
     font-size:clamp(.92rem,1vw,1rem);
-    line-height:1.72;
+    line-height:1.65;
   }
 
   .tct-question-workbench {
-    width:min(980px,76vw);
-    margin:0 auto;
-    padding:clamp(24px,3vw,40px) 0 clamp(32px,3.5vw,48px);
+    padding-top:clamp(6px,1vw,14px);
   }
   .tct-question-workbench > label {
     display:block;
-    margin-bottom:22px;
+    margin-bottom:16px;
     color:var(--tct-faint);
     text-transform:uppercase;
     letter-spacing:.14em;
@@ -4245,8 +4125,7 @@ const STYLE = `
   .tct-featured-questions li button:hover em { transform:translateX(4px); }
 
   @media (max-width:980px) {
-    .tct-questions-opening h1 { grid-column:3 / span 7; }
-    .tct-question-workbench { width:min(880px,82vw); }
+    .tct-questions-top { grid-template-columns:1fr; }
     .tct-question-answer-main,
     .tct-question-ambiguity-main,
     .tct-question-unknown-main { grid-column:4 / span 8; }
@@ -4254,12 +4133,11 @@ const STYLE = `
 
   @media (max-width:720px) {
     .tct-questions-page { padding-top:44px; padding-bottom:48px; }
-    .tct-questions-opening { display:block; padding-bottom:32px; }
-    .tct-questions-opening-eyebrow { margin-bottom:34px; padding-top:0; }
-    .tct-questions-opening h1 { max-width:9.5ch; font-size:clamp(2.2rem,9vw,3.2rem); line-height:1.02; }
-    .tct-questions-opening > p { max-width:33rem; margin-top:32px; }
+    .tct-questions-top { padding-bottom:32px; }
+    .tct-questions-top-copy h1 { max-width:9.5ch; font-size:clamp(2.2rem,9vw,3.2rem); line-height:1.02; }
+    .tct-questions-top-copy p { max-width:33rem; margin-top:16px; }
 
-    .tct-question-workbench { width:100%; margin:0; padding:20px 0 36px; }
+    .tct-question-workbench { width:100%; margin:0; padding:28px 0 0; }
     .tct-question-workbench > label { margin-bottom:18px; }
     .tct-question-input-line input {
       padding-right:14px;
@@ -4306,17 +4184,8 @@ const STYLE = `
     align-items:start;
     padding-bottom:clamp(48px,5.5vw,76px);
   }
-  .tct-ambassadors-opening-eyebrow {
-    grid-column:1 / span 2;
-    padding-top:.6rem;
-    color:var(--tct-faint);
-    font-size:.59rem;
-    font-weight:600;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-  }
   .tct-ambassadors-opening h1 {
-    grid-column:3 / span 7;
+    grid-column:1 / span 8;
     max-width:10.2ch;
     margin:0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -4340,7 +4209,7 @@ const STYLE = `
     grid-template-columns:repeat(12,minmax(0,1fr));
     column-gap:clamp(18px,2vw,32px);
     align-items:start;
-    padding:clamp(18px,3vw,42px) 0 clamp(118px,13vw,192px);
+    padding:clamp(18px,3vw,42px) 0 clamp(56px,6.5vw,96px);
   }
   .tct-ambassadors-role-kicker {
     grid-column:1 / span 2;
@@ -4376,7 +4245,7 @@ const STYLE = `
     font-weight:500;
   }
 
-  .tct-ambassadors-roster { padding:0 0 clamp(126px,14vw,210px); }
+  .tct-ambassadors-roster { padding:0 0 clamp(56px,6.5vw,96px); }
   .tct-ambassadors-roster-head {
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
@@ -4710,15 +4579,14 @@ const STYLE = `
     .tct-ambassadors-page { padding-top:44px; padding-bottom:48px; }
 
     .tct-ambassadors-opening { display:block; padding-bottom:44px; }
-    .tct-ambassadors-opening-eyebrow { margin-bottom:36px; padding-top:0; }
     .tct-ambassadors-opening h1 { max-width:9.5ch; font-size:clamp(2.2rem,9vw,3.2rem); line-height:1.02; }
-    .tct-ambassadors-opening > p { max-width:33rem; margin-top:34px; }
+    .tct-ambassadors-opening > p { max-width:33rem; margin-top:20px; }
 
-    .tct-ambassadors-role { display:block; padding:20px 0 102px; }
+    .tct-ambassadors-role { display:block; padding:20px 0 48px; }
     .tct-ambassadors-role-kicker { margin-bottom:34px; padding-top:0; }
     .tct-ambassadors-role-content h2 { max-width:10ch; font-size:clamp(2.35rem,10.5vw,3.7rem); }
 
-    .tct-ambassadors-roster { padding-bottom:112px; }
+    .tct-ambassadors-roster { padding-bottom:48px; }
     .tct-ambassadors-roster-head { display:block; margin-bottom:58px; }
     .tct-ambassadors-count { gap:14px; }
     .tct-ambassadors-count strong { font-size:clamp(2.4rem,10vw,3.4rem); }
@@ -4820,19 +4688,18 @@ const STYLE = `
     will-change:opacity,transform;
   }
   .tct-reveal.is-visible { opacity:1; transform:none; }
-  .tct-home-landing-title { --tct-reveal-delay:0ms; }
-  .tct-home-stage-meta { --tct-reveal-delay:28ms; }
-  .tct-home-title { --tct-reveal-delay:72ms; }
-  .tct-home-momentum { --tct-reveal-delay:126ms; }
+  .tct-home-hero-copy > * { --tct-reveal-delay:0ms; }
+  .tct-home-momentum { --tct-reveal-delay:80ms; }
+  .tct-home-change { --tct-reveal-delay:110ms; }
+  .tct-home-explore { --tct-reveal-delay:140ms; }
+  .tct-home-news { --tct-reveal-delay:170ms; }
 
   @media (max-width:1080px) {
-    .tct-home-landing-title { max-width:30ch; }
-    .tct-home-feature-title-wrap { grid-column:3 / span 7; }
+    .tct-home-hero-copy h1 { max-width:12ch; }
   }
 
   @media (max-width:1180px) {
-    .tct-project-opening h1 { grid-column:3 / span 7; }
-    .tct-project-opening > p { grid-column:10 / span 3; }
+    .tct-project-opening { grid-template-columns:1fr; }
     .tct-project-track.is-horizontal .tct-project-milestone-copy p { font-size:.73rem; }
   }
 
@@ -4859,24 +4726,15 @@ const STYLE = `
     .tct-nav a { width:100%; padding:12px 0; font-family:var(--tct-font-primary,'Roboto'),sans-serif; font-size:1.55rem; font-weight:400; letter-spacing:-.035em; color:var(--tct-ink); }
     .tct-nav a::after { display:none; }
     .tct-section, .tct-footer-inner { width:calc(100% - 40px); }
-    .tct-project-opening { padding-bottom:56px; }
-    .tct-project-opening-eyebrow { grid-column:1 / span 2; }
-    .tct-project-opening h1 { grid-column:3 / span 7; }
-    .tct-project-opening > p { grid-column:10 / span 3; }
+    .tct-project-opening { padding-bottom:56px; grid-template-columns:1fr; }
     .tct-project-track.is-horizontal .tct-project-milestone-copy p { display:none; }
-    .tct-home-momentum { grid-template-columns:1fr; gap:32px; }
-    .tct-home-feature-inner { width:calc(100% - 40px); min-height:auto; }
-    .tct-home-feature-meta { grid-column:1 / span 2; }
-    .tct-home-feature-title-wrap { grid-column:3 / span 7; }
-    .tct-home-feature-aside { grid-column:10 / span 3; }
-    .tct-home-feature.has-media .tct-home-feature-inner {
-      display:block;
-    }
-    .tct-home-feature.has-media .tct-home-feature-meta,
-    .tct-home-feature.has-media .tct-home-feature-title-wrap,
-    .tct-home-feature.has-media .tct-home-feature-aside { grid-column:auto; }
-    .tct-home-feature.has-media .tct-home-feature-aside { margin-top:24px; }
-    .tct-home-feature.has-media .tct-home-feature-media { margin-top:40px; min-height:280px; height:auto; aspect-ratio:16/10; }
+    .tct-home-hero { grid-template-columns:1fr; min-height:auto; gap:32px; }
+    .tct-home-hero-visual { min-height:320px; }
+    .tct-home-momentum { grid-template-columns:1fr; }
+    .tct-home-moment-main { border-right:0; border-bottom:1px solid var(--tct-hairline-soft); padding:26px 0; }
+    .tct-home-moment-stat { padding:26px 0 0; }
+    .tct-home-explore-track { grid-template-columns:1fr; }
+    .tct-home-explore-item { border-right:0; border-bottom:1px solid var(--tct-hairline-soft); padding-right:0; }
   }
 
   @media (max-width:720px) {
@@ -4888,11 +4746,10 @@ const STYLE = `
     .tct-nav { inset:58px 0 auto 0; }
     .tct-section, .tct-footer-inner { width:calc(100% - 28px); }
 
-    .tct-project-page { padding-top:72px; padding-bottom:110px; }
-    .tct-project-opening { display:block; padding-bottom:56px; }
-    .tct-project-opening-eyebrow { margin-bottom:38px; padding-top:0; }
+    .tct-project-page { padding-top:44px; padding-bottom:56px; }
+    .tct-project-opening { display:block; padding-bottom:44px; }
     .tct-project-opening h1 { max-width:10ch; font-size:clamp(2.3rem,10vw,3.2rem); line-height:1; }
-    .tct-project-opening > p { max-width:34rem; margin-top:38px; }
+    .tct-project-opening > p { max-width:34rem; margin-top:24px; }
     .tct-project-trajectory-head { margin-bottom:52px; }
     .tct-project-track.is-horizontal,
     .tct-project-track.is-vertical { max-width:none; margin:0; }
@@ -4929,40 +4786,28 @@ const STYLE = `
     .tct-project-milestone-copy h3 { font-size:1.02rem; }
     .tct-project-track.is-horizontal .tct-project-milestone-copy p { display:block; }
 
-    .tct-home-opening { padding:36px 0 44px; }
-    .tct-home-landing-title { max-width:none; font-size:clamp(1.3rem,4.6vw,1.6rem); line-height:1.3; margin-bottom:20px; }
-    .tct-home-stage-meta { font-size:.65rem; }
-    .tct-home-phase { letter-spacing:.08em; font-size:.58rem; }
-    .tct-home-title { max-width:11.5ch; font-size:clamp(2.4rem,9.5vw,3.1rem); line-height:1; }
-    .tct-home-momentum { grid-template-columns:1fr; gap:28px; margin-top:32px; padding-top:24px; }
-    .tct-home-present p { max-width:none; }
-    .tct-home-nextline-link { margin-top:16px; }
-
-    .tct-home-feature-inner { width:calc(100% - 28px); display:block; padding:64px 0 76px; }
-    .tct-home-feature-meta { margin-bottom:40px; flex-direction:row; flex-wrap:wrap; gap:7px 14px; }
-    .tct-home-feature h2 { max-width:11ch; font-size:clamp(3rem,13.2vw,4.8rem); }
-    .tct-home-feature-aside { margin-top:40px; max-width:34rem; }
-    .tct-home-feature.has-media .tct-home-feature-media { margin-top:40px; height:auto; min-height:0; aspect-ratio:4/3; border-radius:18px; }
-
-    .tct-home-closing { grid-template-columns:1fr; row-gap:40px; padding:40px 0 56px; }
-    .tct-home-latest { padding-right:0; padding-bottom:32px; border-right:0; border-bottom:1px solid var(--tct-hairline-soft); }
-    .tct-home-questions { padding-left:0; }
-    .tct-home-questions h2 { max-width:none; font-size:clamp(1.3rem,6vw,1.7rem); }
+    .tct-home-hero { padding:36px 0 44px; gap:28px; }
+    .tct-home-project-id { font-size:.68rem; }
+    .tct-home-hero-copy h1 { max-width:none; font-size:clamp(2.4rem,9.5vw,3.1rem); line-height:1; }
+    .tct-home-hero-copy p { max-width:none; }
+    .tct-home-hero-visual { min-height:240px; }
+    .tct-home-momentum { grid-template-columns:1fr; }
+    .tct-home-moment-main { padding:24px 0; border-right:0; border-bottom:1px solid var(--tct-hairline-soft); }
+    .tct-home-moment-stat { padding:24px 0 0; }
+    .tct-home-change, .tct-home-explore, .tct-home-news { padding:32px 0; }
+    .tct-home-explore-track { grid-template-columns:1fr; }
+    .tct-home-explore-item { border-right:0; border-bottom:1px solid var(--tct-hairline-soft); padding-right:0; min-height:auto; }
     .tct-ask-box { flex-direction:column; }
     .tct-footer-inner { flex-direction:column; gap:9px; }
   }
 
 
   @media (max-width:1080px) {
-    .tct-project-focus-inner > div { grid-column:4 / span 8; }
-    .tct-project-reading { width:min(680px,66vw); margin-left:18%; }
+    .tct-project-reading { width:min(560px,64vw); }
     .tct-project-team-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   }
 
   @media (max-width:980px) {
-    .tct-project-opening h1 { grid-column:3 / span 7; }
-    .tct-project-opening > p { grid-column:10 / span 3; }
-    .tct-project-focus-inner { width:calc(100% - 40px); }
     .tct-project-figures-grid { grid-column:4 / -1; }
     .tct-project-choices-grid { grid-column:4 / -1; }
     .tct-project-team-heading { grid-column:1 / span 4; }
@@ -4971,15 +4816,14 @@ const STYLE = `
   }
 
   @media (max-width:720px) {
-    .tct-project-page { padding-top:72px; padding-bottom:100px; }
-    .tct-project-opening { display:block; padding-bottom:56px; }
-    .tct-project-opening-eyebrow { margin-bottom:38px; padding-top:0; }
+    .tct-project-page { padding-top:44px; padding-bottom:48px; }
+    .tct-project-opening { display:block; padding-bottom:44px; }
     .tct-project-opening h1 { max-width:10ch; font-size:clamp(3.05rem,14.6vw,5rem); line-height:.97; }
-    .tct-project-opening > p { max-width:34rem; margin-top:38px; }
+    .tct-project-opening > p { max-width:34rem; margin-top:24px; }
 
-    .tct-project-focus { padding:86px 0 94px; }
-    .tct-project-focus-inner { width:calc(100% - 28px); display:block; }
-    .tct-project-focus-inner > span { display:block; margin-bottom:34px; padding-top:0; }
+    .tct-project-chapter { grid-template-columns:1fr; }
+    .tct-project-chapter-num { font-size:1.3rem; }
+    .tct-project-focus { padding:44px 0; }
     .tct-project-focus h2 { max-width:10ch; font-size:clamp(2.8rem,12.5vw,4.6rem); }
     .tct-project-focus p { margin-top:26px; }
 
@@ -5053,7 +4897,6 @@ const STYLE = `
     html { scroll-behavior:auto; }
     *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
     .tct-reveal { opacity:1; transform:none; }
-    .tct-live-dot::before, .tct-live-dot::after { animation:none; opacity:.16; transform:scale(1); }
     .tct-project-media-img, .tct-project-gallery-img, .tct-news-lead-img, .tct-news-article-img, .tct-space-image-trigger img { transform:none !important; }
   }
 `;
@@ -6372,7 +6215,9 @@ export function render(manifest, root, actions) {
       if (key === 'home') {
         return renderHome(manifest.content.home, {
           timeline: manifest.content.timeline,
-          news: manifest.content.news
+          news: manifest.content.news,
+          project: manifest.project,
+          projectSections: manifest.content.project && manifest.content.project.sections
         });
       }
       if (key === 'timeline') {

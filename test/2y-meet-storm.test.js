@@ -254,7 +254,7 @@ test('mode démo ?devUser= préservé dans les deux sens', () => {
 // ── Vrais écrans produit intégrés ──────────────────────────────────────
 
 test('les cinq screens réels et le visuel Liquid Core sont intégrés et servis réellement', async () => {
-  for (const name of ['liquid-core', 'meet-home', 'meet-enter', 'meet-studio', 'meet-ivory', 'meet-pilotage', 'meet-orogeny', 'meet-control', 'meet-publish-1', 'meet-publish-2', 'meet-publish-3']) {
+  for (const name of ['liquid-core', 'meet-home', 'meet-enter', 'meet-studio', 'meet-ivory', 'meet-pilotage', 'meet-orogeny', 'storm-control-product-stage', 'meet-publish-1', 'meet-publish-2', 'meet-publish-3']) {
     const res = await fetch(`${baseUrl}/meet-assets/${name}.webp`);
     assert.equal(res.status, 200, `${name}.webp doit être servi`);
     assert.equal(res.headers.get('content-type'), 'image/webp');
@@ -356,8 +356,9 @@ test('reduced motion -- couvre aussi les nouveaux éléments plein cadre', () =>
 
 // ── FERMETURE — Control et Publication : vrais visuels ───────────────
 
-test('Control -- vrai screenshot Storm Control intégré, jamais la composition abstraite', () => {
-  assert.match(meetHtml, /src="\/meet-assets\/meet-control\.webp"/);
+test('Control -- vrai product stage macro→micro intégré (organisation + projet superposés), jamais un screenshot seul dans un cadre générique', () => {
+  assert.match(meetHtml, /src="\/meet-assets\/storm-control-product-stage\.webp"/);
+  assert.match(meetHtml, /<div class="control-stage"><img src="\/meet-assets\/storm-control-product-stage\.webp"/, 'jamais enveloppé dans .screen-frame -- l\'asset porte déjà sa propre composition/profondeur');
   assert.ok(!meetHtml.includes('control-scope'), 'ancienne composition abstraite entièrement retirée');
 });
 
@@ -417,4 +418,38 @@ test('Home -- alt texte fidèle au contenu réel du mockup, jamais générique/v
   const idx = meetHtml.indexOf('meet-home-macbook.webp');
   const tag = meetHtml.slice(idx, idx + 200);
   assert.match(tag, /alt="[^"]{15,}"/);
+});
+
+test('Control -- aucune dépendance au MacBook, scène volontairement différente de Home (product stage frontal, pas un device)', () => {
+  const idx = meetHtml.indexOf('s-control');
+  const end = meetHtml.indexOf('</section>', idx);
+  const snippet = meetHtml.slice(idx, end);
+  assert.ok(!snippet.includes('mac-frame'));
+  assert.ok(!snippet.includes('meet-home-macbook'));
+});
+
+test('Control -- taille ample dédiée (~1120px), pas la largeur standard étroite des autres scènes texte+screenshot', () => {
+  const idx = meetHtml.indexOf('.control-stage{');
+  const css = meetHtml.slice(idx, idx + 100);
+  assert.match(css, /width:min\(1120px,calc\(100vw - 64px\)\)/);
+});
+
+test('Control -- alt texte reflète la hiérarchie macro→micro réelle (organisation ET projet), jamais un texte générique', () => {
+  const idx = meetHtml.indexOf('storm-control-product-stage.webp');
+  const tag = meetHtml.slice(idx, idx + 300);
+  assert.match(tag, /alt="[^"]*organisation[^"]*"/i);
+  assert.match(tag, /alt="[^"]*Clermont-Ferrand[^"]*"/);
+});
+
+test('Control -- ancien asset meet-control.webp démontrablement mort, retiré du disque (aucune référence résiduelle)', async () => {
+  assert.ok(!meetHtml.includes('meet-control.webp'));
+  const { existsSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const path = await import('node:path');
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  assert.ok(!existsSync(path.join(dir, '..', 'public', 'meet-assets', 'meet-control.webp')));
+});
+
+test('Control -- copie textuelle inchangée ("Storm, à l\'échelle de l\'organisation."), non réécrite par cette passe', () => {
+  assert.match(meetHtml, /Storm, à l.échelle de l.organisation\./);
 });

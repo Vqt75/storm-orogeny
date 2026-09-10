@@ -61,6 +61,14 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 .mac-frame{width:min(1040px,92vw);margin:0 auto 34px;opacity:0;transform:scale(.97);transition:opacity 1s var(--ease),transform 1s var(--ease)}
 .stage.in .mac-frame{opacity:1;transform:scale(1)}
 .mac-frame img{width:100%;height:auto;display:block}
+
+/* Control -- product stage macro -> micro (vue organisation derrière,
+   vue projet superposée devant), déjà composée dans l'asset fourni
+   avec sa propre profondeur/ombres/fond. Jamais un second cadre
+   autour : le composite doit flotter directement dans la scène. */
+.control-stage{width:min(1120px,calc(100vw - 64px));margin:0 auto 34px;opacity:0;transform:scale(.97);transition:opacity 1s var(--ease),transform 1s var(--ease)}
+.stage.in .control-stage{opacity:1;transform:scale(1)}
+.control-stage img{width:100%;height:auto;display:block;object-fit:contain}
 .seq-home .stage-inner{width:min(1040px,100%)}
 
 /* Photos cinématiques plein cadre -- jamais un rectangle contraint
@@ -167,7 +175,7 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation:none!important}
-  .stage-inner,.move-line,#liquidCoreVisual,.lock-shackle,.lock-dot,.screen-frame,.mac-frame,.bleed-media,.bleed-media img,.bleed-caption{opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
+  .stage-inner,.move-line,#liquidCoreVisual,.lock-shackle,.lock-dot,.screen-frame,.mac-frame,.control-stage,.bleed-media,.bleed-media img,.bleed-caption{opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
   .cycle-frame{opacity:0!important}
   .cycle-frame:nth-child(3){opacity:1!important}
   .lock-shackle{transform:translateX(-50%) rotate(0deg) translateX(0)!important}
@@ -293,7 +301,7 @@ h1.mark{margin:0;font-size:clamp(52px,10vw,120px);line-height:.92;letter-spacing
 
 <section class="stage seq-control" id="s-control" data-title="Control">
   <div class="stage-inner">
-    <div class="screen-frame"><img src="/meet-assets/meet-control.webp" alt="Storm Control, avec la gouvernance de l'organisation et ses projets" loading="lazy"></div>
+    <div class="control-stage"><img src="/meet-assets/storm-control-product-stage.webp" alt="Storm Control : vue d'ensemble de l'organisation Parella avec ses projets, et vue détaillée des accès du projet Clermont-Ferrand au premier plan" loading="lazy"></div>
     <h2 class="principle-lead" style="margin:26px 0 0">Storm, à l'échelle de l'organisation.</h2>
     <p class="scene-copy">Control donne la vue d'ensemble : projets, membres, accès, cycle de vie et données. Vous gérez Storm autour des projets sans entrer dans leur travail quotidien.</p>
   </div>

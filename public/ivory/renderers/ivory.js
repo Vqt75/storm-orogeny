@@ -678,6 +678,90 @@ function renderProjectTeam(team) {
     </section>`;
 }
 
+// V2.1 -- rendu "intégré" des primitives voisines (chiffres, principes,
+// timeline) : jamais leur propre bande pleine largeur, toujours dans
+// la même géographie que le chapitre narratif qui les précède (ou une
+// géographie équivalente s'il n'y en a pas). La mécanique (rail,
+// data-tct-rail, timeline dédiée) reste strictement identique --
+// seule l'enveloppe visuelle change.
+
+function renderFiguresBody(section) {
+  const figures = (section.items || []).filter(item => item && (item.value || item.label));
+  if (!figures.length) return '';
+  const count = figures.length;
+  return `
+    <div class="tct-project-figures-inline">
+      ${section.title ? `<div class="tct-project-figures-head">${esc(section.title)}</div>` : ''}
+      <div class="tct-project-figures-grid ${count > 4 ? 'is-many' : ''}" data-tct-rail data-tct-rail-family="figures" aria-label="Chiffres clés du projet" style="--tct-figure-count:${Math.max(1, Math.min(count, 4))}">
+        ${figures.map(item => `
+          <div class="tct-project-figure">
+            <strong>${esc(item.value)}</strong>
+            ${item.label ? `<span>${esc(item.label)}</span>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderChoicesBody(section) {
+  const choices = (section.items || []).filter(Boolean);
+  if (!choices.length) return '';
+  return `
+    <div class="tct-project-choices-inline">
+      ${section.title ? `<div class="tct-project-choices-head">${esc(section.title)}</div>` : ''}
+      <ul class="tct-project-choices-grid" data-tct-rail data-tct-rail-family="choices" aria-label="${esc(section.title || 'Principes du projet')}">
+        ${choices.map(item => `
+          <li class="tct-project-choice-card">
+            ${item.title ? `<h3>${esc(item.title)}</h3>` : ''}
+            ${item.body ? `<p>${esc(item.body)}</p>` : ''}
+          </li>`).join('')}
+      </ul>
+    </div>`;
+}
+
+function renderTimelineBody(timeline) {
+  const html = renderProjectTrajectory(timeline);
+  if (!html) return '';
+  // Retire l'enveloppe <section class="tct-project-trajectory"...>
+  // pour la remplacer par une version intégrée sans bordure d'accent
+  // ni respiration de section autonome -- la mécanique interne
+  // (renderProjectTrajectory) reste strictement inchangée.
+  return `<div class="tct-project-trajectory-inline">${html}</div>`;
+}
+
+// Regroupe les sections narratives (text/focus) avec les primitives
+// qui les suivent immédiatement dans L'ORDRE MANIFEST EXACT (jamais
+// réordonné). keyFigures/choices/timeline s'attachent au chapitre
+// courant s'il existe ; quote/image/gallery/team restent toujours
+// autonomes ET interrompent l'attachement (rupture nette : ce qui
+// suit une citation/un média ne doit pas s'attacher rétroactivement
+// à un chapitre séparé par une rupture visuelle).
+function groupProjectSections(sections) {
+  const groups = [];
+  let current = null;
+  for (const section of sections) {
+    if (!section || !section.type) continue;
+    const type = String(section.type);
+    if (type === 'text' || type === 'focus') {
+      current = { kind: 'chapter', head: section, attachments: [] };
+      groups.push(current);
+    } else if ((type === 'keyFigures' || type === 'key-figures' || type === 'choices' || type === 'timeline') && current) {
+      current.attachments.push(section);
+    } else {
+      groups.push({ kind: 'standalone', section });
+      current = null;
+    }
+  }
+  return groups;
+}
+
+function renderAttachmentBody(section, context) {
+  const type = String(section.type);
+  if (type === 'keyFigures' || type === 'key-figures') return renderFiguresBody(section);
+  if (type === 'choices') return renderChoicesBody(section);
+  if (type === 'timeline') return renderTimelineBody(context.timeline);
+  return '';
+}
+
 function renderProjectSection(section, context = {}, chapterNumber = null) {
   if (!section || !section.type) return '';
   const type = String(section.type);
@@ -712,18 +796,13 @@ function renderProjectSection(section, context = {}, chapterNumber = null) {
   }
 
   if (type === 'keyFigures' || type === 'key-figures') {
-    const figures = (section.items || []).filter(item => item && (item.value || item.label));
-    if (!figures.length) return '';
-    const count = figures.length;
+    const body = renderFiguresBody(section);
+    if (!body) return '';
     return `
       <section class="tct-project-section tct-project-figures tct-reveal" data-tct-reveal>
-        <div class="tct-project-figures-head">${esc(section.title || 'Quelques repères')}</div>
-        <div class="tct-project-figures-grid ${count > 4 ? 'is-many' : ''}" data-tct-rail data-tct-rail-family="figures" aria-label="Chiffres clés du projet" style="--tct-figure-count:${Math.max(1, Math.min(count, 4))}">
-          ${figures.map(item => `
-            <div class="tct-project-figure">
-              <strong>${esc(item.value)}</strong>
-              ${item.label ? `<span>${esc(item.label)}</span>` : ''}
-            </div>`).join('')}
+        <div class="tct-project-chapter">
+          <div class="tct-project-chapter-num" aria-hidden="true"></div>
+          <div class="tct-project-reading">${body}</div>
         </div>
       </section>`;
   }
@@ -738,18 +817,14 @@ function renderProjectSection(section, context = {}, chapterNumber = null) {
   }
 
   if (type === 'choices') {
-    const choices = (section.items || []).filter(Boolean);
-    if (!choices.length) return '';
+    const body = renderChoicesBody(section);
+    if (!body) return '';
     return `
       <section class="tct-project-section tct-project-choices tct-reveal" data-tct-reveal>
-        <div class="tct-project-choices-head">${esc(section.title || 'Les grands choix du projet')}</div>
-        <ul class="tct-project-choices-grid" data-tct-rail data-tct-rail-family="choices" aria-label="${esc(section.title || 'Principes du projet')}">
-          ${choices.map(item => `
-            <li class="tct-project-choice-card">
-              ${item.title ? `<h3>${esc(item.title)}</h3>` : ''}
-              ${item.body ? `<p>${esc(item.body)}</p>` : ''}
-            </li>`).join('')}
-        </ul>
+        <div class="tct-project-chapter">
+          <div class="tct-project-chapter-num" aria-hidden="true"></div>
+          <div class="tct-project-reading">${body}</div>
+        </div>
       </section>`;
   }
 
@@ -782,21 +857,63 @@ function renderProjectSection(section, context = {}, chapterNumber = null) {
   return '';
 }
 
+function renderChapterGroup(group, context, chapterNumber) {
+  const head = group.head;
+  const type = String(head.type);
+  const attachmentsHtml = group.attachments
+    .map(section => renderAttachmentBody(section, context))
+    .filter(Boolean)
+    .join('');
+
+  if (type === 'focus') {
+    return `
+      <section class="tct-project-section tct-project-focus tct-reveal" data-tct-reveal>
+        <div class="tct-project-chapter">
+          ${chapterNumber ? `<div class="tct-project-chapter-num">${String(chapterNumber).padStart(2, '0')}</div>` : ''}
+          <div class="tct-project-focus-inner">
+            ${head.title ? `<h2>${esc(head.title)}</h2>` : ''}
+            ${head.body ? `<p>${inlineRichText(head.body)}</p>` : ''}
+            ${attachmentsHtml}
+          </div>
+        </div>
+      </section>`;
+  }
+
+  return `
+    <section class="tct-project-section tct-project-text tct-reveal" data-tct-reveal>
+      <div class="tct-project-chapter">
+        ${chapterNumber ? `<div class="tct-project-chapter-num">${String(chapterNumber).padStart(2, '0')}</div>` : ''}
+        <div class="tct-project-reading">
+          ${head.title ? `<h2>${esc(head.title)}</h2>` : ''}
+          ${head.body ? `<p>${inlineRichText(head.body)}</p>` : ''}
+          ${attachmentsHtml}
+        </div>
+      </div>
+    </section>`;
+}
+
 function renderProject(project, context = {}) {
   const source = project && typeof project === 'object' ? project : {};
   const intro = source.intro && typeof source.intro === 'object' ? source.intro : {};
   const sections = Array.isArray(source.sections) ? source.sections : [];
 
-  // V2.1 -- récit continu : les sections narratives (text/focus)
-  // reçoivent un numéro de chapitre courant (01, 02...), matchant le
-  // handoff. Les autres types (chiffres, principes, citation, média,
-  // timeline, équipe) s'intègrent sans leur propre "chapitre" --
-  // continuation visuelle du récit, jamais un module à part entière.
+  // V2.1 -- faire disparaître les modules dans le récit : les
+  // primitives voisines (chiffres, principes, timeline) qui suivent
+  // un chapitre narratif (text/focus) s'intègrent visuellement dans
+  // ce même chapitre plutôt que de produire leur propre section
+  // pleine largeur. L'ORDRE ÉDITORIAL MANIFEST N'EST JAMAIS MODIFIÉ --
+  // seule la composition visuelle des voisins change (groupProjectSections
+  // ne fait que regrouper des éléments déjà consécutifs dans l'ordre
+  // fourni, jamais les réordonner). Citation/média/équipe restent
+  // toujours des ruptures autonomes, jamais absorbées.
+  const groups = groupProjectSections(sections);
   let chapterIndex = 0;
-  const flow = sections.map(section => {
-    const isChapter = section && (section.type === 'text' || section.type === 'focus');
-    if (isChapter) chapterIndex += 1;
-    return renderProjectSection(section, context, isChapter ? chapterIndex : null);
+  const flow = groups.map(group => {
+    if (group.kind === 'chapter') {
+      chapterIndex += 1;
+      return renderChapterGroup(group, context, chapterIndex);
+    }
+    return renderProjectSection(group.section, context, null);
   }).join('');
 
   return `
@@ -2132,80 +2249,64 @@ const STYLE = `
   .tct-project-section { position:relative; margin:0; }
 
   .tct-project-focus {
-    width:100vw;
-    margin-left:calc(50% - 50vw);
     padding:clamp(48px,6vw,80px) 0;
-    background:var(--tct-soft-2);
+    border-top:1px solid var(--tct-hairline-soft);
+    border-bottom:1px solid var(--tct-hairline-soft);
   }
-  .tct-project-focus .tct-project-chapter {
-    width:min(1420px,calc(100% - 64px));
-    margin:0 auto;
-  }
+  .tct-project-focus .tct-project-focus-inner { max-width:820px; }
   .tct-project-focus h2 {
     margin:0;
     max-width:16ch;
     font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:var(--tct-type-title);
-    line-height:.99;
+    font-size:clamp(1.9rem,3.3vw,2.75rem);
+    line-height:1.05;
     font-weight:400;
     letter-spacing:-.038em;
     text-wrap:balance;
   }
   .tct-project-focus p {
     max-width:43rem;
-    margin:24px 0 0;
+    margin:22px 0 0;
     color:var(--tct-muted);
-    font-size:clamp(.95rem,1vw,1.04rem);
-    line-height:1.75;
+    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size:clamp(1.02rem,1.15vw,1.18rem);
+    line-height:1.7;
   }
 
-  .tct-project-figures {
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    padding:clamp(52px,6vw,84px) 0;
+  .tct-project-figures-inline {
+    margin-top:28px;
+    padding-top:22px;
+    border-top:1px solid var(--tct-hairline-soft);
   }
   .tct-project-figures-head {
-    grid-column:1 / span 2;
-    padding-top:.55rem;
+    margin-bottom:16px;
     color:var(--tct-faint);
     text-transform:uppercase;
-    letter-spacing:.14em;
-    font-size:.59rem;
+    letter-spacing:.12em;
+    font-size:.6rem;
     font-weight:600;
   }
-  .tct-project-figures-grid {
-    grid-column:4 / -1;
-    display:grid;
-    grid-template-columns:repeat(var(--tct-figure-count,3),minmax(0,1fr));
-    gap:clamp(28px,4vw,72px);
-    align-items:start;
-  }
-  .tct-project-figures-grid.is-many {
-    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  }
   .tct-project-figure {
-    width:min(220px,68vw);
-    padding:24px 22px 26px;
-    border-radius:18px;
-    background:var(--tct-figure-surface,var(--tct-canvas));
+    min-width:112px;
+    padding-right:22px;
+    border-right:1px solid var(--tct-hairline-soft);
   }
+  .tct-project-figure:last-child { border-right:0; padding-right:0; }
   .tct-project-figure strong {
     display:block;
-    font-family:var(--tct-font-secondary,'Roboto'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size:clamp(2.4rem,4.4vw,4.4rem);
-    line-height:.9;
-    font-weight:400;
-    letter-spacing:-.055em;
-    color:var(--tct-figure-number-color,var(--tct-ink));
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:clamp(1.7rem,2.3vw,2.35rem);
+    line-height:1;
+    font-weight:500;
+    letter-spacing:-.025em;
+    color:var(--tct-expression-accent,var(--tct-ink));
   }
   .tct-project-figure span {
     display:block;
-    max-width:15rem;
-    margin-top:18px;
+    margin-top:6px;
     color:var(--tct-muted);
-    font-size:.79rem;
-    line-height:1.55;
+    font-size:.74rem;
+    line-height:1.35;
   }
 
   .tct-project-text { padding:clamp(48px,6vw,80px) 0; }
@@ -2240,7 +2341,13 @@ const STYLE = `
     line-height:1.78;
   }
 
-  .tct-project-trajectory { padding:clamp(48px,5vw,72px) 0 clamp(64px,7vw,104px); border-top:1px solid var(--tct-hairline-soft); margin-top:clamp(8px,1vw,16px); }
+  .tct-project-trajectory { padding:clamp(56px,6vw,88px) 0 clamp(64px,7vw,104px); border-top:2px solid var(--tct-expression-accent,var(--tct-ink)); margin-top:clamp(8px,1vw,16px); }
+  .tct-project-trajectory-inline { margin-top:28px; }
+  .tct-project-trajectory-inline .tct-project-trajectory {
+    padding:22px 0 8px;
+    border-top:1px solid var(--tct-hairline-soft);
+    margin-top:0;
+  }
   .tct-project-trajectory-head {
     display:flex;
     align-items:baseline;
@@ -2393,59 +2500,38 @@ const STYLE = `
     text-transform:uppercase;
   }
 
-  .tct-project-choices {
-    display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
-    padding:clamp(56px,6vw,92px) 0;
+  .tct-project-choices-inline {
+    margin-top:28px;
+    padding-top:22px;
+    border-top:1px solid var(--tct-hairline-soft);
   }
   .tct-project-choices-head {
-    grid-column:1 / span 3;
-    padding-top:.35rem;
+    margin-bottom:16px;
     color:var(--tct-faint);
-    font-size:.61rem;
+    font-size:.6rem;
     font-weight:600;
-    letter-spacing:.14em;
+    letter-spacing:.12em;
     text-transform:uppercase;
   }
-  .tct-project-choices-grid {
-    grid-column:5 / -1;
-    display:grid;
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:clamp(34px,4vw,68px);
-  }
-  .tct-project-choices article h3 {
-    margin:0;
-    font-size:clamp(1.12rem,1.55vw,1.5rem);
-    line-height:1.18;
-    font-weight:500;
-    letter-spacing:-.03em;
-  }
-  /* Carte principe -- objet éditorial court (idée + quelques lignes),
-     surface légèrement teintée par la marque du projet. Teinte
-     toujours CLAIRE (accent mélangé à un blanc quasi pur, 6-9%) --
-     jamais besoin de recalculer le contraste : de l'encre sombre sur
-     une teinte claire de N'IMPORTE QUELLE couleur reste toujours
-     lisible, contrairement à une surface fortement colorée qui
-     exigerait une résolution clair/sombre dédiée. */
   .tct-project-choice-card {
-    width:min(280px,74vw);
-    padding:26px 24px;
-    border-radius:18px;
-    background:var(--tct-choice-surface,var(--tct-canvas));
+    width:min(240px,72vw);
+    padding-right:24px;
+    border-right:1px solid var(--tct-hairline-soft);
   }
+  .tct-project-choice-card:last-child { border-right:0; padding-right:0; }
   .tct-project-choice-card h3 {
     margin:0;
-    font-size:clamp(1.12rem,1.55vw,1.5rem);
-    line-height:1.18;
+    font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:clamp(1.05rem,1.4vw,1.3rem);
+    line-height:1.2;
     font-weight:500;
-    letter-spacing:-.03em;
+    letter-spacing:-.025em;
   }
   .tct-project-choice-card p {
-    margin:16px 0 0;
+    margin:10px 0 0;
     color:var(--tct-muted);
-    font-size:.83rem;
-    line-height:1.62;
+    font-size:.82rem;
+    line-height:1.6;
   }
 
   .tct-project-team {
@@ -2513,17 +2599,27 @@ const STYLE = `
     line-height:1.25;
   }
 
-  .tct-project-media { padding:clamp(56px,6vw,88px) 0; }
+  .tct-project-media {
+    width:100vw;
+    margin-left:calc(50% - 50vw);
+    padding:clamp(56px,6vw,88px) 0;
+  }
   .tct-project-media-frame { overflow:hidden; }
   .tct-project-media-img {
     display:block;
     width:100%;
-    max-height:82vh;
+    max-height:92vh;
     object-fit:cover;
     transform:translate3d(0,var(--tct-media-drift,0px),0) scale(1.018);
     will-change:transform;
   }
-  .tct-project-media figcaption,
+  .tct-project-media figcaption {
+    width:min(1420px,calc(100% - 64px));
+    margin:12px auto 0;
+    color:var(--tct-faint);
+    font-size:.65rem;
+    line-height:1.45;
+  }
   .tct-project-gallery figcaption {
     margin-top:12px;
     color:var(--tct-faint);
@@ -2635,8 +2731,9 @@ const STYLE = `
   }
   .tct-space-chip {
     padding:6px 12px;
-    border:1px solid var(--tct-hairline-soft);
+    border:1px solid var(--tct-branded-hairline,var(--tct-hairline-soft));
     border-radius:999px;
+    background:var(--tct-accent-soft,transparent);
     color:var(--tct-muted);
     font-size:.72rem;
     line-height:1;
@@ -3842,20 +3939,32 @@ const STYLE = `
     scroll-margin-top:120px;
     padding:clamp(24px,3vw,40px) 0 clamp(40px,4.5vw,56px);
   }
-  .tct-question-answer,
-  .tct-question-ambiguity,
-  .tct-question-unknown {
+  .tct-question-doc {
     display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
+    grid-template-columns:minmax(0,.4fr) minmax(0,1fr);
+    column-gap:clamp(40px,5vw,80px);
     align-items:start;
+    margin-top:clamp(40px,5vw,80px);
+    padding-top:clamp(28px,3.5vw,46px);
+    border-top:1px solid var(--tct-hairline-soft);
+  }
+  .tct-question-aside {
+    position:sticky;
+    top:110px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  .tct-question-aside p {
+    margin:0;
+    color:var(--tct-faint);
+    font-size:.76rem;
+    line-height:1.6;
   }
   .tct-question-state {
-    grid-column:1 / span 3;
     display:flex;
     align-items:center;
     gap:11px;
-    padding-top:.35rem;
     color:var(--tct-faint);
     font-size:.61rem;
     font-weight:600;
@@ -3869,9 +3978,7 @@ const STYLE = `
     background:var(--tct-expression-accent,var(--tct-ink));
     box-shadow:0 0 0 6px color-mix(in srgb,var(--tct-expression-accent,var(--tct-ink)) 9%,transparent);
   }
-  .tct-question-answer-main,
-  .tct-question-ambiguity-main,
-  .tct-question-unknown-main { grid-column:4 / span 7; }
+  .tct-question-main { min-width:0; }
 
   .tct-question-answer h2,
   .tct-question-ambiguity h2,
@@ -4068,23 +4175,24 @@ const STYLE = `
 
   .tct-featured-questions {
     display:grid;
-    grid-template-columns:repeat(12,minmax(0,1fr));
-    column-gap:clamp(18px,2vw,32px);
+    grid-template-columns:minmax(0,.4fr) minmax(0,1fr);
+    column-gap:clamp(40px,5vw,80px);
     align-items:start;
-    padding:clamp(48px,6vw,88px) 0 26px;
+    padding:clamp(28px,3.5vw,44px) 0;
+    border-top:1px solid var(--tct-hairline-soft);
   }
-  .tct-featured-questions-heading { grid-column:1 / span 4; }
+  .tct-featured-questions-heading { grid-column:1 / span 1; }
   .tct-featured-questions-heading h2 {
-    max-width:22ch;
-    margin:12px 0 0;
+    max-width:20ch;
+    margin:10px 0 0;
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:clamp(1.4rem,2vw,1.85rem);
+    font-size:clamp(1.1rem,1.5vw,1.4rem);
     line-height:1.2;
     font-weight:500;
     letter-spacing:-.025em;
   }
   .tct-featured-questions ol {
-    grid-column:6 / -1;
+    grid-column:2 / span 1;
     list-style:none;
     margin:0;
     padding:0;
@@ -4107,9 +4215,21 @@ const STYLE = `
     text-align:left;
   }
   .tct-featured-questions li button > span {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:26px;
+    padding:2px 6px;
+    border-radius:999px;
     color:var(--tct-faint);
     font-family:var(--tct-font-secondary,'Roboto'),-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:.92rem;
+    transition:background .2s ease, color .2s ease;
+  }
+  .tct-featured-questions li button:hover > span,
+  .tct-featured-questions li button:focus-visible > span {
+    background:var(--tct-accent-soft,transparent);
+    color:var(--tct-expression-accent,var(--tct-ink));
   }
   .tct-featured-questions li strong {
     max-width:30ch;
@@ -4126,9 +4246,8 @@ const STYLE = `
 
   @media (max-width:980px) {
     .tct-questions-top { grid-template-columns:1fr; }
-    .tct-question-answer-main,
-    .tct-question-ambiguity-main,
-    .tct-question-unknown-main { grid-column:4 / span 8; }
+    .tct-question-doc { grid-template-columns:1fr; row-gap:24px; }
+    .tct-question-aside { position:static; }
   }
 
   @media (max-width:720px) {
@@ -4164,9 +4283,9 @@ const STYLE = `
     .tct-question-contact-form > button { grid-column:auto; }
     .tct-question-contact-status { margin-top:24px; }
 
-    .tct-featured-questions { display:block; padding-top:38px; }
-    .tct-featured-questions-heading h2 { max-width:9.5ch; font-size:clamp(1.5rem,6vw,1.95rem); }
-    .tct-featured-questions ol { margin-top:54px; }
+    .tct-featured-questions { display:block; padding-top:32px; }
+    .tct-featured-questions-heading h2 { max-width:none; font-size:clamp(1.2rem,5vw,1.5rem); }
+    .tct-featured-questions ol { margin-top:24px; }
     .tct-featured-questions li button { grid-template-columns:34px 1fr auto; gap:12px; }
   }
 
@@ -4808,8 +4927,6 @@ const STYLE = `
   }
 
   @media (max-width:980px) {
-    .tct-project-figures-grid { grid-column:4 / -1; }
-    .tct-project-choices-grid { grid-column:4 / -1; }
     .tct-project-team-heading { grid-column:1 / span 4; }
     .tct-project-team-grid { grid-column:5 / -1; }
     .tct-project-track.is-horizontal .tct-project-milestone-copy p { display:none; }
@@ -4823,16 +4940,14 @@ const STYLE = `
 
     .tct-project-chapter { grid-template-columns:1fr; }
     .tct-project-chapter-num { font-size:1.3rem; }
-    .tct-project-focus { padding:44px 0; }
-    .tct-project-focus h2 { max-width:10ch; font-size:clamp(2.8rem,12.5vw,4.6rem); }
-    .tct-project-focus p { margin-top:26px; }
+    .tct-project-focus { padding:36px 0; }
+    .tct-project-focus h2 { max-width:none; font-size:clamp(1.7rem,7.5vw,2.2rem); }
+    .tct-project-focus p { margin-top:20px; }
 
-    .tct-project-figures { display:block; padding:56px 0 64px; }
-    .tct-project-figures-head { margin-bottom:48px; padding-top:0; }
-    .tct-project-figures-grid,
-    .tct-project-figures-grid.is-many { grid-template-columns:repeat(2,minmax(0,1fr)); gap:48px 24px; }
-    .tct-project-figure strong { font-size:clamp(2rem,9vw,3rem); }
-    .tct-project-figure span { margin-top:12px; }
+    .tct-project-figures-inline { margin-top:22px; padding-top:18px; }
+    .tct-project-figure { min-width:132px; padding-right:18px; }
+    .tct-project-figure strong { font-size:clamp(1.6rem,7vw,2.1rem); }
+    .tct-project-figure span { margin-top:5px; }
 
     .tct-project-text { padding:22px 0 110px; }
     .tct-project-reading { width:auto; margin-left:0; }
@@ -4875,9 +4990,8 @@ const STYLE = `
     .tct-project-quote blockquote { max-width:11ch; font-size:clamp(2.8rem,12.5vw,4.7rem); }
     .tct-project-quote cite { margin-top:34px; }
 
-    .tct-project-choices { display:block; padding:60px 0 64px; }
-    .tct-project-choices-head { margin-bottom:46px; }
-    .tct-project-choices-grid { display:grid; grid-template-columns:1fr; gap:42px; }
+    .tct-project-choices-inline { margin-top:22px; padding-top:18px; }
+    .tct-project-choice-card { width:min(260px,78vw); padding-right:20px; }
 
     .tct-project-team { display:block; padding:44px 0 28px; }
     .tct-project-team-heading h2 { max-width:9.5ch; }
@@ -5687,16 +5801,19 @@ function wireInteractions(root, manifest, actions) {
     const answerMarkup = entry => {
       const related = questionRelatedLink(entry);
       return `
-        <article class="tct-question-answer">
-          <div class="tct-question-state">
-            <i aria-hidden="true"></i>
-            <span>${esc(faqStatusLabel(entry))}</span>
-          </div>
-          <div class="tct-question-answer-main">
+        <article class="tct-question-answer tct-question-doc">
+          <aside class="tct-question-aside">
+            <div class="tct-question-state">
+              <i aria-hidden="true"></i>
+              <span>${esc(faqStatusLabel(entry))}</span>
+            </div>
+            <p>Réponse issue des contenus publiés par l’équipe projet.<br><br>Si l’information n’est pas disponible, un contact humain est proposé.</p>
+          </aside>
+          <div class="tct-question-answer-main tct-question-main">
             <h2>${esc(entry.title)}</h2>
             <div class="tct-question-answer-body">${faqAnswerToHtml(entry.answer)}</div>
             ${entry.note ? `<p class="tct-question-answer-note">${esc(entry.note)}</p>` : ''}
-            <div class="tct-question-answer-actions">
+            <div class="tct-question-answer-actions tct-question-related">
               ${related ? `<a class="tct-text-link" href="${related.href}" data-tct-route>${esc(related.label)} <span aria-hidden="true">→</span></a>` : ''}
               <button type="button" data-tct-ask-another>Poser une autre question</button>
             </div>
@@ -5705,14 +5822,16 @@ function wireInteractions(root, manifest, actions) {
     };
 
     const ambiguityMarkup = candidates => `
-      <div class="tct-question-ambiguity">
-        <div class="tct-question-state">
-          <i aria-hidden="true"></i>
-          <span>À préciser</span>
-        </div>
-        <div class="tct-question-ambiguity-main">
+      <div class="tct-question-ambiguity tct-question-doc">
+        <aside class="tct-question-aside">
+          <div class="tct-question-state">
+            <i aria-hidden="true"></i>
+            <span>À préciser</span>
+          </div>
+          <p>Votre formulation peut correspondre à plusieurs sujets déjà publiés.<br><br>Choisissez celui qui se rapproche le plus de votre question.</p>
+        </aside>
+        <div class="tct-question-ambiguity-main tct-question-main">
           <h2>Vous pensiez plutôt à…</h2>
-          <p>Votre formulation peut correspondre à plusieurs sujets. Choisissez simplement celui qui se rapproche le plus de votre question.</p>
           <ul class="tct-question-candidates">
             ${candidates.map(candidate => `
               <li>
@@ -5726,14 +5845,16 @@ function wireInteractions(root, manifest, actions) {
       </div>`;
 
     const unknownMarkup = () => `
-      <div class="tct-question-unknown">
-        <div class="tct-question-state">
-          <i aria-hidden="true"></i>
-          <span>Pas encore disponible ici</span>
-        </div>
-        <div class="tct-question-unknown-main">
+      <div class="tct-question-unknown tct-question-doc">
+        <aside class="tct-question-aside">
+          <div class="tct-question-state">
+            <i aria-hidden="true"></i>
+            <span>Pas encore disponible ici</span>
+          </div>
+          <p>Aucune réponse correspondante n’a été trouvée dans les informations publiées.<br><br>Vous pouvez transmettre votre question à l’équipe projet.</p>
+        </aside>
+        <div class="tct-question-unknown-main tct-question-main">
           <h2>Cette question mérite une réponse précise.</h2>
-          <p>Nous n’avons pas trouvé de réponse suffisamment fiable dans les informations publiées. Plutôt que de vous proposer quelque chose d’approximatif, vous pouvez la transmettre à l’équipe projet.</p>
           <button type="button" class="tct-question-transmit" data-tct-open-contact>
             Transmettre cette question <span aria-hidden="true">→</span>
           </button>
@@ -6185,10 +6306,17 @@ export function render(manifest, root, actions) {
     ? sharedBrand.resolve([primary, secondary], { canvas: '#F7F7F5' })
     : null;
   const expressionAccentSecondary = (brandDecision && brandDecision.roles && brandDecision.roles.accentSecondary) || expressionAccent;
-  // Cartes teintées (chiffres clés / principes) : contraste réel
-  // vérifié ici (jamais supposé côté CSS), voir resolveCardSurface.
-  const figureSurface = resolveCardSurface(expressionAccent, '#171717', '#6a6a66', 9);
-  const choiceSurface = resolveCardSurface(expressionAccent, '#171717', '#6a6a66', 7);
+  // Rôles étendus du Brand Engine (accentSoft/accentSofter/
+  // brandedHairline/onAccent) -- déjà calculés par le même appel à
+  // resolve() ci-dessus, jamais un second calcul. Repli local sûr
+  // (jamais une couleur inventée) si le Brand Engine partagé est
+  // absent, en réutilisant resolveCardSurface déjà présent pour rester
+  // cohérent avec les mêmes garanties de contraste.
+  const extendedRoles = (brandDecision && brandDecision.roles) || {};
+  const accentSoft = extendedRoles.accentSoft || resolveCardSurface(expressionAccent, '#171717', '#6a6a66', 12).background;
+  const accentSofter = extendedRoles.accentSofter || resolveCardSurface(expressionAccent, '#171717', '#6a6a66', 5).background;
+  const brandedHairline = extendedRoles.brandedHairline || `color-mix(in srgb, ${expressionAccent} 22%, transparent)`;
+  const onAccent = extendedRoles.onAccent || '#FFFFFF';
   const fontPrimary = safeCssFont(fonts.primary && fonts.primary.family, 'Roboto');
   // Le repli n'est plus jamais une police nommée en dur (Italiana) --
   // c'est fontPrimary déjà résolue, cohérent avec la doctrine "1 police
@@ -6235,7 +6363,7 @@ export function render(manifest, root, actions) {
 
   root.innerHTML = `
     <style>${fontAssetsCss}${STYLE}${TCT_MOOD_STYLE}</style>
-    <div class="tct-site" style="--tct-primary:${primary};--tct-secondary:${secondary};--tct-expression-accent:${expressionAccent};--tct-expression-accent-secondary:${expressionAccentSecondary};--tct-figure-surface:${figureSurface.background};--tct-figure-number-color:${figureSurface.numberColor};--tct-choice-surface:${choiceSurface.background};--tct-font-primary:'${fontPrimary}';--tct-font-secondary:'${fontSecondary}';">
+    <div class="tct-site" style="--tct-expression-accent:${expressionAccent};--tct-expression-accent-secondary:${expressionAccentSecondary};--tct-accent-soft:${accentSoft};--tct-accent-softer:${accentSofter};--tct-branded-hairline:${brandedHairline};--tct-on-accent:${onAccent};--tct-font-primary:'${fontPrimary}';--tct-font-secondary:'${fontSecondary}';">
       <header class="tct-header" id="tct-site-header">
         <div class="tct-header-inner">
           <a class="tct-brand" href="#home" aria-label="Accueil — ${projectName}">

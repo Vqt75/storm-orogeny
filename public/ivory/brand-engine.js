@@ -90,6 +90,41 @@
     return 'TONAL_ACCENT';
   }
 
+  function mixHex(hexA, hexB, percentA) {
+    const a = hexToRgb(hexA);
+    const b = hexToRgb(hexB);
+    const p = Math.max(0, Math.min(100, percentA)) / 100;
+    const mix = (x, y) => Math.round((x * p + y * (1 - p)) * 255);
+    const toHex = v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0');
+    return `#${toHex(mix(a.r, b.r))}${toHex(mix(a.g, b.g))}${toHex(mix(a.b, b.b))}`.toUpperCase();
+  }
+
+  const BODY_TEXT_MIN = 4.5;
+
+  // Surface teintée sûre : mélange accent/canvas au pourcentage demandé,
+  // validée contre l'encre ET le texte atténué (jamais juste "espéré
+  // clair") -- repli en cascade si le contraste échoue, jamais un
+  // second calcul dupliqué ailleurs dans le renderer.
+  function safeTintedSurface(accentHex, canvasHex, inkHex, mutedHex, percent) {
+    const bodyTextSafe = bg => contrastRatio(inkHex, bg) >= BODY_TEXT_MIN && contrastRatio(mutedHex, bg) >= BODY_TEXT_MIN;
+    let p = percent;
+    let bg = mixHex(accentHex, canvasHex, p);
+    if (!bodyTextSafe(bg)) { p = percent / 2; bg = mixHex(accentHex, canvasHex, p); }
+    if (!bodyTextSafe(bg)) { bg = canvasHex; }
+    return bg;
+  }
+
+  // Texte à poser directement sur un accent plein (pastille, badge) --
+  // choisit le blanc ou l'encre, selon lequel des deux passe réellement
+  // le contraste AA sur cet accent précis. Jamais une couleur fixe
+  // supposée fonctionner pour tout accent.
+  function onAccentFor(accentHex, inkHex) {
+    const white = '#FFFFFF';
+    const contrastWhite = contrastRatio(accentHex, white);
+    const contrastInk = contrastRatio(accentHex, inkHex);
+    return contrastWhite >= contrastInk ? white : inkHex;
+  }
+
   function resolve(colors, options = {}) {
     const canvas = normalizeHex(options.canvas || DEFAULT_CANVAS, DEFAULT_CANVAS);
     const raw = Array.isArray(colors) && colors.length
@@ -108,6 +143,19 @@
     if (secondary && secondary.usableAccent && secondary.hex !== accent) accentSecondary = secondary.hex;
     else if (primary.usableAccent && primary.hex !== accent) accentSecondary = primary.hex;
 
+    // Rôles étendus V2.1 -- dérivés uniquement des deux couleurs déjà
+    // fournies, jamais une teinte inventée. accentSoft sert les petites
+    // surfaces fonctionnelles (puces, états actifs) ; accentSofter sert
+    // les grandes surfaces (fonds de section entiers) et doit donc
+    // rester particulièrement sûr en contraste. brandedHairline est une
+    // ligne de séparation teintée à faible dose, jamais porteuse de
+    // texte donc jamais soumise à la même contrainte de contraste.
+    // onAccent résout le texte à poser directement sur un accent plein.
+    const accentSoft = safeTintedSurface(accent, canvas, DEFAULT_INK, '#6a6a66', 12);
+    const accentSofter = safeTintedSurface(accent, canvas, DEFAULT_INK, '#6a6a66', 5);
+    const brandedHairline = `color-mix(in srgb, ${accent} 22%, transparent)`;
+    const onAccent = onAccentFor(accent, DEFAULT_INK);
+
     return {
       raw,
       mode: classifyPalette(raw, canvas),
@@ -116,7 +164,11 @@
         surface: canvas,
         accent,
         accentSecondary,
-        ambientAccent: accent
+        ambientAccent: accent,
+        accentSoft,
+        accentSofter,
+        brandedHairline,
+        onAccent
       },
       analysis: {
         primary,
@@ -136,6 +188,9 @@
     toOklch,
     analyzeColor,
     classifyPalette,
+    mixHex,
+    safeTintedSurface,
+    onAccentFor,
     resolve
   };
 });

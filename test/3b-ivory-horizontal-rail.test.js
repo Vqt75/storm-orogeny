@@ -144,24 +144,27 @@ test('CTA internes préservés -- lien de contact ambassadeur toujours rendu', (
 
 // ── Brand Engine -- surfaces teintées, jamais un second calcul ────────
 
-test('cartes Chiffres clés et Principes utilisent une surface calculée et validée côté serveur, jamais un color-mix CSS brut non vérifié', () => {
+test('Chiffres clés et Principes n\'utilisent plus de fond de carte teinté -- typographie forte + séparateur léger uniquement, jamais un color-mix CSS brut ni une surface calculée dédiée', () => {
   const figureIdx = ivoryJs.indexOf('.tct-project-figure {');
   const figureCss = ivoryJs.slice(figureIdx, figureIdx + 300);
-  assert.match(figureCss, /background:var\(--tct-figure-surface/);
-  assert.ok(!/color-mix/.test(figureCss), 'jamais un color-mix CSS brut -- le contraste doit être vérifié avant le rendu, pas espéré au moment du style');
+  assert.ok(!figureCss.includes('background'), 'jamais de fond de carte -- séparateur (border-right) uniquement');
+  assert.match(figureCss, /border-right:1px solid var\(--tct-hairline-soft\)/);
 
   const choiceIdx = ivoryJs.indexOf('.tct-project-choice-card {');
   const choiceCss = ivoryJs.slice(choiceIdx, choiceIdx + 300);
-  assert.match(choiceCss, /background:var\(--tct-choice-surface/);
-  assert.ok(!/color-mix/.test(choiceCss));
+  assert.ok(!choiceCss.includes('background'));
+  assert.match(choiceCss, /border-right:1px solid var\(--tct-hairline-soft\)/);
+
+  assert.ok(!ivoryJs.includes('--tct-figure-surface'), 'variable CSS morte -- retirée avec le fond de carte');
+  assert.ok(!ivoryJs.includes('--tct-choice-surface'), 'variable CSS morte -- retirée avec le fond de carte');
 });
 
 test('resolveCardSurface calcule et valide réellement le contraste (encre ET muted) avant de choisir la teinte, jamais une simple supposition', () => {
   assert.match(ivoryJs, /function resolveCardSurface\(accentHex, inkHex, mutedHex, tintPercent\)/);
   assert.match(ivoryJs, /function mixWithWhite\(hex, percent\)/);
   assert.match(ivoryJs, /colorContrast\(inkHex, bg\) >= WCAG_BODY_TEXT_MIN && colorContrast\(mutedHex, bg\) >= WCAG_BODY_TEXT_MIN/);
-  assert.match(ivoryJs, /const figureSurface = resolveCardSurface\(expressionAccent, '#171717', '#6a6a66', 9\);/);
-  assert.match(ivoryJs, /const choiceSurface = resolveCardSurface\(expressionAccent, '#171717', '#6a6a66', 7\);/);
+  assert.match(ivoryJs, /resolveCardSurface\(expressionAccent, '#171717', '#6a6a66', 12\)\.background/, 'accentSoft doit rester calculé via resolveCardSurface en repli');
+  assert.match(ivoryJs, /resolveCardSurface\(expressionAccent, '#171717', '#6a6a66', 5\)\.background/, 'accentSofter doit rester calculé via resolveCardSurface en repli');
 });
 
 test('repli en cascade -- teinte réduite puis papier neutre si le contraste échoue, jamais un blocage', () => {
@@ -471,7 +474,7 @@ test('Le Projet -- ouverture allégée, jamais de min-height artificiel comme l\
 });
 
 test('Le Projet -- espacement des sections resserré et cohérent -- jamais deux rails séparés par un désert (repli combiné mesuré)', () => {
-  for (const sel of ['.tct-project-figures {', '.tct-project-choices {', '.tct-project-text {', '.tct-project-media {', '.tct-project-gallery {']) {
+  for (const sel of ['.tct-project-figures-inline {', '.tct-project-choices-inline {', '.tct-project-text {', '.tct-project-media {', '.tct-project-gallery {']) {
     const idx = ivoryJs.indexOf(sel);
     assert.ok(idx > 0, `${sel} doit exister`);
     const closeIdx = ivoryJs.indexOf('}', idx);
@@ -1115,10 +1118,10 @@ test('Le Projet V2.1 -- timeline garde son mécanisme dédié (ol sémantique, a
   assert.ok(!html.includes('tct-project-milestones" data-tct-rail'));
 });
 
-test('Le Projet V2.1 -- timeline traitée comme conclusion (hairline de transition), jamais un simple bloc posé après tout le reste sans signal', () => {
+test('Le Projet V2.1 -- timeline traitée comme conclusion décisive (bordure d\'accent), distincte des interludes de marque Chiffres/Principes (fond teinté)', () => {
   const idx = ivoryJs.indexOf('.tct-project-trajectory {');
   const css = ivoryJs.slice(idx, idx + 150);
-  assert.match(css, /border-top:1px solid var\(--tct-hairline-soft\)/);
+  assert.match(css, /border-top:2px solid var\(--tct-expression-accent/);
 });
 
 test('Le Projet V2.1 -- media-sparse : sans keyFigures/choices/média, la page reste fonctionnelle, aucune section vide/placeholder', () => {
@@ -1328,13 +1331,13 @@ test('Questions -- aucune théâtralisation IA (pas de marque Storm, pas de badg
 
 test('Questions -- réponse prioritaire (titre de l\'entrée réelle), jamais la question brute de l\'utilisateur répétée en énorme (doctrine déjà fixée, reconfirmée)', () => {
   const idx = ivoryJs.indexOf('const answerMarkup = entry =>');
-  const body = ivoryJs.slice(idx, idx + 400);
+  const body = ivoryJs.slice(idx, idx + 900);
   assert.match(body, /<h2>\$\{esc\(entry\.title\)\}<\/h2>/);
 });
 
 test('Questions -- escalade réelle utilise les capacités existantes uniquement (transmission vers contact), jamais un routage inventé', () => {
   const idx = ivoryJs.indexOf('const unknownMarkup');
-  const body = ivoryJs.slice(idx, idx + 700);
+  const body = ivoryJs.slice(idx, idx + 900);
   assert.match(body, /data-tct-open-contact/);
 });
 
@@ -1473,4 +1476,272 @@ test('Audit transversal -- résistance structurelle confirmée sur contenu extr�
   const many = Array.from({ length: 20 }, (_, i) => ({ name: `P${i}`, title: 'R' }));
   const htmlTeam = renderProject({ intro: {}, sections: [{ type: 'team' }] }, { team: { members: many } });
   assert.equal((htmlTeam.match(/tct-project-person"/g) || []).length, 20);
+});
+
+// ── Brand Engine étendu -- rôles dérivés, sûrs et déterministes ──────
+import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+import { readFileSync } from 'node:fs';
+
+function loadBrandEngine() {
+  const filePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'ivory', 'brand-engine.js');
+  const src = readFileSync(filePath, 'utf8');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(src, sandbox);
+  return sandbox.StormBrandEngine;
+}
+
+test('Brand Engine -- expose les nouveaux rôles étendus, calculés réellement (exécution via vm, pas juste une vérification de source)', () => {
+  const be = loadBrandEngine();
+  const r = be.resolve(['#1E3A8A', '#E11D48']);
+  assert.match(r.roles.accentSoft, /^#[0-9A-F]{6}$/);
+  assert.match(r.roles.accentSofter, /^#[0-9A-F]{6}$/);
+  assert.match(r.roles.brandedHairline, /^color-mix\(in srgb, #1E3A8A 22%, transparent\)$/);
+  assert.ok(r.roles.onAccent === '#FFFFFF' || r.roles.onAccent === r.roles.ink);
+});
+
+test('Brand Engine -- accentSoft/accentSofter jamais une couleur inventée, toujours dérivée des deux couleurs fournies + repli sûr en cascade si le contraste échoue', () => {
+  const be = loadBrandEngine();
+  // Accent tres sombre + texte muted clair : le melange doit rester lisible
+  const r = be.resolve(['#0A0A0A']);
+  const contrastSoft = be.contrastRatio('#1E1D1E', r.roles.accentSoft);
+  assert.ok(contrastSoft >= 4.5, `accentSoft doit rester lisible pour le texte encre : ${contrastSoft}`);
+});
+
+test('Brand Engine -- onAccent choisit réellement le meilleur contraste (blanc ou encre) selon l\'accent fourni, jamais une valeur fixe supposée', () => {
+  const be = loadBrandEngine();
+  const rDark = be.resolve(['#0A0A0A']);
+  assert.equal(rDark.roles.onAccent, '#FFFFFF');
+});
+
+test('--tct-primary/--tct-secondary morts retirés du renderer, remplacés par les rôles réellement consommés (accentSoft/accentSofter/brandedHairline/onAccent)', () => {
+  assert.ok(!ivoryJs.includes('--tct-primary:'));
+  assert.ok(!ivoryJs.includes('--tct-secondary:'));
+  assert.match(ivoryJs, /--tct-accent-soft:\$\{accentSoft\}/);
+  assert.match(ivoryJs, /--tct-branded-hairline:\$\{brandedHairline\}/);
+});
+
+test('Nouveaux rôles réellement consommés à plusieurs endroits distincts (Le Projet, Questions, Espaces) -- jamais un seul mot coloré isolé', () => {
+  assert.match(ivoryJs, /\.tct-project-figure strong \{[\s\S]*?color:var\(--tct-expression-accent/);
+  assert.match(ivoryJs, /\.tct-featured-questions li button:hover > span[\s\S]*?background:var\(--tct-accent-soft/);
+  assert.match(ivoryJs, /\.tct-space-chip \{[\s\S]*?background:var\(--tct-accent-soft/);
+});
+
+test('Aucune heuristique de personnalisation interdite (pas de "palette chaude => plus arrondi" ni équivalent)', () => {
+  assert.ok(!/palette.*chaude|palette.*sombre|warmth|corner.*character/i.test(ivoryJs));
+});
+
+// ── Recomposition géographique réelle -- Le Projet + Questions ───────
+
+test('Le Projet -- image en vraie rupture plein écran (100vw), jamais contrainte à la largeur de lecture habituelle', () => {
+  const idx = ivoryJs.indexOf('.tct-project-media {');
+  const css = ivoryJs.slice(idx, idx + 150);
+  assert.match(css, /width:100vw/);
+  assert.match(css, /margin-left:calc\(50% - 50vw\)/);
+});
+
+test('Le Projet -- Chiffres clés et Principes intégrés au récit (hairline léger, jamais de bande pleine largeur ni de fond accentSofter)', () => {
+  assert.ok(!ivoryJs.includes('.tct-project-figures {'), 'l\'ancienne section pleine largeur ne doit plus exister');
+  assert.ok(!ivoryJs.includes('.tct-project-choices {'), 'l\'ancienne section pleine largeur ne doit plus exister');
+  for (const sel of ['.tct-project-figures-inline {', '.tct-project-choices-inline {']) {
+    const idx = ivoryJs.indexOf(sel);
+    assert.ok(idx > 0, `${sel} doit exister`);
+    const css = ivoryJs.slice(idx, idx + 150);
+    assert.ok(!css.includes('width:100vw'), `${sel} ne doit jamais être plein écran`);
+    assert.ok(!css.includes('accent-softer'), `${sel} ne doit jamais utiliser la surface pleine largeur`);
+    assert.match(css, /border-top:1px solid var\(--tct-hairline-soft\)/);
+  }
+});
+
+test('Le Projet -- citation déjà un vrai moment fort plein écran sombre (vérifié, non modifié par cette passe)', () => {
+  const idx = ivoryJs.indexOf('.tct-project-quote {');
+  const css = ivoryJs.slice(idx, idx + 150);
+  assert.match(css, /width:100vw/);
+  assert.match(css, /background:var\(--tct-ink\)/);
+});
+
+test('Le Projet -- timeline différenciée des interludes de marque par une bordure d\'accent décisive sur fond neutre, jamais identique à Chiffres/Principes', () => {
+  const idx = ivoryJs.indexOf('.tct-project-trajectory {');
+  const css = ivoryJs.slice(idx, idx + 150);
+  assert.match(css, /border-top:2px solid var\(--tct-expression-accent/);
+  assert.ok(!css.includes('background:var(--tct-accent-softer'));
+});
+
+test('Le Projet -- fixture réelle : aucune perte de contenu après la recomposition géographique (intro, chapitres, chiffres, principes, citation, image, timeline)', () => {
+  const project = {
+    intro: { title: 'INTRO_T', body: 'INTRO_B' },
+    sections: [
+      { type: 'text', title: 'CH_T', body: 'CH_B' },
+      { type: 'keyFigures', items: [{ value: 'V1', label: 'L1' }] },
+      { type: 'choices', items: [{ title: 'P1', body: 'PB1' }] },
+      { type: 'quote', quote: 'Q1' },
+      { type: 'image', asset: { url: '/x.jpg', alt: 'A1' } },
+      { type: 'timeline' }
+    ]
+  };
+  const html = renderProject(project, { timeline: { milestones: [{ status: 'current', label: 'JAL', date: 'D1' }] } });
+  for (const needle of ['INTRO_T', 'INTRO_B', 'CH_T', 'CH_B', 'V1', 'L1', 'P1', 'PB1', 'Q1', 'JAL']) {
+    assert.ok(html.includes(needle), `donnée perdue : "${needle}"`);
+  }
+});
+
+test('Questions -- vraie géographie à deux colonnes pour la réponse (nouveau conteneur .tct-question-doc, nouvelle grille .4fr/1fr), jamais juste une bordure sur le markup existant', () => {
+  const idx = ivoryJs.indexOf('.tct-question-doc {');
+  const css = ivoryJs.slice(idx, idx + 250);
+  assert.match(css, /display:grid/);
+  assert.match(css, /grid-template-columns:minmax\(0,\.4fr\) minmax\(0,1fr\)/);
+  assert.ok(!css.includes('border-left'), 'jamais une simple bordure -- une vraie grille à deux colonnes');
+});
+
+test('Questions -- aside fixe (texte de provenance strictement descriptif, jamais évaluatif) distincte du contenu principal dynamique -- vraie séparation DOM, pas une colonne cosmétique', () => {
+  const html = renderQuestions({ intro: {}, items: [] }, false);
+  const idx = ivoryJs.indexOf('const answerMarkup = entry =>');
+  const body = ivoryJs.slice(idx, idx + 900);
+  assert.match(body, /<aside class="tct-question-aside">/);
+  assert.match(body, /Réponse issue des contenus publiés par l.équipe projet/);
+  assert.match(body, /<div class="tct-question-answer-main tct-question-main">/);
+});
+
+test('Questions -- les trois états (answer/ambiguity/unknown) partagent la même géographie .tct-question-doc, hiérarchie adaptée par état', () => {
+  assert.match(ivoryJs, /class="tct-question-answer tct-question-doc"/);
+  assert.match(ivoryJs, /class="tct-question-ambiguity tct-question-doc"/);
+  assert.match(ivoryJs, /class="tct-question-unknown tct-question-doc"/);
+});
+
+
+test('Questions -- repli mobile réel de la géographie deux colonnes (jamais une grille desktop simplement écrasée, jamais un vide de colonne latérale supprimée)', () => {
+  const idx = ivoryJs.indexOf('.tct-question-doc { grid-template-columns:1fr;');
+  assert.ok(idx > 0, 'la bascule mobile doit exister');
+  const css = ivoryJs.slice(idx, idx + 100);
+  assert.match(css, /row-gap:24px/);
+  const asideIdx = ivoryJs.indexOf('.tct-question-aside { position:static; }');
+  assert.ok(asideIdx > 0, 'aside repasse en flux normal sur mobile, jamais sticky sur petit écran');
+});
+
+test('Questions -- aucune formulation évaluative de fiabilité dans les textes d\'aside (jamais "fiable"/"vérifiée"/"officielle"/"approximative"), unknown = aucune correspondance trouvée, rien de plus', () => {
+  const idx = ivoryJs.indexOf('const answerMarkup = entry =>');
+  const end = ivoryJs.indexOf('const showAnswer');
+  const body = ivoryJs.slice(idx, end);
+  assert.ok(!/fiable|vérifi|officiel|approximativ|validé/i.test(body), 'aucune évaluation de confiance non fondée sur le contrat réel');
+  assert.match(body, /Aucune réponse correspondante n.a été trouvée/, 'unknown doit rester strictement descriptif du contrat réel (aucune correspondance), jamais une évaluation de qualité');
+});
+
+test('Questions -- FAQ devient une matière secondaire après la nouvelle géographie (largeur alignée sur la colonne de contenu, jamais pleine largeur comme un second produit)', () => {
+  const idx = ivoryJs.indexOf('.tct-featured-questions {');
+  const css = ivoryJs.slice(idx, idx + 250);
+  assert.match(css, /grid-template-columns:minmax\(0,\.4fr\) minmax\(0,1fr\)/, 'doit reprendre la même proportion que .tct-question-doc, jamais la pleine largeur 12 colonnes');
+  assert.match(css, /border-top:1px solid var\(--tct-hairline-soft\)/);
+});
+
+// ── Le Projet -- regroupement narratif réel (faire disparaître les modules) ──
+
+test('Regroupement -- text → keyFigures → quote → text → timeline : ordre Manifest exact préservé, chiffres/timeline intégrés à leur chapitre respectif', () => {
+  const project = {
+    intro: {},
+    sections: [
+      { type: 'text', title: 'CH1_T', body: 'CH1_B' },
+      { type: 'keyFigures', items: [{ value: 'V1', label: 'L1' }] },
+      { type: 'quote', quote: 'CITATION_T' },
+      { type: 'text', title: 'CH2_T', body: 'CH2_B' },
+      { type: 'timeline' }
+    ]
+  };
+  const context = { timeline: { milestones: [{ status: 'current', label: 'JALON_T', date: 'D1' }] } };
+  const html = renderProject(project, context);
+
+  const positions = ['CH1_T', 'V1', 'CITATION_T', 'CH2_T', 'JALON_T'].map(s => html.indexOf(s));
+  for (let i = 1; i < positions.length; i++) {
+    assert.ok(positions[i] > positions[i - 1], `ordre Manifest rompu autour de l'index ${i}`);
+  }
+
+  const ch1End = html.indexOf('</section>', html.indexOf('CH1_T'));
+  assert.ok(html.indexOf('V1') < ch1End, 'les chiffres doivent être intégrés dans la section du chapitre 1, jamais une section séparée');
+
+  const ch2End = html.indexOf('</section>', html.indexOf('CH2_T'));
+  assert.ok(html.indexOf('JALON_T') < ch2End, 'la timeline doit être intégrée dans la section du chapitre 2, jamais posée après comme un widget autonome');
+
+  const trajCssIdx = ivoryJs.indexOf('.tct-project-trajectory-inline .tct-project-trajectory {');
+  const trajCss = ivoryJs.slice(trajCssIdx, trajCssIdx + 200);
+  assert.ok(!trajCss.includes('border-top:2px solid var(--tct-expression-accent'), 'jamais le traitement autonome (bordure d\'accent) une fois la timeline intégrée à son chapitre');
+  assert.match(trajCss, /border-top:1px solid var\(--tct-hairline-soft\)/);
+  assert.match(html, /data-tct-rail-family="figures"/, 'le rail Chiffres clés reste fonctionnel une fois intégré');
+});
+
+test('Regroupement -- image → text → choices → text : image et principes ne perturbent jamais la numérotation séquentielle des chapitres', () => {
+  const project = {
+    intro: {},
+    sections: [
+      { type: 'image', asset: { url: '/x.jpg', alt: 'IMG_ALT' } },
+      { type: 'text', title: 'CH1_T', body: 'CH1_B' },
+      { type: 'choices', items: [{ title: 'PRINCIPE_T', body: 'PRINCIPE_B' }] },
+      { type: 'text', title: 'CH2_T', body: 'CH2_B' }
+    ]
+  };
+  const html = renderProject(project, {});
+
+  const positions = ['IMG_ALT', 'CH1_T', 'PRINCIPE_T', 'CH2_T'].map(s => html.indexOf(s));
+  for (let i = 1; i < positions.length; i++) {
+    assert.ok(positions[i] > positions[i - 1], `ordre Manifest rompu autour de l'index ${i}`);
+  }
+
+  const ch1End = html.indexOf('</section>', html.indexOf('CH1_T'));
+  assert.ok(html.indexOf('PRINCIPE_T') < ch1End, 'les principes doivent être intégrés dans la section du chapitre 1');
+
+  assert.deepEqual(
+    [...html.matchAll(/tct-project-chapter-num">(\d+)</g)].map(m => m[1]),
+    ['01', '02'],
+    'numérotation séquentielle correcte -- l\'image ne doit jamais consommer un numéro de chapitre'
+  );
+  assert.match(html, /data-tct-rail-family="choices"/, 'le rail Principes reste fonctionnel une fois intégré');
+});
+
+test('Regroupement -- keyFigures orpheline en tête (aucun chapitre précédent) : composée élégamment, jamais de bande accentSofter pleine largeur', () => {
+  const project = { intro: {}, sections: [
+    { type: 'keyFigures', items: [{ value: 'V_ORPHAN', label: 'L_ORPHAN' }] },
+    { type: 'text', title: 'APRES', body: 'x' }
+  ] };
+  const html = renderProject(project, {});
+  assert.ok(html.includes('V_ORPHAN'));
+  assert.ok(!html.includes('background:var(--tct-accent-softer'));
+});
+
+test('Regroupement -- une citation interrompt l\'attachement : une primitive après une citation ne s\'attache jamais rétroactivement au chapitre précédent', () => {
+  const project = { intro: {}, sections: [
+    { type: 'text', title: 'CH1_T', body: 'x' },
+    { type: 'quote', quote: 'Q1' },
+    { type: 'keyFigures', items: [{ value: 'V_APRES_QUOTE', label: 'L1' }] }
+  ] };
+  const html = renderProject(project, {});
+  const ch1End = html.indexOf('</section>', html.indexOf('CH1_T'));
+  assert.ok(html.indexOf('V_APRES_QUOTE') > ch1End, 'jamais attaché rétroactivement à travers une rupture citation');
+});
+
+test('Focus -- variation de rythme réelle (colonne élargie encadrée de hairlines, police secondaire), jamais un simple rectangle gris plein écran', () => {
+  const idx = ivoryJs.indexOf('.tct-project-focus {');
+  const css = ivoryJs.slice(idx, idx + 200);
+  assert.ok(!css.includes('width:100vw'), 'jamais plein écran -- devenu une pause de rythme, pas une rupture façon citation');
+  assert.ok(!css.includes('background:var(--tct-soft-2)'), 'jamais un simple rectangle de fond gris');
+  assert.match(css, /border-top:1px solid var\(--tct-hairline-soft\)/);
+  assert.match(css, /border-bottom:1px solid var\(--tct-hairline-soft\)/);
+});
+
+test('Composition indépendante de la couleur de marque -- la structure (regroupement, ordre, rails) fonctionne identiquement même si accent/accentSecondary sont neutralisés', () => {
+  const project = {
+    intro: { title: 'T' },
+    sections: [
+      { type: 'text', title: 'CH1', body: 'B1' },
+      { type: 'keyFigures', items: [{ value: 'V1', label: 'L1' }] },
+      { type: 'choices', items: [{ title: 'P1' }] }
+    ]
+  };
+  const html = renderProject(project, {});
+  // La structure (regroupement, rails, ordre) ne dépend d'aucune valeur
+  // de couleur -- elle est déterminée uniquement par le type/ordre des
+  // sections, jamais par expressionAccent (calculé ailleurs, dans render()).
+  assert.match(html, /data-tct-rail-family="figures"/);
+  assert.match(html, /data-tct-rail-family="choices"/);
+  assert.match(html, /tct-project-chapter-num">01</);
 });

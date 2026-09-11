@@ -334,7 +334,7 @@ async function doPublish(){
   catch(e){setCommand('<span class="command-message"><span class="state-dot state-dot-error"></span>Connexion impossible. Le brouillon reste enregistré.</span><button class="command-button" data-cmd="close" type="button">Fermer</button>');return}
   if(res.status===201){
     state.unpublished=false;
-    state.publishedUrl=`/public/projects/${projectId}`;
+    state.publishedUrl=(await api(`/api/projects/${projectId}/public-access`).catch(()=>({hasPublicAccess:false}))).publicUrl||null;
     const warn=(data.warnings||[]).map(w=>`<br><span class="command-message"><span class="state-dot state-dot-warning"></span>${esc(w.message)}</span>`).join("");
     setCommand(`<span class="command-message"><span class="state-dot state-dot-success"></span><strong>Publication n°${data.revision}</strong> publiée.</span>${warn}<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a><button class="command-button" data-cmd="close" type="button">Fermer</button>`);
     return;
@@ -391,7 +391,7 @@ async function hydrate(){
     state.version=home?.version??null;
     state.updatedAt=home?.updatedAt??null;
     state.articles=Array.isArray(articles)?articles:[];
-    try{const pub=await api(`/api/projects/${encodeURIComponent(projectId)}/publications/active`);state.publishedUrl=pub?`/public/projects/${projectId}`:null}catch(e){state.publishedUrl=null}
+    try{const pa=await api(`/api/projects/${projectId}/public-access`);state.publishedUrl=(pa.hasPublicAccess&&pa.status==='active')?pa.publicUrl:null}catch(e){state.publishedUrl=null}
     state.load="ready";state.save="saved";
     renderEditor();renderCommand();
   }catch(e){

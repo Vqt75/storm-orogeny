@@ -336,7 +336,7 @@ async function seedDemo() {
 
   logger.info({ questionCount: QUESTIONS.length }, 'Structure du projet démo créée (jalons, espaces, actualités, ambassadeurs, équipe, sections, questions)');
 
-  return { pool, tenantId, projectId, userId, insertedArticles, questionIdByText };
+  return { pool, config, tenantId, projectId, userId, insertedArticles, questionIdByText };
 }
 
 // ── Questions — corpus de démonstration, 12 familles, langage naturel
@@ -649,10 +649,14 @@ import path from 'node:path';
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
   seedDemo()
-    .then(async ({ pool, tenantId, projectId, userId, questionIdByText }) => {
+    .then(async ({ pool, config, tenantId, projectId, userId, questionIdByText }) => {
       await generateDemoTelemetry(pool, { tenantId, projectId, questionIdByText });
-      const publication = await createPublication(pool, { tenantId, projectId, userId });
-      logger.info({ tenantId, projectId, userId, publicationRevision: publication?.revision }, 'Seed démo terminé — structure, télémétrie et publication');
+      const publication = await createPublication(pool, { tenantId, projectId, userId, encryptionKey: config.publicAccessEncryptionKey });
+      if (publication?.status === 'blocked') {
+        logger.info({ tenantId, projectId, failureCode: publication.failureCode }, 'Seed démo terminé -- publication NON créée (aucun Client assigné, attendu pour Équinoxe)');
+      } else {
+        logger.info({ tenantId, projectId, userId, publicationRevision: publication?.revision }, 'Seed démo terminé — structure, télémétrie et publication');
+      }
       await closePool();
       process.exit(0);
     })

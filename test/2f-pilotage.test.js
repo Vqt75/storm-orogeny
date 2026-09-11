@@ -10,6 +10,7 @@ import { createStorageAdapter } from '../src/adapters/storage/index.js';
 import { recordPageView, recordMatchResult, recordMoodFeedback } from '../src/domain/pilotage/telemetry.js';
 import { insertQuestion } from '../src/domain/studio/repository.js';
 import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
+import { createFirstAccess } from '../src/domain/publicAccess/repository.js';
 
 const config = loadConfig();
 const pool = getPool(config);
@@ -27,6 +28,7 @@ async function cleanAll() {
   await pool.query('delete from daily_mood_agg');
   await pool.query('delete from project_memberships');
   await pool.query('delete from tenant_memberships');
+  await pool.query('delete from project_public_access');
   await pool.query('delete from projects');
   await pool.query('delete from users');
   await pool.query('delete from clients');
@@ -53,10 +55,25 @@ test.before(async () => {
   await pool.query('insert into project_identity (tenant_id, project_id) values ($1,$2)', [tenantA.id, projectA.id]);
   await pool.query('insert into project_identity (tenant_id, project_id) values ($1,$2)', [tenantB.id, projectB.id]);
 
+  // Client + Accès Public réels pour projectA -- nécessaire pour tester
+  // la route de télémétrie publique migrée (Lot B), qui résout
+  // désormais client/projet/capability, jamais l'UUID projet brut.
+  const { rows: [clientA] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Pilotage Fixture','client-pilotage-fixture') returning id",
+    [tenantA.id]
+  );
+  await pool.query('update projects set client_id=$1 where id=$2', [clientA.id, projectA.id]);
+  const accessA = await createFirstAccess(pool, {
+    tenantId: tenantA.id, projectId: projectA.id,
+    clientSlug: 'client-pilotage-fixture', projectSlug: 'projet-pilotage-a',
+    encryptionKey: config.publicAccessEncryptionKey
+  });
+  const publicUrlA = `/public/client-pilotage-fixture/projet-pilotage-a/${accessA.rawCapability}`;
+
   await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: projectA.id, userId: pilotUser.id, permissionBundle: 'pilot' });
   await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: projectA.id, userId: contributor.id, permissionBundle: 'contributor' });
 
-  ids = { tenantA: tenantA.id, tenantB: tenantB.id, projectA: projectA.id, projectB: projectB.id, pilotUser: pilotUser.id, contributor: contributor.id };
+  ids = { tenantA: tenantA.id, tenantB: tenantB.id, projectA: projectA.id, projectB: projectB.id, pilotUser: pilotUser.id, contributor: contributor.id, publicUrlA };
 
   app = createApp({ logger: silentLogger, pool, config, storageAdapter });
   server = http.createServer(app);
@@ -94,7 +111,7 @@ test('projet d\'un autre tenant -> 404, jamais un succès cross-tenant', async (
 // ── Collecte publique — jamais authentifiée ──
 
 test('POST /telemetry ne requiert aucune authentification, toujours 204', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${ids.projectA}/telemetry`, {
+  const res = await fetch(`${baseUrl}${ids.publicUrlA}/telemetry`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view', path: 'home' })
   });
@@ -102,8 +119,8 @@ test('POST /telemetry ne requiert aucune authentification, toujours 204', async 
   await resetTelemetry();
 });
 
-test('POST /telemetry sur un projet inexistant reste 204, ne révèle jamais l\'absence du projet', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/00000000-0000-0000-0000-000000000000/telemetry`, {
+test('POST /telemetry sur un Accès Public inconnu reste 204, ne révèle jamais l\'absence de l\'accès', async () => {
+  const res = await fetch(`${baseUrl}/public/inconnu/inconnu/${'x'.repeat(43)}/telemetry`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view' })
   });
@@ -111,7 +128,7 @@ test('POST /telemetry sur un projet inexistant reste 204, ne révèle jamais l\'
 });
 
 test('POST /telemetry pose un cookie visiteur pseudonyme, HttpOnly, first-party', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${ids.projectA}/telemetry`, {
+  const res = await fetch(`${baseUrl}${ids.publicUrlA}/telemetry`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view', path: 'home' })
   });

@@ -74,12 +74,19 @@ const MIME_TO_EXTENSION = {
   'font/ttf': 'ttf'
 };
 
+// publicAssetUrl -- référence RELATIVE uniquement (jamais l'UUID
+// projet, jamais /public/ en dur ici). Lot B : l'identité publique
+// (client/projet/capability) est une préoccupation d'Accès Public,
+// jamais celle du Compiler -- elle peut tourner indépendamment d'une
+// republication de contenu. Le Runtime (public/ivory/runtime.js)
+// préfixe cette référence avec sa base publique courante au moment du
+// rendu, jamais un second format ni une réécriture regex de compat.
 function publicAssetUrl(projectId, assetId, assetContentTypes) {
   if (!assetId) return null;
   const contentType = assetContentTypes?.[assetId];
   const extension = MIME_TO_EXTENSION[contentType];
   if (!extension) return null;
-  return `/public/projects/${projectId}/assets/${assetId}.${extension}`;
+  return `assets/${assetId}.${extension}`;
 }
 
 // Conversion runs structurés -> chaîne avec syntaxe Ivory

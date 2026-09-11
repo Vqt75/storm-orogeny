@@ -20,6 +20,34 @@ function requireInt(name, fallback) {
   return value;
 }
 
+// Clé de chiffrement AES-256-GCM pour la récupération de la capability
+// d'Accès Public (Lot B) -- exactement 32 octets une fois décodée en
+// base64, jamais une simple chaîne non vide comme requireString. Aucun
+// repli en production, même principe que DB_PASSWORD/SSO secret. En
+// développement/test, un repli déterministe existe pour ne jamais
+// bloquer un environnement local -- jamais utilisable en production
+// (la validation de longueur s'applique aussi à ce repli, donc il doit
+// lui-même faire 32 octets une fois décodé).
+function requirePublicAccessEncryptionKey(nodeEnv) {
+  const fallback = nodeEnv === 'production'
+    ? undefined
+    : Buffer.alloc(32, 'dev-only-public-access-key-never-use-in-production').toString('base64');
+  const raw = process.env.PUBLIC_ACCESS_ENCRYPTION_KEY ?? fallback;
+  if (typeof raw !== 'string' || raw.trim() === '') {
+    throw new Error('Configuration manquante ou invalide : PUBLIC_ACCESS_ENCRYPTION_KEY');
+  }
+  let decoded;
+  try {
+    decoded = Buffer.from(raw, 'base64');
+  } catch {
+    throw new Error('PUBLIC_ACCESS_ENCRYPTION_KEY doit être encodée en base64.');
+  }
+  if (decoded.length !== 32) {
+    throw new Error('PUBLIC_ACCESS_ENCRYPTION_KEY doit décoder exactement 32 octets (AES-256).');
+  }
+  return decoded;
+}
+
 export function loadConfig() {
   const nodeEnv = requireString('NODE_ENV', 'development');
   return {
@@ -27,6 +55,7 @@ export function loadConfig() {
     isDevelopment: nodeEnv === 'development',
     isProduction: nodeEnv === 'production',
     isTest: nodeEnv === 'test',
+    publicAccessEncryptionKey: requirePublicAccessEncryptionKey(nodeEnv),
     port: requireInt('PORT', '4000'),
     // Raccord explicite, temporaire, pour une instance de démonstration
     // déployée — jamais un affaiblissement silencieux du modèle

@@ -194,10 +194,10 @@ export function createApp({ logger, pool, config, storageAdapter }) {
   // raisonnement complet (circulaire sinon, et sans objet en dehors
   // du mode démo, où elle répond 404 strict).
   app.use('/api/demo-identity', createDemoIdentityRouter({ pool, config }));
-  app.use('/api/projects', authenticated, createProjectsRouter({ pool, storageAdapter }));
-  app.use('/api/clients', authenticated, createClientsRouter({ pool }));
+  app.use('/api/projects', authenticated, createProjectsRouter({ pool, storageAdapter, config }));
+  app.use('/api/clients', authenticated, createClientsRouter({ pool, config }));
   app.use('/api/projects', authenticated, createStudioRouter({ pool, storageAdapter }));
-  app.use('/api/projects', authenticated, createPublicationRouter({ pool }));
+  app.use('/api/projects', authenticated, createPublicationRouter({ pool, config }));
   app.use('/api/projects', authenticated, createPilotageRouter({ pool }));
   app.use('/api/assets', authenticated, createAssetsRouter({ pool, storageAdapter }));
   // Assets publics — jamais derrière `authenticated`. La visibilité

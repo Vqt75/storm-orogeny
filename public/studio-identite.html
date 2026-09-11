@@ -57,7 +57,7 @@ async function doPublish(){
   catch(e){cmd('<span class="command-message"><span class="state-dot state-dot-error"></span>Connexion impossible. Le brouillon reste enregistré.</span><button class="cb" data-cmd="close" type="button">Fermer</button>');return}
   if(res.status===201){
     state.unpublished=false;
-    state.publishedUrl=`/public/projects/${projectId}`;
+    state.publishedUrl=(await api(`/api/projects/${projectId}/public-access`).catch(()=>({hasPublicAccess:false}))).publicUrl||null;
     const warn=(data.warnings||[]).map(w=>`<br><span class="command-message"><span class="state-dot state-dot-warning"></span>${esc(w.message)}</span>`).join("");
     cmd(`<span class="command-message"><span class="state-dot state-dot-success"></span><strong>Publication n°${data.revision}</strong> publiée.</span>${warn}<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a><button class="cb" data-cmd="close" type="button">Fermer</button>`);
     return;
@@ -275,7 +275,7 @@ async function hydrate(){
     state.identity=ctx.identity||{primaryColor:null,secondaryColor:null,fontPrimary:null,fontSecondary:null,version:1};
     document.getElementById("brandProject").textContent=ctx.project?.name||"Projet";
     document.getElementById("avatarBtn").textContent=(me.displayName||"SU").split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase();
-    try{const pub=await api(`/api/projects/${projectId}/publications/active`);state.publishedUrl=pub?`/public/projects/${projectId}`:null}catch(e){state.publishedUrl=null}
+    try{const pa=await api(`/api/projects/${projectId}/public-access`);state.publishedUrl=(pa.hasPublicAccess&&pa.status==='active')?pa.publicUrl:null}catch(e){state.publishedUrl=null}
     state.load="ready";state.save="saved";
     render();renderCmd();
   }catch(e){

@@ -8,6 +8,8 @@
 // snapshot partiel aujourd'hui obligerait à revalider l'atomicité plus
 // tard, sur un chemin déjà considéré acquis.
 import { findProjectIdentity } from '../projects/repository.js';
+import { findCurrentAccess, createFirstAccess } from '../publicAccess/repository.js';
+import { normalizeSlug } from '../shared/slug.js';
 import {
   findSectionContent,
   listQuestions,
@@ -134,18 +136,29 @@ function buildCompilationContext(revision, projectId) {
 //   que la vérification "y a-t-il une publication active ?" voie
 //   l'état réellement courant une fois le verrou obtenu, pas un
 //   instantané pris avant que la tentative précédente n'ait validé.
-export async function createPublication(pool, { tenantId, projectId, userId }) {
+export async function createPublication(pool, { tenantId, projectId, userId, encryptionKey }) {
   const client = await pool.connect();
 
   let pendingId;
   let revision;
   try {
     await client.query('BEGIN');
-    const { rows: lockRows } = await client.query('select id from projects where id=$1 for update', [projectId]);
+    const { rows: lockRows } = await client.query(
+      'select id, client_id, name from projects where id=$1 for update', [projectId]
+    );
     if (!lockRows[0]) {
       await client.query('ROLLBACK');
       client.release();
       return null;
+    }
+    // Un projet sans Client réel ne peut pas recevoir d'identité
+    // d'Accès Public (slug Client manquant) -- jamais une publication
+    // interne "réussie" qui laisserait le site public dans un état
+    // incohérent. Bloqué avant même de consommer une révision.
+    if (!lockRows[0].client_id) {
+      await client.query('ROLLBACK');
+      client.release();
+      return { status: 'blocked', failureCode: 'NO_CLIENT_ASSIGNED', failureDetail: 'Ce projet doit être associé à un Client réel avant sa première publication.' };
     }
     const { rows: revRows } = await client.query(
       'select coalesce(max(revision), 0) + 1 as next from project_publications where project_id=$1',
@@ -231,6 +244,26 @@ export async function createPublication(pool, { tenantId, projectId, userId }) {
       `update project_publications set status='active', activated_at=now() where id=$1`,
       [pendingId]
     );
+
+    // Première publication -- crée l'Accès Public dans la MÊME
+    // transaction que l'activation : soit les deux réussissent
+    // ensemble, soit aucune des deux (jamais de publication active
+    // orpheline sans identité d'accès public).
+    const existingAccess = await findCurrentAccess(client, projectId);
+    if (!existingAccess) {
+      const { rows: [clientRow] } = await client.query(
+        `select c.normalized_slug as client_slug, p.name as project_name
+         from projects p join clients c on c.id = p.client_id
+         where p.id = $1`,
+        [projectId]
+      );
+      await createFirstAccess(client, {
+        tenantId, projectId,
+        clientSlug: clientRow.client_slug,
+        projectSlug: normalizeSlug(clientRow.project_name),
+        encryptionKey
+      });
+    }
 
     await client.query('COMMIT');
     return { id: pendingId, revision, status: 'active', manifest, warnings };

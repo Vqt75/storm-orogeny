@@ -26,6 +26,7 @@ let ids = {};
 async function clean() {
   await pool.query('delete from project_memberships');
   await pool.query('delete from tenant_memberships');
+  await pool.query('delete from project_public_access');
   await pool.query('delete from projects');
   await pool.query('delete from clients');
   await pool.query('delete from users');

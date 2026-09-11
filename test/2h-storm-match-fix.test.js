@@ -37,6 +37,7 @@ async function cleanAll() {
   await pool.query('delete from project_identity');
   await pool.query('delete from project_memberships');
   await pool.query('delete from tenant_memberships');
+  await pool.query('delete from project_public_access');
   await pool.query('delete from projects');
   await pool.query('delete from users');
   await pool.query('delete from clients');
@@ -49,7 +50,10 @@ test.before(async () => {
 
   const { rows: [tenant] } = await pool.query("insert into tenants (name) values ('Tenant Storm Match Fix') returning id");
   const { rows: [user] } = await pool.query("insert into users (email, display_name) values ('fix@stormmatch.local','Fix') returning id");
-  const { rows: [project] } = await pool.query("insert into projects (tenant_id, name) values ($1,'Projet Storm Match Fix') returning id", [tenant.id]);
+  const { rows: [client] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Storm Match Fix','client-storm-match-fix') returning id", [tenant.id]
+  );
+  const { rows: [project] } = await pool.query("insert into projects (tenant_id, name, client_id) values ($1,'Projet Storm Match Fix',$2) returning id", [tenant.id, client.id]);
   await insertProjectIdentity(pool, { tenantId: tenant.id, projectId: project.id, identity: {} });
 
   ids = { tenantId: tenant.id, userId: user.id, projectId: project.id };
@@ -77,7 +81,7 @@ test('question créée dans Studio -> publiée -> présente dans le Manifest act
     answerRuns: [{ text: 'Non, vous aurez un quartier d\u2019équipe mais pas de poste nominatif.' }]
   });
 
-  const publication = await createPublication(pool, { tenantId: ids.tenantId, projectId: ids.projectId, userId: ids.userId });
+  const publication = await createPublication(pool, { tenantId: ids.tenantId, projectId: ids.projectId, userId: ids.userId, encryptionKey: config.publicAccessEncryptionKey });
   assert.ok(publication, 'la publication doit réussir');
 
   const items = await fetchActiveManifestQuestions(ids.projectId);
@@ -115,7 +119,7 @@ test('modifier les Questions dans Studio sans republier laisse l\'ancien Manifes
   const stillOldItems = await fetchActiveManifestQuestions(ids.projectId);
   assert.equal(stillOldItems.length, 1, 'le Manifest actif ne doit jamais changer sans une nouvelle publication explicite');
 
-  await createPublication(pool, { tenantId: ids.tenantId, projectId: ids.projectId, userId: ids.userId });
+  await createPublication(pool, { tenantId: ids.tenantId, projectId: ids.projectId, userId: ids.userId, encryptionKey: config.publicAccessEncryptionKey });
   const afterItems = await fetchActiveManifestQuestions(ids.projectId);
   assert.equal(afterItems.length, 2, 'après republication, le Manifest actif doit refléter les deux questions');
 });

@@ -7,11 +7,28 @@ import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
 import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
+import { findCurrentAccess, decryptCurrentCapability } from '../src/domain/publicAccess/repository.js';
 
 const config = loadConfig();
 const pool = getPool(config);
 const storageAdapter = createStorageAdapter(config);
 const silentLogger = { info() {}, warn() {}, error() {} };
+
+// publicAssetPath -- référence relative désormais émise par le
+// Compiler (Lot B, correction) -- jamais l'ancien /public/projects/:uuid/...
+function publicAssetPath(assetId, ext) {
+  return `assets/${assetId}.${ext}`;
+}
+
+// publicUrlFor -- reconstruit l'URL publique réelle (nouvelle forme
+// client/projet/capability) pour un projet donné, à partir de son
+// Accès Public courant -- jamais l'ancienne route UUID, qui n'existe
+// plus.
+async function publicUrlFor(projectId) {
+  const access = await findCurrentAccess(pool, projectId);
+  const raw = decryptCurrentCapability(access, config.publicAccessEncryptionKey);
+  return `/public/${access.client_slug}/${access.project_slug}/${raw}`;
+}
 
 let app, server, baseUrl;
 let ids = {};
@@ -22,6 +39,7 @@ async function cleanAll() {
   await pool.query('delete from project_identity');
   await pool.query('delete from project_memberships');
   await pool.query('delete from tenant_memberships');
+  await pool.query('delete from project_public_access');
   await pool.query('delete from projects');
   await pool.query('delete from users');
   await pool.query('delete from clients');
@@ -44,7 +62,11 @@ test.before(async () => {
   await seedTenantMembership(pool, { tenantId: tenantA.id, userId: editor.id, permissionBundle: 'member' });
   await seedTenantMembership(pool, { tenantId: tenantA.id, userId: viewer.id, permissionBundle: 'member' });
 
-  const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenantA.id, 'Projet Publication']);
+  const { rows: [client] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Publication Fixture','client-publication-fixture') returning id",
+    [tenantA.id]
+  );
+  const { rows: [project] } = await pool.query('insert into projects (tenant_id, name, client_id) values ($1,$2,$3) returning id', [tenantA.id, 'Projet Publication', client.id]);
   // editor : bundle contient publication.publish. viewer : bundle
   // pilot, VIEW + PILOTAGE_VIEW seulement, jamais PUBLICATION_PUBLISH
   // ni CONTENT_EDIT — exactement le cas "a une relation légitime avec
@@ -269,9 +291,9 @@ test('Publication Slice 1 : mapping exact des Actualités — tag/date/title/sum
   assert.equal(item.blocks.length, 3);
   assert.deepEqual(item.blocks[0].runs, [{ text: 'Un texte ' }, { text: 'souligné', underline: true }], 'les blocs gardent des runs structurés, jamais aplatis');
   assert.equal(item.blocks[2].type, 'image');
-  assert.equal(item.blocks[2].asset.url, `/public/projects/${ids.project}/assets/${assetId}.png`);
+  assert.equal(item.blocks[2].asset.url, publicAssetPath(assetId, 'png'));
   assert.ok(item.asset, 'asset de couverture dérivé du premier bloc image');
-  assert.equal(item.asset.url, `/public/projects/${ids.project}/assets/${assetId}.png`);
+  assert.equal(item.asset.url, publicAssetPath(assetId, 'png'));
   assert.equal(typeof item.readingMinutes, 'number');
   assert.ok(item.readingMinutes >= 1);
 
@@ -328,12 +350,13 @@ test('Publication Slice 1 : asset public — 200 si référencé par la publicat
   })).json();
   await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
 
-  const okRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${assetId}.png`);
+  const base = await publicUrlFor(ids.project);
+  const okRes = await fetch(`${baseUrl}${base}/assets/${assetId}.png`);
   assert.equal(okRes.status, 200);
   assert.equal(okRes.headers.get('content-type'), 'image/png');
 
   const notReferenced = await uploadTestImage();
-  const koRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${notReferenced}.png`);
+  const koRes = await fetch(`${baseUrl}${base}/assets/${notReferenced}.png`);
   assert.equal(koRes.status, 404, 'un asset qui existe en DB mais non référencé par la publication active reste 404 -- jamais Studio vivant qui décide');
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
@@ -490,8 +513,8 @@ test('Publication Slice 2 : URL publique porte l\'extension réelle (png/jpg/pdf
 
   const body = await (await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) })).json();
   const item = body.manifest.content.spaces.items[0];
-  assert.equal(item.media[0].url, `/public/projects/${ids.project}/assets/${pngAsset}.png`);
-  assert.equal(item.media[1].url, `/public/projects/${ids.project}/assets/${pdfAsset}.pdf`);
+  assert.equal(item.media[0].url, publicAssetPath(pngAsset, 'png'));
+  assert.equal(item.media[1].url, publicAssetPath(pdfAsset, 'pdf'));
   assert.match(item.media[1].url, /\.pdf($|\?)/i, 'doit matcher exactement la regex isPdfUrl() d\'Ivory');
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
@@ -507,10 +530,11 @@ test('Publication Slice 2 : asset public — extension incohérente avec le MIME
   })).json();
   await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
 
-  const correct = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${pngAsset}.png`);
+  const base2 = await publicUrlFor(ids.project);
+  const correct = await fetch(`${baseUrl}${base2}/assets/${pngAsset}.png`);
   assert.equal(correct.status, 200);
 
-  const wrongExt = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${pngAsset}.pdf`);
+  const wrongExt = await fetch(`${baseUrl}${base2}/assets/${pngAsset}.pdf`);
   assert.equal(wrongExt.status, 404, 'un PNG réel demandé avec .pdf ne doit jamais être servi -- extension vérifiée contre le MIME réel, pas simplement acceptée depuis l\'URL');
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
@@ -597,7 +621,7 @@ test('Publication Slice 2 : Ambassadeurs — avec photo, sans photo, contact ema
   const roster = body.manifest.content.ambassadors.roster;
 
   const jm = roster.find(r => r.id === withPhoto.id);
-  assert.equal(jm.photo.url, `/public/projects/${ids.project}/assets/${photo}.png`);
+  assert.equal(jm.photo.url, publicAssetPath(photo, 'png'));
   assert.equal(jm.photo.alt, 'Julie Martin — RH');
   assert.equal(jm.contactHref, 'mailto:julie@test.fr');
 
@@ -765,11 +789,11 @@ test('Publication Slice 3 : section image ne compile que le premier média (posi
   const img = project.sections.find(s => s.id === imageSection.id);
   const gal = project.sections.find(s => s.id === gallerySection.id);
 
-  assert.equal(img.asset.url, `/public/projects/${ids.project}/assets/${asset1}.png`, 'doit prendre le média à la position la plus basse (0), pas l\'ordre d\'insertion');
+  assert.equal(img.asset.url, publicAssetPath(asset1, 'png'), 'doit prendre le média à la position la plus basse (0), pas l\'ordre d\'insertion');
   assert.equal(img.caption, 'Ma légende');
   assert.equal(gal.items.length, 2, 'gallery doit compiler tous les médias');
-  assert.equal(gal.items[0].url, `/public/projects/${ids.project}/assets/${asset1}.png`);
-  assert.equal(gal.items[1].url, `/public/projects/${ids.project}/assets/${asset2}.png`);
+  assert.equal(gal.items[0].url, publicAssetPath(asset1, 'png'));
+  assert.equal(gal.items[1].url, publicAssetPath(asset2, 'png'));
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
   await pool.query('delete from project_narrative_sections where id = ANY($1)', [[imageSection.id, gallerySection.id]]);
@@ -836,7 +860,7 @@ test('Publication Slice 3 : équipe — badge->group, avec/sans photo', async ()
   const md = members.find(m => m.id === withoutPhoto.id);
 
   assert.equal(jm.group, 'Pilote', 'badge doit devenir group dans le Manifest');
-  assert.equal(jm.photo.url, `/public/projects/${ids.project}/assets/${photo}.png`);
+  assert.equal(jm.photo.url, publicAssetPath(photo, 'png'));
   assert.equal(jm.photo.alt, 'Julie Martin — Chef de projet');
   assert.equal(md.group, '');
   assert.equal(md.photo, null, 'sans photo -> null, jamais une URL cassée');

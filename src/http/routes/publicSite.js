@@ -1,48 +1,68 @@
 import { Router } from 'express';
 import path from 'node:path';
 import { findActivePublication } from '../../domain/publication/repository.js';
-import { Errors } from '../../errors/AppError.js';
+import { resolvePublicAccess } from '../../domain/publicAccess/repository.js';
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Site public — branchement Ivory. AUCUNE authentification Storm, sur
-// le même principe que les assets publics (Slice 1/2) : la visibilité
-// publique n'est jamais décidée par Studio vivant, seulement par la
-// publication ACTIVE du projet.
+// Site public — identité d'Accès Public dédiée (Lot B), jamais l'UUID
+// interne du projet. AUCUNE authentification Storm : la visibilité
+// publique n'est jamais décidée par Studio vivant, seulement par le
+// statut de l'Accès Public résolu ci-dessous.
 //
-// Deux routes, volontairement séparées (coquille HTML vs donnée) —
-// exactement la séparation déjà éprouvée côté Tectonic entre
-// tectonic.html (jamais régénéré, un seul fichier statique pour tous
-// les projets, le projectId est déduit de l'URL par le runtime
-// lui-même) et /api/manifest (la donnée, jamais mise en cache).
+// Sémantique HTTP par statut (doctrine figée) :
+//   active + slugs/capability exacts  -> 200
+//   unpublished (même chemin exact)   -> 404 neutre (jamais distinct d'un chemin inconnu)
+//   capability/chemin inconnu         -> 404 neutre
+//   revoked (chemin historique exact) -> 410, jamais un indice vers le nouveau lien
 export function createPublicSiteRouter({ pool, publicDir }) {
   const router = Router();
 
-  router.get('/projects/:projectId/manifest', async (req, res, next) => {
-    if (!UUID_PATTERN.test(req.params.projectId)) {
-      next(Errors.notFound('Publication'));
-      return;
-    }
-    const publication = await findActivePublication(pool, req.params.projectId);
-    if (!publication || !publication.manifest) {
-      next(Errors.notFound('Publication'));
-      return;
-    }
-    // Jamais mis en cache — une nouvelle publication active doit être
-    // visible immédiatement au rechargement, jamais servie périmée
-    // depuis un cache intermédiaire (même principe que Tectonic).
-    res.status(200).set('Cache-Control', 'no-store').json(publication.manifest);
+  // noindex + no-referrer sur TOUTE réponse de ce router, y compris
+  // 404/410 -- jamais seulement sur le cas de succès. Scopé
+  // exclusivement à la livraison publique, jamais à Studio authentifié.
+  router.use((req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
   });
 
-  router.get('/projects/:projectId', (req, res, next) => {
-    if (!UUID_PATTERN.test(req.params.projectId)) {
-      next();
-      return;
+  async function resolveOrRespond(req, res) {
+    const { clientSlug, projectSlug, capability } = req.params;
+    const resolution = await resolvePublicAccess(pool, { clientSlug, projectSlug, rawCapability: capability });
+    if (resolution.kind === 'revoked') {
+      res.status(410).json({ ok: false, error: { code: 'GONE', message: 'Ce lien n’est plus actif.' } });
+      return null;
     }
-    // Un seul fichier statique pour tous les projets : le runtime
-    // déduit lui-même le projectId depuis l'URL courante (voir
-    // public/ivory/runtime.js) -- aucune donnée à injecter ici.
-    res.sendFile(path.join(publicDir, 'ivory', 'index.html'));
+    if (resolution.kind !== 'active') {
+      res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Page introuvable.' } });
+      return null;
+    }
+    return resolution.projectId;
+  }
+
+  router.get('/:clientSlug/:projectSlug/:capability/manifest', async (req, res, next) => {
+    try {
+      const projectId = await resolveOrRespond(req, res);
+      if (!projectId) return;
+      const publication = await findActivePublication(pool, projectId);
+      if (!publication || !publication.manifest) {
+        res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Page introuvable.' } });
+        return;
+      }
+      // Jamais mis en cache — une nouvelle publication active doit
+      // être visible immédiatement au rechargement.
+      res.status(200).set('Cache-Control', 'no-store').json(publication.manifest);
+    } catch (err) { next(err); }
+  });
+
+  router.get('/:clientSlug/:projectSlug/:capability', async (req, res, next) => {
+    try {
+      const projectId = await resolveOrRespond(req, res);
+      if (!projectId) return;
+      // Un seul fichier statique pour tous les projets : le runtime
+      // déduit lui-même client/projet/capability depuis l'URL courante
+      // (voir public/ivory/runtime.js) -- aucune donnée à injecter ici.
+      res.sendFile(path.join(publicDir, 'ivory', 'index.html'));
+    } catch (err) { next(err); }
   });
 
   return router;

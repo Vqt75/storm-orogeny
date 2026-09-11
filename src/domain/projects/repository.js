@@ -1,4 +1,6 @@
 import { projectCapabilitiesForBundle } from '../permissions/capabilities.js';
+import { normalizeSlug } from '../shared/slug.js';
+import { findCurrentAccess, rotateAccess } from '../publicAccess/repository.js';
 
 // Ordre de priorité PUREMENT pour l'affichage (un seul badge à montrer
 // quand plusieurs grants actifs portent des bundles différents) --
@@ -94,19 +96,108 @@ export async function listProjectModules(pool, projectId) {
   return rows;
 }
 
-// renameProject -- verrouillage optimiste via `version`, même motif
-// que updateProjectIdentityColors (project_identity.version). Retourne
-// null si la version fournie est périmée (0 ligne affectée) -- la
-// route traduit cela en 409, jamais une écriture silencieuse. Aucun
-// effet de bord d'Accès Public dans ce Lot A (n'existe pas encore) --
-// ce renommage mute uniquement l'identité du Projet lui-même.
-export async function renameProject(pool, { projectId, name, expectedVersion }) {
-  const { rows: [row] } = await pool.query(
-    `update projects
-     set name = $1, version = version + 1
-     where id = $2 and version = $3
-     returning id, name, version`,
-    [name, projectId, expectedVersion]
+// reassignProjectClient -- corrige le Client d'un Projet (erreur de
+// création, ou legacy client_id NULL). Distinct d'un renommage de
+// Client : ici c'est l'ASSOCIATION structurelle qui change. Si aucun
+// Accès Public courant n'existe, mutation directe. Sinon, rotation
+// TOUJOURS déclenchée (même si le slug lisible résultant serait
+// identique par coïncidence) -- l'identité structurelle a changé, pas
+// seulement du texte d'affichage.
+export async function reassignProjectClient(pool, { tenantId, projectId, newClientId, encryptionKey }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: [targetClient] } = await client.query(
+      'select id, normalized_slug from clients where id=$1 and tenant_id=$2',
+      [newClientId, tenantId]
+    );
+    if (!targetClient) {
+      await client.query('ROLLBACK');
+      return { conflict: 'CLIENT_NOT_FOUND' };
+    }
+    const { rows: [project] } = await client.query(
+      'update projects set client_id=$1 where id=$2 and tenant_id=$3 returning id, name',
+      [newClientId, projectId, tenantId]
+    );
+    if (!project) {
+      await client.query('ROLLBACK');
+      return { conflict: 'PROJECT_NOT_FOUND' };
+    }
+
+    const currentAccess = await findCurrentAccess(client, projectId);
+    let rotated = null;
+    if (currentAccess) {
+      rotated = await rotateAccess(client, {
+        tenantId, projectId,
+        clientSlug: targetClient.normalized_slug,
+        projectSlug: currentAccess.project_slug,
+        reason: 'client_reassigned', encryptionKey
+      });
+    }
+
+    await client.query('COMMIT');
+    return { conflict: null, project, rotated: Boolean(rotated) };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+// du Projet changerait, et si un Accès Public courant existe (publié,
+// actif ou dépublié -- les deux comptent, doctrine G).
+export async function previewProjectRename(pool, { tenantId, projectId, name }) {
+  const newSlug = normalizeSlug(name);
+  const { rows: [project] } = await pool.query(
+    'select id, name, version, client_id from projects where id=$1 and tenant_id=$2',
+    [projectId, tenantId]
   );
-  return row ?? null;
+  if (!project) return null;
+  const currentSlug = normalizeSlug(project.name);
+  const access = await findCurrentAccess(pool, projectId);
+  return {
+    project, newSlug,
+    slugChanges: currentSlug !== newSlug,
+    hasCurrentAccess: Boolean(access)
+  };
+}
+
+// renameProjectAtomic -- renomme toujours le Projet. Si le slug lisible
+// change ET qu'un Accès Public courant existe, fait tourner cet accès
+// dans la MÊME transaction (succès entier ou rollback entier). Si le
+// Projet n'a jamais eu d'Accès Public, ou si le slug ne change pas,
+// aucune rotation -- renommage direct, jamais un effet de bord public
+// silencieux dans un sens comme dans l'autre.
+export async function renameProjectAtomic(pool, { tenantId, projectId, name, expectedVersion, encryptionKey }) {
+  const newSlug = normalizeSlug(name);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: [row] } = await client.query(
+      `update projects set name=$1, version=version+1
+       where id=$2 and tenant_id=$3 and version=$4
+       returning id, name, version, client_id`,
+      [name, projectId, tenantId, expectedVersion]
+    );
+    if (!row) {
+      await client.query('ROLLBACK');
+      return { project: null, conflict: 'STALE_VERSION' };
+    }
+
+    const currentAccess = await findCurrentAccess(client, projectId);
+    let rotated = null;
+    if (currentAccess && currentAccess.project_slug !== newSlug) {
+      rotated = await rotateAccess(client, {
+        tenantId, projectId, clientSlug: currentAccess.client_slug, projectSlug: newSlug,
+        reason: 'project_renamed', encryptionKey
+      });
+    }
+    await client.query('COMMIT');
+    return { project: row, conflict: null, rotated: Boolean(rotated) };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

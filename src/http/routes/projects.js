@@ -2,13 +2,19 @@ import { Router } from 'express';
 import multer from 'multer';
 import { logger } from '../../logger.js';
 import {
-  listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules, renameProject
+  listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules, renameProjectAtomic
 } from '../../domain/projects/repository.js';
 import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
 import { listActiveTenantMembershipsForUser } from '../../domain/memberships/repository.js';
 import { ProjectCapability, OrganizationCapability } from '../../domain/permissions/capabilities.js';
 import { validateCreateProjectPayload } from '../../domain/project-setup/validation.js';
 import { findClientById } from '../../domain/clients/repository.js';
+import {
+  reassignProjectClient
+} from '../../domain/projects/repository.js';
+import {
+  findCurrentAccess, rotateAccess, acknowledgeRedistribution, isRedistributionPending, decryptCurrentCapability
+} from '../../domain/publicAccess/repository.js';
 import { listSupportedLocales } from '../../domain/project-setup/repository.js';
 import {
   insertProject, insertProjectIdentity, insertProjectSettings,
@@ -24,7 +30,7 @@ import { withProjectDeletionGuard } from '../../domain/projects/deletionJobs.js'
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } });
 const uploadFont = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FONT_BYTES } });
 
-export function createProjectsRouter({ pool, storageAdapter }) {
+export function createProjectsRouter({ pool, storageAdapter, config }) {
   const router = Router();
 
   // Liste "mes projets" — strictement via project_memberships, jamais
@@ -320,12 +326,15 @@ export function createProjectsRouter({ pool, storageAdapter }) {
         next(Errors.invalid('version (entier) requise pour le renommage.'));
         return;
       }
-      const updated = await renameProject(pool, { projectId: req.project.id, name: name.trim(), expectedVersion: version });
-      if (!updated) {
+      const { project: updated, conflict, rotated } = await renameProjectAtomic(pool, {
+        tenantId: req.project.tenant_id, projectId: req.project.id, name: name.trim(), expectedVersion: version,
+        encryptionKey: config.publicAccessEncryptionKey
+      });
+      if (conflict === 'STALE_VERSION') {
         res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Ce projet a été modifié ailleurs. Rechargez pour repartir de la version actuelle.' } });
         return;
       }
-      res.status(200).json({ id: updated.id, name: updated.name, version: updated.version });
+      res.status(200).json({ id: updated.id, name: updated.name, version: updated.version, rotated });
     }
   );
 
@@ -428,6 +437,127 @@ export function createProjectsRouter({ pool, storageAdapter }) {
     requireProjectCapability(pool, ProjectCapability.VIEW),
     (req, res) => {
       res.status(200).json({ id: req.project.id, name: req.project.name });
+    }
+  );
+
+  // Prévisualisation d'impact -- lecture seule. Indique si un Accès
+  // Public courant existe (donc si une rotation sera déclenchée par
+  // la confirmation) avant toute mutation.
+  router.get('/:projectId/reassign-client-impact', async (req, res, next) => {
+    const { rows: [project] } = await pool.query('select id, tenant_id, name from projects where id=$1', [req.params.projectId]);
+    if (!project) { next(Errors.notFound('Projet')); return; }
+    const memberships = await listActiveTenantMembershipsForUser(pool, req.user.id);
+    const qualified = memberships.find(m => m.tenant_id === project.tenant_id && m.capabilities.includes(OrganizationCapability.CLIENTS_MANAGE));
+    if (!qualified) { next(Errors.forbidden(`Cette action nécessite la capability "${OrganizationCapability.CLIENTS_MANAGE}".`)); return; }
+
+    const newClientId = typeof req.query.clientId === 'string' ? req.query.clientId : '';
+    const targetClient = await findClientById(pool, { tenantId: project.tenant_id, clientId: newClientId });
+    if (!targetClient) { next(Errors.invalid('clientId doit référencer un client existant de cette organisation.')); return; }
+
+    const currentAccess = await findCurrentAccess(pool, project.id);
+    res.status(200).json({
+      projectName: project.name,
+      targetClientName: targetClient.name,
+      hasCurrentAccess: Boolean(currentAccess),
+      willRotate: Boolean(currentAccess)
+    });
+  });
+
+  // Réassignation Client -- capability ORGANISATIONNELLE (CLIENTS_MANAGE),
+  // jamais accordée par la seule administration du projet. Le projet
+  // est résolu directement puis son tenant vérifié contre les
+  // memberships qualifiées de l'utilisateur -- même garantie
+  // d'isolation que requireProjectCapability, chemin différent car
+  // l'autorisation ici n'est jamais project-scoped.
+  router.post('/:projectId/reassign-client', async (req, res, next) => {
+    const { rows: [project] } = await pool.query('select id, tenant_id, client_id from projects where id=$1', [req.params.projectId]);
+    if (!project) { next(Errors.notFound('Projet')); return; }
+
+    const memberships = await listActiveTenantMembershipsForUser(pool, req.user.id);
+    const qualified = memberships.find(m => m.tenant_id === project.tenant_id && m.capabilities.includes(OrganizationCapability.CLIENTS_MANAGE));
+    if (!qualified) { next(Errors.forbidden(`Cette action nécessite la capability "${OrganizationCapability.CLIENTS_MANAGE}".`)); return; }
+
+    const newClientId = req.body?.clientId;
+    if (typeof newClientId !== 'string' || !newClientId) {
+      next(Errors.invalid('clientId est requis.'));
+      return;
+    }
+    const targetClient = await findClientById(pool, { tenantId: project.tenant_id, clientId: newClientId });
+    if (!targetClient) {
+      next(Errors.invalid('clientId doit référencer un client existant de cette organisation.'));
+      return;
+    }
+
+    const result = await reassignProjectClient(pool, {
+      tenantId: project.tenant_id, projectId: project.id, newClientId,
+      encryptionKey: config.publicAccessEncryptionKey
+    });
+    if (result.conflict) { next(Errors.notFound('Projet ou client')); return; }
+    res.status(200).json({ id: result.project.id, name: result.project.name, rotated: result.rotated });
+  });
+
+  // Rotation manuelle destructive -- PROJECT_MANAGE. Ne crée jamais un
+  // premier accès (réservé à la publication elle-même) -- erreur
+  // propre si aucun accès courant n'existe.
+  router.post(
+    '/:projectId/public-access/rotate',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    async (req, res, next) => {
+      const current = await findCurrentAccess(pool, req.project.id);
+      if (!current) {
+        next(Errors.invalid('Ce projet n’a aucun Accès Public courant à faire tourner. Publiez-le d’abord.'));
+        return;
+      }
+      const rotated = await rotateAccess(pool, {
+        tenantId: req.project.tenant_id, projectId: req.project.id,
+        clientSlug: current.client_slug, projectSlug: current.project_slug,
+        reason: 'manual_rotation', encryptionKey: config.publicAccessEncryptionKey
+      });
+      res.status(200).json({ id: rotated.id, status: rotated.status });
+    }
+  );
+
+  // Accusé de réception de l'avis de redistribution -- PUBLICATION_PUBLISH.
+  // Idempotent : ré-accuser un accès déjà accusé reste un 200, jamais
+  // une erreur (même motif que les mises à jour idempotentes existantes
+  // ailleurs dans le domaine).
+  router.post(
+    '/:projectId/public-access/acknowledge',
+    requireProjectCapability(pool, ProjectCapability.PUBLICATION_PUBLISH),
+    async (req, res, next) => {
+      const current = await findCurrentAccess(pool, req.project.id);
+      if (!current) { next(Errors.notFound('Accès Public')); return; }
+      const updated = await acknowledgeRedistribution(pool, { accessId: current.id, userId: req.user.id });
+      if (!updated) { next(Errors.notFound('Accès Public')); return; }
+      res.status(200).json({ id: updated.id, redistributionAcknowledgedAt: updated.redistribution_acknowledged_at });
+    }
+  );
+
+  // Service authentifié Accès Public -- lecture d'état pour le futur
+  // Studio "Accès au site" (Lot C). PUBLICATION_PUBLISH requis pour
+  // voir l'URL complète -- VIEW seul ne suffit jamais (la capability
+  // décryptée EST un secret d'accès). Ne retourne jamais
+  // capability_hash/capability_encrypted.
+  router.get(
+    '/:projectId/public-access',
+    requireProjectCapability(pool, ProjectCapability.PUBLICATION_PUBLISH),
+    async (req, res) => {
+      const current = await findCurrentAccess(pool, req.project.id);
+      if (!current) {
+        res.status(200).json({ hasPublicAccess: false });
+        return;
+      }
+      const rawCapability = decryptCurrentCapability(current, config.publicAccessEncryptionKey);
+      res.status(200).json({
+        hasPublicAccess: true,
+        status: current.status,
+        publicUrl: `/public/${current.client_slug}/${current.project_slug}/${rawCapability}`,
+        clientSlug: current.client_slug,
+        projectSlug: current.project_slug,
+        redistributionPending: isRedistributionPending(current),
+        createdReason: current.created_reason,
+        createdAt: current.created_at
+      });
     }
   );
 

@@ -9,6 +9,7 @@ import { runMigrations } from '../src/db/migrate.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
 import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
+import { findCurrentAccess, decryptCurrentCapability } from '../src/domain/publicAccess/repository.js';
 
 // Branchement Ivory — suite E2E permanente, volontairement réduite.
 //
@@ -39,6 +40,12 @@ const pool = getPool(config);
 const storageAdapter = createStorageAdapter(config);
 const silentLogger = { info() {}, warn() {}, error() {} };
 
+async function publicUrlFor(projectId) {
+  const access = await findCurrentAccess(pool, projectId);
+  const raw = decryptCurrentCapability(access, config.publicAccessEncryptionKey);
+  return `/public/${access.client_slug}/${access.project_slug}/${raw}`;
+}
+
 let app, server, baseUrl;
 let ids = {};
 
@@ -50,6 +57,7 @@ async function cleanAll() {
   await pool.query('delete from project_identity');
   await pool.query('delete from project_memberships');
   await pool.query('delete from tenant_memberships');
+  await pool.query('delete from project_public_access');
   await pool.query('delete from projects');
   await pool.query('delete from users');
   await pool.query('delete from clients');
@@ -78,7 +86,10 @@ test.before(async () => {
   const { rows: [tenantA] } = await pool.query("insert into tenants (name) values ('Tenant Ivory E2E') returning id");
   const { rows: [editor] } = await pool.query("insert into users (email, display_name) values ('editor@ivory-e2e.local','Editor Ivory E2E') returning id");
   await seedTenantMembership(pool, { tenantId: tenantA.id, userId: editor.id, permissionBundle: 'member' });
-  const { rows: [project] } = await pool.query('insert into projects (tenant_id, name) values ($1,$2) returning id', [tenantA.id, 'Projet Ivory E2E']);
+  const { rows: [client] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Ivory E2E','client-ivory-e2e') returning id", [tenantA.id]
+  );
+  const { rows: [project] } = await pool.query('insert into projects (tenant_id, name, client_id) values ($1,$2,$3) returning id', [tenantA.id, 'Projet Ivory E2E', client.id]);
   await seedProjectMembership(pool, { tenantId: tenantA.id, projectId: project.id, userId: editor.id, permissionBundle: 'editor' });
   await pool.query("insert into project_identity (tenant_id, project_id, theme, primary_color) values ($1,$2,'ivory','#1E1D1E')", [tenantA.id, project.id]);
 
@@ -99,13 +110,14 @@ test.after(async () => {
 // ── Invariants HTTP structurants ──
 
 test('Ivory E2E : aucune publication active -> manifest public 404 propre', async () => {
+  await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
-  const res = await fetch(`${baseUrl}/public/projects/${ids.project}/manifest`);
+  const res = await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`);
   assert.equal(res.status, 404);
 });
 
 test('Ivory E2E : coquille publique se charge (200, html, contient le point de montage)', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${ids.project}`);
+  const res = await fetch(`${baseUrl}${await publicUrlFor(ids.project)}`);
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type') || '', /html/);
   const body = await res.text();
@@ -117,7 +129,7 @@ test('Ivory E2E : publication active -> manifest servi avec Cache-Control: no-st
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
   const res1 = await publish(ids.editor, ids.project);
   assert.equal(res1.status, 201);
-  const res2 = await fetch(`${baseUrl}/public/projects/${ids.project}/manifest`);
+  const res2 = await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`);
   assert.equal(res2.status, 200);
   assert.equal(res2.headers.get('cache-control'), 'no-store');
   const manifest = await res2.json();
@@ -134,7 +146,7 @@ test('Ivory E2E : modification Studio sans republier laisse le manifest public i
 
   await patchHomepage(ids.editor, ids.project, { message: 'Message modifié, jamais republié' });
 
-  const manifest = await (await fetch(`${baseUrl}/public/projects/${ids.project}/manifest`)).json();
+  const manifest = await (await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`)).json();
   assert.equal(manifest.content.home.message, 'Message original', 'une modification Studio sans republier ne doit jamais atteindre le manifest public');
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
@@ -149,7 +161,7 @@ test('Ivory E2E : republier fait apparaître le nouveau contenu dans le manifest
   await patchHomepage(ids.editor, ids.project, { message: 'Après republication' });
   await publish(ids.editor, ids.project);
 
-  const manifest = await (await fetch(`${baseUrl}/public/projects/${ids.project}/manifest`)).json();
+  const manifest = await (await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`)).json();
   assert.equal(manifest.content.home.message, 'Après republication');
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
@@ -177,11 +189,11 @@ test('Ivory E2E : asset public image et PDF référencés par la publication act
   })).json();
   await publish(ids.editor, ids.project);
 
-  const imgRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${pngAsset}.png`);
+  const imgRes = await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/assets/${pngAsset}.png`);
   assert.equal(imgRes.status, 200);
   assert.equal(imgRes.headers.get('content-type'), 'image/png');
 
-  const pdfRes = await fetch(`${baseUrl}/public/projects/${ids.project}/assets/${pdfAsset}.pdf`);
+  const pdfRes = await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/assets/${pdfAsset}.pdf`);
   assert.equal(pdfRes.status, 200);
   assert.equal(pdfRes.headers.get('content-type'), 'application/pdf');
 

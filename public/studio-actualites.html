@@ -257,7 +257,7 @@ async function doPublish(){
   catch(e){setCommand('<span class="command-msg"><span class="state-dot state-dot-error"></span>Connexion impossible. Le brouillon reste enregistré.</span><button class="command-btn" data-c="close">Fermer</button>');return}
   if(res.status===201){
     state.unpublished=false;
-    state.publishedUrl=`/public/projects/${projectId}`;
+    state.publishedUrl=(await api(`/api/projects/${projectId}/public-access`).catch(()=>({hasPublicAccess:false}))).publicUrl||null;
     const warn=(data.warnings||[]).map(w=>`<br><span class="command-msg"><span class="state-dot state-dot-warning"></span>${esc(w.message)}</span>`).join('');
     setCommand(`<span class="command-msg"><span class="state-dot state-dot-success"></span><strong>Publication n°${data.revision}</strong> publiée.</span>${warn}<a class="command-link" href="${esc(state.publishedUrl)}" target="_blank" rel="noopener">Voir le site publié</a><button class="command-btn" data-c="close">Fermer</button>`);
     return
@@ -276,7 +276,7 @@ document.getElementById('confirmDelete').onclick=removeArticle;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!confirmSheet.hidden){cancelDelete()}});
 async function hydrate(){
  state.load='loading';renderCommand();
- try{const [ctx,arts]=await Promise.all([api(`/api/projects/${encodeURIComponent(projectId)}/context`),api(`/api/projects/${encodeURIComponent(projectId)}/studio/articles`)]);state.context=ctx;if(!has('content.edit'))throw Object.assign(new Error('Forbidden'),{status:403});state.articles=Array.isArray(arts)?arts:[];state.load='ready';state.save='saved';document.getElementById('brandProject').textContent=ctx.project?.name||'Projet';try{const pub=await api(`/api/projects/${encodeURIComponent(projectId)}/publications/active`);state.publishedUrl=pub?`/public/projects/${projectId}`:null}catch(e){state.publishedUrl=null}list()}
+ try{const [ctx,arts]=await Promise.all([api(`/api/projects/${encodeURIComponent(projectId)}/context`),api(`/api/projects/${encodeURIComponent(projectId)}/studio/articles`)]);state.context=ctx;if(!has('content.edit'))throw Object.assign(new Error('Forbidden'),{status:403});state.articles=Array.isArray(arts)?arts:[];state.load='ready';state.save='saved';document.getElementById('brandProject').textContent=ctx.project?.name||'Projet';try{const pa=await api(`/api/projects/${projectId}/public-access`);state.publishedUrl=(pa.hasPublicAccess&&pa.status==='active')?pa.publicUrl:null}catch(e){state.publishedUrl=null}list()}
  catch(e){state.load='error';root.innerHTML='<div class="error"><div><strong>Storm n’arrive pas à ouvrir Actualités.</strong></div></div>';renderCommand()}
 }
 document.getElementById('projectLink').onclick=()=>location.assign(preserve(`/projects/${encodeURIComponent(projectId)}`));

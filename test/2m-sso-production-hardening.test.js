@@ -86,17 +86,23 @@ test('secret de transaction manquant en production -- le démarrage échoue (loa
   const originalSecret = process.env.SSO_TRANSACTION_SIGNING_SECRET;
   const originalTrustProxy = process.env.TRUST_PROXY_HOPS;
   const originalDbPassword = process.env.DB_PASSWORD;
+  const originalPublicAccessKey = process.env.PUBLIC_ACCESS_ENCRYPTION_KEY;
   try {
     process.env.NODE_ENV = 'production';
     delete process.env.SSO_TRANSACTION_SIGNING_SECRET;
     process.env.TRUST_PROXY_HOPS = '1';
     process.env.DB_PASSWORD = 'peu-importe-ici';
+    // Clé valide fournie -- ce test isole SSO_TRANSACTION_SIGNING_SECRET,
+    // jamais PUBLIC_ACCESS_ENCRYPTION_KEY (testée séparément, voir
+    // 3d-public-access.test.js).
+    process.env.PUBLIC_ACCESS_ENCRYPTION_KEY = 'mzVorA0hd1WmChIuRzM9hGg/JtDgPM9OaYFzm1iu77g=';
     assert.throws(() => loadConfig(), /SSO_TRANSACTION_SIGNING_SECRET/);
   } finally {
     process.env.NODE_ENV = originalEnv;
     if (originalSecret !== undefined) process.env.SSO_TRANSACTION_SIGNING_SECRET = originalSecret; else delete process.env.SSO_TRANSACTION_SIGNING_SECRET;
     if (originalTrustProxy !== undefined) process.env.TRUST_PROXY_HOPS = originalTrustProxy; else delete process.env.TRUST_PROXY_HOPS;
     if (originalDbPassword !== undefined) process.env.DB_PASSWORD = originalDbPassword; else delete process.env.DB_PASSWORD;
+    if (originalPublicAccessKey !== undefined) process.env.PUBLIC_ACCESS_ENCRYPTION_KEY = originalPublicAccessKey; else delete process.env.PUBLIC_ACCESS_ENCRYPTION_KEY;
   }
 });
 
@@ -105,17 +111,20 @@ test('TRUST_PROXY_HOPS manquant en production -- le démarrage échoue, jamais u
   const originalTrustProxy = process.env.TRUST_PROXY_HOPS;
   const originalSecret = process.env.SSO_TRANSACTION_SIGNING_SECRET;
   const originalDbPassword = process.env.DB_PASSWORD;
+  const originalPublicAccessKey = process.env.PUBLIC_ACCESS_ENCRYPTION_KEY;
   try {
     process.env.NODE_ENV = 'production';
     delete process.env.TRUST_PROXY_HOPS;
     process.env.SSO_TRANSACTION_SIGNING_SECRET = 'peu-importe-ici';
     process.env.DB_PASSWORD = 'peu-importe-ici';
+    process.env.PUBLIC_ACCESS_ENCRYPTION_KEY = 'mzVorA0hd1WmChIuRzM9hGg/JtDgPM9OaYFzm1iu77g=';
     assert.throws(() => loadConfig(), /TRUST_PROXY_HOPS/);
   } finally {
     process.env.NODE_ENV = originalEnv;
     if (originalTrustProxy !== undefined) process.env.TRUST_PROXY_HOPS = originalTrustProxy; else delete process.env.TRUST_PROXY_HOPS;
     if (originalSecret !== undefined) process.env.SSO_TRANSACTION_SIGNING_SECRET = originalSecret; else delete process.env.SSO_TRANSACTION_SIGNING_SECRET;
     if (originalDbPassword !== undefined) process.env.DB_PASSWORD = originalDbPassword; else delete process.env.DB_PASSWORD;
+    if (originalPublicAccessKey !== undefined) process.env.PUBLIC_ACCESS_ENCRYPTION_KEY = originalPublicAccessKey; else delete process.env.PUBLIC_ACCESS_ENCRYPTION_KEY;
   }
 });
 

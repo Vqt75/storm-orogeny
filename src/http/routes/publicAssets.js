@@ -1,30 +1,15 @@
 import { Router } from 'express';
 import { findAsset } from '../../domain/project-setup/repository.js';
 import { findActivePublication } from '../../domain/publication/repository.js';
+import { resolvePublicAccess } from '../../domain/publicAccess/repository.js';
 import { Errors } from '../../errors/AppError.js';
 
-// Assets publics — Slice 1, option A (arbitrée). Étendu Slice 2 avec
-// une extension de fichier réelle dans l'URL (voir MIME_TO_EXTENSION
-// ci-dessous) : Ivory détecte un PDF uniquement par l'extension ".pdf"
-// en fin d'URL (isPdfUrl, confirmé par lecture directe du code source
-// Ivory) -- jamais par un champ "kind" du Manifest.
-//
-// AUCUNE authentification Storm. La visibilité publique d'un asset
-// n'est JAMAIS décidée par Studio vivant (l'asset existe-t-il ?
-// appartient-il à ce projet ?) mais exclusivement par la publication
-// ACTIVE du projet : cet assetId est-il référencé quelque part dans
-// son manifest ? C'est la frontière d'immuabilité elle-même qui sert
-// de contrôle d'accès.
-//
-// Politique V1 pragmatique, documentée explicitement comme telle, pas
-// une garantie éternelle : elle repose sur l'absence ACTUELLE de toute
-// suppression ou mutation physique de fichier (vérifié pendant l'audit
-// Phase 2D — aucun code ne supprime un fichier du disque ni une ligne
-// `assets` aujourd'hui). Le jour où une fonctionnalité de suppression
-// physique, de remplacement binaire en place, ou un CDN/versioning
-// apparaît, cette politique doit être réexaminée — la copie par
-// publication ou le stockage content-addressed deviennent alors des
-// options à reconsidérer sérieusement.
+// Assets publics — Lot B : la résolution d'Accès Public (client/projet
+// slugs + capability) précède TOUJOURS la résolution d'asset -- jamais
+// l'UUID projet dans le chemin. Frontière de confiance déjà établie
+// conservée à l'identique : un asset n'est servable que s'il est
+// référencé par le Manifest de la publication ACTIVE, revérifié en
+// base (jamais une simple correspondance de chaîne).
 function manifestReferencesAsset(manifest, assetId) {
   const needle = String(assetId);
   const seen = new Set();
@@ -46,9 +31,6 @@ const EXTENSION_TO_MIME = {
   png: 'image/png',
   jpg: 'image/jpeg',
   pdf: 'application/pdf',
-  // Police — mêmes 4 valeurs canoniques que MIME_TO_EXTENSION
-  // (compiler.js) et FONT_EXTENSION_TO_CANONICAL_MIME (fontValidation.js) :
-  // jamais le Content-Type brut annoncé par le navigateur à l'upload.
   woff2: 'font/woff2',
   woff: 'font/woff',
   otf: 'font/otf',
@@ -64,7 +46,13 @@ function parseAssetIdWithExtension(raw) {
 export function createPublicAssetsRouter({ pool, storageAdapter }) {
   const router = Router();
 
-  router.get('/projects/:projectId/assets/:assetIdWithExt', async (req, res, next) => {
+  router.use((req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+  });
+
+  router.get('/:clientSlug/:projectSlug/:capability/assets/:assetIdWithExt', async (req, res, next) => {
     const parsed = parseAssetIdWithExtension(req.params.assetIdWithExt);
     if (!parsed) {
       next(Errors.notFound('Fichier'));
@@ -72,7 +60,19 @@ export function createPublicAssetsRouter({ pool, storageAdapter }) {
     }
     const { assetId, extension } = parsed;
 
-    const publication = await findActivePublication(pool, req.params.projectId);
+    const { clientSlug, projectSlug, capability } = req.params;
+    const resolution = await resolvePublicAccess(pool, { clientSlug, projectSlug, rawCapability: capability });
+    if (resolution.kind === 'revoked') {
+      res.status(410).json({ ok: false, error: { code: 'GONE', message: 'Ce lien n’est plus actif.' } });
+      return;
+    }
+    if (resolution.kind !== 'active') {
+      next(Errors.notFound('Fichier'));
+      return;
+    }
+    const projectId = resolution.projectId;
+
+    const publication = await findActivePublication(pool, projectId);
     if (!publication || !publication.manifest) {
       next(Errors.notFound('Fichier'));
       return;
@@ -82,18 +82,16 @@ export function createPublicAssetsRouter({ pool, storageAdapter }) {
       return;
     }
     // La publication référence bien cet id -- l'asset lui-même doit
-    // aussi exister réellement ET appartenir à ce projet précis
-    // (jamais fait confiance à une simple correspondance de chaîne
-    // dans le manifest sans revérifier au niveau DB).
+    // aussi exister réellement ET appartenir à CE projet précis résolu
+    // via l'Accès Public (jamais fait confiance à une simple
+    // correspondance de chaîne dans le manifest sans revérifier au
+    // niveau DB) -- ceci empêche aussi qu'une capability valide pour
+    // le projet A serve un asset du projet B.
     const asset = await findAsset(pool, assetId);
-    if (!asset || String(asset.project_id) !== String(req.params.projectId)) {
+    if (!asset || String(asset.project_id) !== String(projectId)) {
       next(Errors.notFound('Fichier'));
       return;
     }
-    // L'extension de l'URL doit correspondre au content_type RÉEL de
-    // l'asset -- jamais simplement acceptée depuis l'URL (arbitrage
-    // explicite, Slice 2). Une extension incohérente est un 404, pas
-    // une tentative de servir le fichier avec le mauvais Content-Type.
     if (EXTENSION_TO_MIME[extension] !== asset.content_type) {
       next(Errors.notFound('Fichier'));
       return;

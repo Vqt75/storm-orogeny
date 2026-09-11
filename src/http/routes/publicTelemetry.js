@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { recordPageView, recordMatchResult, recordMoodFeedback } from '../../domain/pilotage/telemetry.js';
-import { findActiveProjectTenant } from '../../domain/pilotage/reporting.js';
+import { resolvePublicAccess } from '../../domain/publicAccess/repository.js';
 
 // Collecte télémétrie — JAMAIS authentifiée (un visiteur anonyme
 // d'Ivory doit pouvoir l'appeler, même doctrine que les assets
@@ -87,17 +87,23 @@ export function normalizeTelemetryPath(rawPath) {
 export function createPublicTelemetryRouter({ pool }) {
   const router = Router();
 
-  router.post('/projects/:projectId/telemetry', async (req, res) => {
-    // Toujours 204, y compris en cas de projet invalide -- ne jamais
+  router.post('/:clientSlug/:projectSlug/:capability/telemetry', async (req, res) => {
+    // Toujours 204, y compris en cas d'accès invalide -- ne jamais
     // laisser une réponse d'erreur renseigner un tiers sur l'existence
-    // ou le statut d'un projet via cet endpoint non authentifié.
+    // ou le statut d'un accès public via cet endpoint non authentifié.
     res.status(204);
 
-    const tenantId = await findActiveProjectTenant(pool, req.params.projectId).catch(() => null);
-    if (!tenantId) { res.end(); return; }
+    const { clientSlug, projectSlug, capability } = req.params;
+    const resolution = await resolvePublicAccess(pool, { clientSlug, projectSlug, rawCapability: capability }).catch(() => null);
+    // Seul un accès ACTIF enregistre de la télémétrie -- jamais pour
+    // unpublished/revoked/inconnu (silencieux, doctrine déjà en place).
+    // La capability brute ne sert qu'à cette résolution -- jamais
+    // transmise à recordPageView/recordMoodFeedback/recordMatchResult,
+    // jamais persistée.
+    if (!resolution || resolution.kind !== 'active') { res.end(); return; }
+    const { projectId, tenantId } = resolution;
 
     const body = req.body || {};
-    const projectId = req.params.projectId;
     const now = new Date();
 
     try {

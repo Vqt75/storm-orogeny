@@ -9,6 +9,7 @@ import { runRetentionPolicies } from '../src/domain/privacy/retentionRunner.js';
 import { normalizeTelemetryPath } from '../src/http/routes/publicTelemetry.js';
 import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
+import { createFirstAccess } from '../src/domain/publicAccess/repository.js';
 
 // Privacy & Data Lifecycle V1 — Batch 8. Rétention déterministe des
 // telemetry_events (Pilotage brut, 40 jours) intégrée au retention
@@ -21,7 +22,7 @@ const pool = getPool(config);
 const storageAdapter = createStorageAdapter(config);
 const silentLogger = { info() {}, warn() {}, error() {} };
 
-let tenant, project, otherProject;
+let tenant, project, otherProject, publicTelemetryUrl;
 let app, server, baseUrl;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -31,7 +32,9 @@ async function cleanAll() {
   await pool.query("delete from daily_content_agg where tenant_id in (select id from tenants where name like 'Tenant Privacy Batch8%')");
   await pool.query("delete from daily_match_agg where tenant_id in (select id from tenants where name like 'Tenant Privacy Batch8%')");
   await pool.query("delete from daily_mood_agg where tenant_id in (select id from tenants where name like 'Tenant Privacy Batch8%')");
+  await pool.query("delete from project_public_access where tenant_id in (select id from tenants where name like 'Tenant Privacy Batch8%')");
   await pool.query("delete from projects where tenant_id in (select id from tenants where name like 'Tenant Privacy Batch8%')");
+  await pool.query("delete from clients where tenant_id in (select id from tenants where name like 'Tenant Privacy Batch8%')");
   await pool.query("delete from tenants where name like 'Tenant Privacy Batch8%'");
 }
 
@@ -40,8 +43,16 @@ test.before(async () => {
   await cleanAll();
   const { rows: [t] } = await pool.query("insert into tenants (name) values ('Tenant Privacy Batch8') returning id");
   tenant = t.id;
-  const { rows: [p] } = await pool.query("insert into projects (tenant_id, name, status) values ($1,'Privacy Batch8 Projet A','active') returning id", [tenant]);
+  const { rows: [client] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Privacy Batch8','client-privacy-batch8') returning id", [tenant]
+  );
+  const { rows: [p] } = await pool.query("insert into projects (tenant_id, name, status, client_id) values ($1,'Privacy Batch8 Projet A','active',$2) returning id", [tenant, client.id]);
   project = p.id;
+  const publicAccess = await createFirstAccess(pool, {
+    tenantId: tenant, projectId: project, clientSlug: 'client-privacy-batch8', projectSlug: 'privacy-batch8-projet-a',
+    encryptionKey: config.publicAccessEncryptionKey
+  });
+  publicTelemetryUrl = `${'/public'}/client-privacy-batch8/privacy-batch8-projet-a/${publicAccess.rawCapability}/telemetry`;
   const { rows: [p2] } = await pool.query("insert into projects (tenant_id, name, status) values ($1,'Privacy Batch8 Projet B','active') returning id", [tenant]);
   otherProject = p2.id;
 
@@ -318,7 +329,7 @@ test('path -- valeurs non-string ou vides -- refusées proprement', () => {
 });
 
 test('path -- BOUT EN BOUT HTTP -- route canonique réelle acceptée et persistée', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+  const res = await fetch(`${baseUrl}${publicTelemetryUrl}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view', path: 'news' })
@@ -335,7 +346,7 @@ test('path -- BOUT EN BOUT HTTP -- route canonique réelle acceptée et persist�
 });
 
 test('path -- BOUT EN BOUT HTTP -- query+fragment supprimés sur une catégorie valide', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+  const res = await fetch(`${baseUrl}${publicTelemetryUrl}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view', path: 'home?email=attaquant@exemple.com#secret-libre' })
@@ -353,7 +364,7 @@ test('path -- BOUT EN BOUT HTTP -- query+fragment supprimés sur une catégorie 
 });
 
 test('path -- BOUT EN BOUT HTTP -- chaîne arbitraire alphanumérique valide syntaxiquement n\'arrive jamais en DB', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+  const res = await fetch(`${baseUrl}${publicTelemetryUrl}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view', path: 'julien-dupont' })
@@ -370,7 +381,7 @@ test('path -- BOUT EN BOUT HTTP -- chaîne arbitraire alphanumérique valide syn
 });
 
 test('path -- BOUT EN BOUT HTTP -- route dynamique réelle (news-<slug>) canonicalisée en DB', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+  const res = await fetch(`${baseUrl}${publicTelemetryUrl}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view', path: 'news-mon-article-confidentiel' })
@@ -387,7 +398,7 @@ test('path -- BOUT EN BOUT HTTP -- route dynamique réelle (news-<slug>) canonic
 });
 
 test('path -- BOUT EN BOUT HTTP -- texte libre non-canonique -- jamais persisté', async () => {
-  const res = await fetch(`${baseUrl}/public/projects/${project}/telemetry`, {
+  const res = await fetch(`${baseUrl}${publicTelemetryUrl}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'page_view', path: 'mon probleme personnel avec contact@exemple.com' })

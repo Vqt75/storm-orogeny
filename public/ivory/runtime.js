@@ -1,10 +1,11 @@
 // OROGENY — Public Runtime, porté depuis Tectonic (Phase 5) sans
 // réécriture ni redesign. Une seule adaptation réelle : Tectonic
 // suppose un déploiement mono-projet (chemin fixe /api/manifest) ;
-// Orogeny est multi-tenant, donc le projectId est déduit de l'URL de
-// la page elle-même (servie à /public/projects/:projectId), jamais
-// codé en dur ni passé par une variable globale injectée côté serveur
-// — la page et son fetch restent cohérents par construction.
+// Orogeny est multi-tenant, donc l'identité publique (client/projet/
+// capability) est déduite de l'URL de la page elle-même (servie à
+// /public/:clientSlug/:projectSlug/:capability, Lot B), jamais codée
+// en dur ni passée par une variable globale injectée côté serveur --
+// l'UUID projet interne n'apparaît jamais dans cette URL.
 //
 // Contrat strict, inchangé par rapport à Tectonic :
 //   - lit UNIQUEMENT le Manifest de la publication active (jamais
@@ -46,22 +47,39 @@ function renderFatalError(message) {
     </div>`;
 }
 
-// Déduit projectId de l'URL courante (/public/projects/:projectId) --
-// seule adaptation multi-tenant réelle par rapport à Tectonic.
-function getProjectIdFromUrl() {
-  const match = window.location.pathname.match(/\/public\/projects\/([^/]+)/);
-  return match ? match[1] : null;
+// Déduit {clientSlug, projectSlug, capability} de l'URL courante
+// (/public/:clientSlug/:projectSlug/:capability) -- Lot B, remplace la
+// déduction précédente par UUID projet. L'UUID interne n'apparaît plus
+// jamais dans l'URL navigateur.
+function getPublicPathFromUrl() {
+  const match = window.location.pathname.match(/\/public\/([^/]+)\/([^/]+)\/([^/]+)/);
+  if (!match) return null;
+  return { clientSlug: match[1], projectSlug: match[2], capability: match[3] };
 }
 
-async function loadManifest(projectId) {
-  const res = await fetch(`/public/projects/${projectId}/manifest`);
+// prefixRelativeAssetUrls -- le Compiler émet des références RELATIVES
+// ("assets/<id>.<ext>", jamais l'UUID projet ni /public/ en dur --
+// voir compiler.js). Le Runtime les complète avec sa base publique
+// courante au moment du rendu. Ceci n'est PAS un mécanisme de
+// compatibilité avec un ancien format : c'est le contrat normal entre
+// le Compiler (référence relative) et ce Runtime (résolution absolue),
+// puisque l'identité publique peut tourner indépendamment d'une
+// republication de contenu.
+function prefixRelativeAssetUrls(manifestText, publicPath) {
+  const base = `/public/${publicPath.clientSlug}/${publicPath.projectSlug}/${publicPath.capability}/assets/`;
+  return manifestText.replace(/"assets\/([^"/]+)"/g, (_, filename) => `"${base}${filename}"`);
+}
+
+async function loadManifest(publicPath) {
+  const res = await fetch(`/public/${publicPath.clientSlug}/${publicPath.projectSlug}/${publicPath.capability}/manifest`);
   if (res.status === 404) {
     throw new Error("Aucune publication n'existe encore pour ce projet.");
   }
   if (!res.ok) {
     throw new Error(`Le Manifest n'a pas pu être chargé (HTTP ${res.status}).`);
   }
-  return res.json();
+  const text = await res.text();
+  return JSON.parse(prefixRelativeAssetUrls(text, publicPath));
 }
 
 function validateSchemaVersion(manifest) {
@@ -98,8 +116,8 @@ async function loadRenderer(editionId) {
 // Le renderer exprime une intention ; le Runtime reste propriétaire de
 // l'endpoint et du payload. Le reste du tracking demeure hors renderer.
 // ─────────────────────────────────────────────────────────────────
-function buildPublicCoreActions(projectId) {
-  const telemetryUrl = `/public/projects/${encodeURIComponent(projectId)}/telemetry`;
+function buildPublicCoreActions(publicPath) {
+  const telemetryUrl = `/public/${publicPath.clientSlug}/${publicPath.projectSlug}/${publicPath.capability}/telemetry`;
   return {
     async submitContact({ name, email, message }) {
       try {
@@ -172,15 +190,15 @@ function buildPublicCoreActions(projectId) {
 }
 
 async function boot() {
-  const projectId = getProjectIdFromUrl();
-  if (!projectId) {
-    renderFatalError('URL invalide : identifiant de projet introuvable.');
+  const publicPath = getPublicPathFromUrl();
+  if (!publicPath) {
+    renderFatalError('URL invalide : accès public introuvable.');
     return;
   }
 
   let manifest;
   try {
-    manifest = await loadManifest(projectId);
+    manifest = await loadManifest(publicPath);
     validateSchemaVersion(manifest);
   } catch (err) {
     renderFatalError(err.message);
@@ -196,7 +214,7 @@ async function boot() {
   }
 
   const root = document.getElementById('tectonic-root') || document.body;
-  const actions = buildPublicCoreActions(projectId);
+  const actions = buildPublicCoreActions(publicPath);
 
   // Une erreur DANS le rendu (bug du renderer, donnée inattendue) ne
   // doit jamais produire une exception JS non gérée côté visiteur —
@@ -211,4 +229,4 @@ async function boot() {
 boot();
 
 // Exports pour les tests unitaires.
-export { loadManifest, validateSchemaVersion, loadRenderer, buildPublicCoreActions, renderFatalError, getProjectIdFromUrl, SUPPORTED_SCHEMA_VERSIONS, RENDERERS };
+export { loadManifest, validateSchemaVersion, loadRenderer, buildPublicCoreActions, renderFatalError, getPublicPathFromUrl, SUPPORTED_SCHEMA_VERSIONS, RENDERERS };

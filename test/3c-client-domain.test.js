@@ -24,6 +24,7 @@ async function cleanAll() {
   await pool.query('delete from project_identity');
   await pool.query('delete from project_memberships');
   await pool.query('delete from tenant_memberships');
+  await pool.query('delete from project_public_access');
   await pool.query('delete from projects');
   await pool.query('delete from clients');
   await pool.query('delete from users');

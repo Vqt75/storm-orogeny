@@ -11,15 +11,20 @@ function asyncHandler(fn) {
 // content.edit. Déclencher une publication n'est pas éditer du
 // contenu Studio, même si les deux sont souvent accordées ensemble
 // (bundles editor/project_admin) — voir capabilities.js.
-export function createPublicationRouter({ pool }) {
+export function createPublicationRouter({ pool, config }) {
   const router = Router();
 
   router.post('/:projectId/publications', requireProjectCapability(pool, ProjectCapability.PUBLICATION_PUBLISH), asyncHandler(async (req, res) => {
     const result = await createPublication(pool, {
       tenantId: req.project.tenant_id,
       projectId: req.project.id,
-      userId: req.user.id
+      userId: req.user.id,
+      encryptionKey: config.publicAccessEncryptionKey
     });
+    if (result.status === 'blocked') {
+      res.status(422).json({ ok: false, error: { code: result.failureCode, message: result.failureDetail } });
+      return;
+    }
     if (result.status === 'failed') {
       res.status(422).json({ ok: false, revision: result.revision, status: 'failed', failureCode: result.failureCode, failureDetail: result.failureDetail });
       return;

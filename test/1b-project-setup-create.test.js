@@ -22,6 +22,7 @@ async function cleanAll() {
   await pool.query('delete from project_memberships');
   await pool.query('delete from tenant_memberships');
   await pool.query('delete from projects');
+  await pool.query('delete from clients');
   await pool.query('delete from users');
   await pool.query('delete from tenants');
 }
@@ -48,7 +49,13 @@ test.before(async () => {
   await seedTenantMembership(pool, { tenantId: tenant.id, userId: creator.id, permissionBundle: 'organization_admin' });
   await seedTenantMembership(pool, { tenantId: tenant.id, userId: nonCreator.id, permissionBundle: 'member' });
 
-  ids = { tenant: tenant.id, creator: creator.id, nonCreator: nonCreator.id, otherTenant: otherTenant.id };
+  // Client de fixture -- Lot A exige désormais clientId à la création.
+  const { rows: [client] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Fixture Lot2','client-fixture-lot2') returning id",
+    [tenant.id]
+  );
+
+  ids = { tenant: tenant.id, creator: creator.id, nonCreator: nonCreator.id, otherTenant: otherTenant.id, client: client.id };
 
   app = createApp({ logger: silentLogger, pool, config });
   server = http.createServer(app);
@@ -73,7 +80,7 @@ function post(userId, body) {
 test('happy path : création complète avec identité, réglages, modules, invitations', async () => {
   const before = await countAll();
   const res = await post(ids.creator, {
-    name: 'Projet Lot2',
+    name: 'Projet Lot2', clientId: ids.client,
     workspaceLocale: 'en',
     contentLocale: 'fr',
     identity: { primaryColor: '#1E1D1E', theme: 'ivory' },
@@ -116,7 +123,7 @@ test('happy path : création complète avec identité, réglages, modules, invit
 
 test('sans projects.create -> 403, zéro écriture', async () => {
   const before = await countAll();
-  const res = await post(ids.nonCreator, { name: 'Devrait échouer', workspaceLocale: 'fr', contentLocale: 'fr' });
+  const res = await post(ids.nonCreator, { name: 'Devrait échouer', clientId: ids.client, workspaceLocale: 'fr', contentLocale: 'fr' });
   assert.equal(res.status, 403);
   const after = await countAll();
   assert.deepEqual(after, before);
@@ -124,7 +131,7 @@ test('sans projects.create -> 403, zéro écriture', async () => {
 
 test('locale invalide -> 400, zéro écriture', async () => {
   const before = await countAll();
-  const res = await post(ids.creator, { name: 'Devrait échouer', workspaceLocale: 'klingon', contentLocale: 'fr' });
+  const res = await post(ids.creator, { name: 'Devrait échouer', clientId: ids.client, workspaceLocale: 'klingon', contentLocale: 'fr' });
   assert.equal(res.status, 400);
   const after = await countAll();
   assert.deepEqual(after, before);
@@ -133,7 +140,7 @@ test('locale invalide -> 400, zéro écriture', async () => {
 test('bundle d\'invitation invalide -> 400, zéro écriture', async () => {
   const before = await countAll();
   const res = await post(ids.creator, {
-    name: 'Devrait échouer', workspaceLocale: 'fr', contentLocale: 'fr',
+    name: 'Devrait échouer', clientId: ids.client, workspaceLocale: 'fr', contentLocale: 'fr',
     invites: [{ email: 'x@y.local', permissionBundle: 'admin', locale: 'fr' }]
   });
   assert.equal(res.status, 400);
@@ -143,7 +150,7 @@ test('bundle d\'invitation invalide -> 400, zéro écriture', async () => {
 
 test('le tenant_id fourni par le client est totalement ignoré — impossible de créer sous un autre tenant', async () => {
   const res = await post(ids.creator, {
-    name: 'Tentative mauvais tenant', workspaceLocale: 'fr', contentLocale: 'fr',
+    name: 'Tentative mauvais tenant', clientId: ids.client, workspaceLocale: 'fr', contentLocale: 'fr',
     tenantId: ids.otherTenant // doit être silencieusement ignoré, jamais utilisé
   });
   assert.equal(res.status, 201);
@@ -159,7 +166,7 @@ test('le tenant_id fourni par le client est totalement ignoré — impossible de
 });
 
 test('aucune invitation -> création valide quand même', async () => {
-  const res = await post(ids.creator, { name: 'Sans invitation', workspaceLocale: 'fr', contentLocale: 'fr' });
+  const res = await post(ids.creator, { name: 'Sans invitation', clientId: ids.client, workspaceLocale: 'fr', contentLocale: 'fr' });
   assert.equal(res.status, 201);
   const body = await res.json();
   const { rows: invitations } = await pool.query('select * from project_invitations where project_id=$1', [body.id]);
@@ -174,7 +181,7 @@ test('aucune invitation -> création valide quand même', async () => {
 
 test('auto-invitation silencieusement exclue — le créateur ne reçoit pas d\'invitation en plus de son membership', async () => {
   const res = await post(ids.creator, {
-    name: 'Auto-invitation', workspaceLocale: 'fr', contentLocale: 'fr',
+    name: 'Auto-invitation', clientId: ids.client, workspaceLocale: 'fr', contentLocale: 'fr',
     invites: [
       { email: 'CREATOR@LOT2.LOCAL', permissionBundle: 'editor', locale: 'fr' }, // casse différente, doit matcher creator@lot2.local
       { email: 'vraie@invitee.local', permissionBundle: 'contributor', locale: 'es' }
@@ -197,7 +204,7 @@ test('auto-invitation silencieusement exclue — le créateur ne reçoit pas d\'
 test('emails en double dans le même payload -> 400, zéro écriture', async () => {
   const before = await countAll();
   const res = await post(ids.creator, {
-    name: 'Devrait échouer', workspaceLocale: 'fr', contentLocale: 'fr',
+    name: 'Devrait échouer', clientId: ids.client, workspaceLocale: 'fr', contentLocale: 'fr',
     invites: [
       { email: 'dup@x.local', permissionBundle: 'editor', locale: 'fr' },
       { email: 'DUP@X.LOCAL', permissionBundle: 'contributor', locale: 'en' }
@@ -219,7 +226,7 @@ test('échec d\'écriture interne provoqué -> ROLLBACK complet, zéro ligne dan
   await pool.query('REVOKE INSERT ON project_modules FROM storm_orogeny');
   try {
     const res = await post(ids.creator, {
-      name: 'Devrait tout annuler', workspaceLocale: 'fr', contentLocale: 'fr',
+      name: 'Devrait tout annuler', clientId: ids.client, workspaceLocale: 'fr', contentLocale: 'fr',
       modules: { faq: true }
     });
     assert.equal(res.status, 500);

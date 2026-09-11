@@ -59,6 +59,15 @@ export function validateCreateProjectPayload(payload, { supportedLocales, creato
     errors.push('name est requis et ne peut pas être vide.');
   }
 
+  // clientId -- structurel (Lot A), jamais un nom Client en texte
+  // libre : sélectionné parmi les Clients déjà existants du tenant,
+  // jamais créé silencieusement par ce même appel. La validation
+  // d'existence/appartenance tenant réelle se fait en base (voir
+  // route POST /api/projects), pas ici (validation pure, sans accès DB).
+  if (!isNonEmptyString(payload.clientId)) {
+    errors.push('clientId est requis et ne peut pas être vide.');
+  }
+
   const derivedLocale = deriveLocaleFromAcceptLanguage(acceptLanguageHeader, supported)
     ?? (supported.has(DEFAULT_FALLBACK_LOCALE) ? DEFAULT_FALLBACK_LOCALE : [...supported][0]);
 
@@ -130,6 +139,7 @@ export function validateCreateProjectPayload(payload, { supportedLocales, creato
     valid: true,
     data: {
       name: payload.name.trim(),
+      clientId: payload.clientId.trim(),
       workspaceLocale,
       contentLocale,
       identity: {

@@ -39,6 +39,7 @@ async function cleanAll() {
   await pool.query('delete from tenant_memberships');
   await pool.query('delete from projects');
   await pool.query('delete from users');
+  await pool.query('delete from clients');
   await pool.query('delete from tenants');
 }
 

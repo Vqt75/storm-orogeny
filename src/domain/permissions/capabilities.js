@@ -26,6 +26,12 @@ export const OrganizationCapability = Object.freeze({
   PROJECTS_MANAGE_LIFECYCLE: 'projects.manage_lifecycle',
   MEMBERS_MANAGE: 'organization.members.manage',
   SETTINGS_MANAGE: 'organization.settings.manage',
+  // Gestion de l'entité Client (créer/renommer) -- structurelle et
+  // organisationnelle, jamais accordée implicitement par
+  // PROJECTS_CREATE (sélectionner un Client existant pour créer un
+  // projet est une action différente de créer/renommer le Client
+  // lui-même). Suit le même motif que PROJECTS_MANAGE_LIFECYCLE.
+  CLIENTS_MANAGE: 'organization.clients.manage',
   // Suppression définitive d'un projet -- distincte de la gestion du
   // lifecycle (archiver/restaurer, déjà couverte par CONTROL_ACCESS+
   // PROJECTS_VIEW_ALL). Jamais accordée implicitement à project_admin
@@ -80,6 +86,7 @@ const ORGANIZATION_BUNDLE_CAPABILITIES = Object.freeze({
     OrganizationCapability.PROJECTS_MANAGE_LIFECYCLE,
     OrganizationCapability.MEMBERS_MANAGE,
     OrganizationCapability.SETTINGS_MANAGE,
+    OrganizationCapability.CLIENTS_MANAGE,
     OrganizationCapability.EXTERNAL_IDENTITY_MANAGE
   ])
 });

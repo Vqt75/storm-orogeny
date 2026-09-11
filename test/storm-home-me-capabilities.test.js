@@ -24,6 +24,7 @@ async function clean() {
   await pool.query('delete from tenant_memberships');
   await pool.query('delete from projects');
   await pool.query('delete from users');
+  await pool.query('delete from clients');
   await pool.query('delete from tenants');
 }
 
@@ -50,13 +51,13 @@ test.after(async () => {
   await closePool();
 });
 
-test('organization_admin reçoit ses 8 capabilities organisationnelles courantes (jamais projects.delete_permanently, encore non tranchée), jamais le nom du bundle', async () => {
+test('organization_admin reçoit ses 9 capabilities organisationnelles courantes (jamais projects.delete_permanently, encore non tranchée), jamais le nom du bundle', async () => {
   const res = await fetch(`${baseUrl}/api/me`, { headers: { 'X-Storm-Dev-User': ids.admin } });
   const body = await res.json();
   assert.equal('permission_bundle' in body.organization, false, 'le nom brut du bundle ne doit jamais être exposé');
   assert.deepEqual(
     [...body.organization.capabilities].sort(),
-    ['control.access', 'organization.external_identity.manage', 'organization.members.manage', 'organization.settings.manage', 'projects.create', 'projects.manage_lifecycle', 'projects.manage_memberships', 'projects.view_all'].sort()
+    ['control.access', 'organization.clients.manage', 'organization.external_identity.manage', 'organization.members.manage', 'organization.settings.manage', 'projects.create', 'projects.manage_lifecycle', 'projects.manage_memberships', 'projects.view_all'].sort()
   );
 });
 

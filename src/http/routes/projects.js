@@ -2,12 +2,13 @@ import { Router } from 'express';
 import multer from 'multer';
 import { logger } from '../../logger.js';
 import {
-  listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules
+  listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules, renameProject
 } from '../../domain/projects/repository.js';
 import { requireProjectCapability } from '../middleware/requireProjectCapability.js';
 import { listActiveTenantMembershipsForUser } from '../../domain/memberships/repository.js';
 import { ProjectCapability, OrganizationCapability } from '../../domain/permissions/capabilities.js';
 import { validateCreateProjectPayload } from '../../domain/project-setup/validation.js';
+import { findClientById } from '../../domain/clients/repository.js';
 import { listSupportedLocales } from '../../domain/project-setup/repository.js';
 import {
   insertProject, insertProjectIdentity, insertProjectSettings,
@@ -107,14 +108,25 @@ export function createProjectsRouter({ pool, storageAdapter }) {
         return;
       }
 
-      const { name, workspaceLocale, contentLocale, identity, modules, invites } = validation.data;
+      const { name, clientId, workspaceLocale, contentLocale, identity, modules, invites } = validation.data;
       const tenantId = req.tenantMembership.tenant_id;
+
+      // clientId doit référencer un Client réel du MÊME tenant --
+      // vérifié explicitement ici (message clair, jamais une simple
+      // violation FK Postgres remontée brute à l'appelant). La FK
+      // composite (tenant_id, client_id) reste le filet de sécurité
+      // final au niveau base, jamais le seul contrôle.
+      const client_ = await findClientById(pool, { tenantId, clientId });
+      if (!client_) {
+        next(Errors.invalid('clientId doit référencer un client existant de cette organisation.'));
+        return;
+      }
 
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
-        const projectId = await insertProject(client, { tenantId, name });
+        const projectId = await insertProject(client, { tenantId, name, clientId });
         await insertProjectIdentity(client, { tenantId, projectId, identity });
         await insertProjectSettings(client, { tenantId, projectId, workspaceLocale, contentLocale });
         await insertProjectModules(client, { tenantId, projectId, modules });
@@ -288,6 +300,32 @@ export function createProjectsRouter({ pool, storageAdapter }) {
       } catch (err) {
         next(err);
       }
+    }
+  );
+
+  // Renommage du Projet -- verrouillage optimiste, même contrat que
+  // les couleurs d'identité ci-dessous. Aucun effet de bord d'Accès
+  // Public dans ce Lot A (n'existe pas encore) -- mute uniquement le
+  // nom du Projet.
+  router.patch(
+    '/:projectId/name',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    async (req, res, next) => {
+      const { name, version } = req.body || {};
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        next(Errors.invalid('name est requis et ne peut pas être vide.'));
+        return;
+      }
+      if (!Number.isInteger(version)) {
+        next(Errors.invalid('version (entier) requise pour le renommage.'));
+        return;
+      }
+      const updated = await renameProject(pool, { projectId: req.project.id, name: name.trim(), expectedVersion: version });
+      if (!updated) {
+        res.status(409).json({ ok: false, error: { code: 'STALE_VERSION', message: 'Ce projet a été modifié ailleurs. Rechargez pour repartir de la version actuelle.' } });
+        return;
+      }
+      res.status(200).json({ id: updated.id, name: updated.name, version: updated.version });
     }
   );
 

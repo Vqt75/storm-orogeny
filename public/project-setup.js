@@ -58,6 +58,19 @@
       </div>
     </div>
     <main>
+      <label class="prompt" for="clientField">Client</label>
+      <input
+        class="name-field"
+        id="clientField"
+        type="text"
+        autocomplete="off"
+        placeholder="Rechercher un client…"
+        aria-describedby="clientResults"
+      />
+      <ul class="client-results" id="clientResults" hidden></ul>
+      <p class="client-selected" id="clientSelected" hidden></p>
+      <button class="client-create-link" id="clientCreateBtn" type="button" hidden>Créer un nouveau client</button>
+
       <label class="prompt" for="nameField">Comment s'appelle votre projet ?</label>
       <input
         class="name-field"
@@ -75,10 +88,101 @@
   `;
   document.body.appendChild(root);
 
+  const clientField = document.getElementById('clientField');
+  const clientResults = document.getElementById('clientResults');
+  const clientSelected = document.getElementById('clientSelected');
+  const clientCreateBtn = document.getElementById('clientCreateBtn');
   const nameField = document.getElementById('nameField');
   const localeSelect = document.getElementById('localeSelect');
   const createBtn = document.getElementById('createBtn');
   const errorEl = document.getElementById('errorMessage');
+
+  let selectedClient = null; // { id, name } -- jamais un texte libre envoyé à POST /api/projects
+  let canManageClients = false;
+  let searchDebounce = null;
+
+  function selectClient(client) {
+    selectedClient = client;
+    clientField.value = '';
+    clientResults.hidden = true;
+    clientResults.innerHTML = '';
+    clientSelected.hidden = false;
+    clientSelected.textContent = `Client : ${client.name}`;
+    updateCtaState();
+  }
+
+  async function searchClients(query) {
+    try {
+      const res = await fetch(preserveDev(`/api/clients?search=${encodeURIComponent(query)}`), { headers: devHeaders() });
+      if (!res.ok) return;
+      const clients = await res.json();
+      if (clients.length === 0) {
+        clientResults.hidden = true;
+        clientResults.innerHTML = '';
+        return;
+      }
+      clientResults.innerHTML = clients.map(c => `<li><button type="button" data-client-id="${escapeHtml(c.id)}" data-client-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</button></li>`).join('');
+      clientResults.hidden = false;
+    } catch (e) { /* recherche best-effort, jamais bloquante */ }
+  }
+
+  clientField.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    const query = clientField.value.trim();
+    if (!query) { clientResults.hidden = true; clientResults.innerHTML = ''; return; }
+    searchDebounce = setTimeout(() => searchClients(query), 200);
+  });
+
+  clientResults.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-client-id]');
+    if (!btn) return;
+    selectClient({ id: btn.getAttribute('data-client-id'), name: btn.getAttribute('data-client-name') });
+  });
+
+  // "Créer un nouveau client" -- restreint à CLIENTS_MANAGE, découvert
+  // au chargement (voir bootstrapClientCreation ci-dessous). Ne demande
+  // que le nom -- aucun champ CRM (logo/adresse/contact/secteur/etc.),
+  // conformément à la doctrine de simplicité de cet écran.
+  clientCreateBtn.addEventListener('click', async () => {
+    const name = window.prompt('Nom du nouveau client :');
+    if (!name || !name.trim()) return;
+    try {
+      const res = await fetch(preserveDev('/api/clients'), {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, devHeaders()),
+        body: JSON.stringify({ name: name.trim() })
+      });
+      if (!res.ok) {
+        let msg = 'La création du client a échoué.';
+        try { const body = await res.json(); if (body?.error?.message) msg = body.error.message; } catch (e) {}
+        errorEl.textContent = msg;
+        return;
+      }
+      const client = await res.json();
+      selectClient(client);
+    } catch (e) {
+      errorEl.textContent = 'La création du client a échoué. Réessayez.';
+    }
+  });
+
+  // Découverte de CLIENTS_MANAGE -- best-effort : une recherche vide
+  // réussie confirme au moins PROJECTS_CREATE (déjà nécessaire pour
+  // être sur cet écran) ; le bouton de création reste masqué par
+  // défaut, jamais affiché de façon optimiste avant confirmation.
+  async function bootstrapClientCreation() {
+    try {
+      const res = await fetch(preserveDev('/api/clients?search=__probe__'), { headers: devHeaders() });
+      // Une réponse 200 confirme l'accès en lecture ; la capability de
+      // création reste vérifiée côté serveur à l'appel POST lui-même --
+      // ce bouton n'est qu'une affordance, jamais une autorisation.
+      if (res.ok) {
+        clientCreateBtn.hidden = false;
+        canManageClients = true;
+      }
+    } catch (e) { /* best-effort */ }
+  }
+  bootstrapClientCreation();
+
 
   const initialLocale = deriveInitialLocale();
   localeSelect.value = initialLocale;
@@ -91,7 +195,7 @@
   localeSelect.addEventListener('change', () => { localeTouched = true; updateLocaleAccessibleLabel(); });
 
   function updateCtaState() {
-    createBtn.disabled = nameField.value.trim().length === 0;
+    createBtn.disabled = nameField.value.trim().length === 0 || !selectedClient;
   }
   nameField.addEventListener('input', updateCtaState);
   updateCtaState();
@@ -118,7 +222,7 @@
   async function attemptCreate() {
     if (creating) return;
     const name = nameField.value.trim();
-    if (!name) return;
+    if (!name || !selectedClient) return;
 
     creating = true;
     errorEl.textContent = '';
@@ -130,7 +234,7 @@
     // chargement affiché sur une action qui aurait dû être instantanée.
     const slowTimer = setTimeout(() => { createBtn.textContent = 'Création…'; }, 400);
 
-    const payload = { name };
+    const payload = { name, clientId: selectedClient.id };
     if (localeTouched) payload.contentLocale = localeSelect.value;
 
     let projectId = null;

@@ -17,16 +17,28 @@ import { logger } from '../logger.js';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+// Clermont-Ferrand + Tours -> AG2R LA MONDIALE (même Client, jamais
+// deux lignes) ; Peugeot -> Peugeot. Mapping produit authoritatif,
+// jamais deviné depuis le nom de projet -- voir rapport Lot A.
 async function clearAll(client) {
   await client.query('delete from project_memberships');
   await client.query('delete from tenant_memberships');
   await client.query('delete from projects');
+  await client.query('delete from clients');
   await client.query('delete from users');
   await client.query('delete from tenants');
 }
 
 async function insertTenant(client, name) {
   const { rows: [row] } = await client.query('insert into tenants (name) values ($1) returning id', [name]);
+  return row.id;
+}
+
+async function insertClient(client, tenantId, name, normalizedSlug) {
+  const { rows: [row] } = await client.query(
+    'insert into clients (tenant_id, name, normalized_slug) values ($1, $2, $3) returning id',
+    [tenantId, name, normalizedSlug]
+  );
   return row.id;
 }
 
@@ -49,10 +61,10 @@ async function insertTenantMembership(client, tenantId, userId, bundle) {
   );
 }
 
-async function insertProject(client, tenantId, name) {
+async function insertProject(client, tenantId, name, clientId = null) {
   const { rows: [row] } = await client.query(
-    'insert into projects (tenant_id, name) values ($1, $2) returning id',
-    [tenantId, name]
+    'insert into projects (tenant_id, name, client_id) values ($1, $2, $3) returning id',
+    [tenantId, name, clientId]
   );
   return row.id;
 }
@@ -106,9 +118,16 @@ export async function seed() {
     await insertTenantMembership(client, parella, bob, 'member');
     await insertTenantMembership(client, autreOrg, charlie, 'member');
 
-    const clermont = await insertProject(client, parella, 'Clermont-Ferrand');
-    const tours = await insertProject(client, parella, 'Tours');
-    const peugeot = await insertProject(client, parella, 'Peugeot');
+    // Clients réels -- mapping authoritatif (jamais deviné) :
+    // Clermont-Ferrand et Tours servent le même Client AG2R LA
+    // MONDIALE (une seule ligne, jamais deux) ; Peugeot sert le
+    // Client Peugeot.
+    const ag2r = await insertClient(client, parella, 'AG2R LA MONDIALE', 'ag2r-la-mondiale');
+    const peugeotClient = await insertClient(client, parella, 'Peugeot', 'peugeot');
+
+    const clermont = await insertProject(client, parella, 'Clermont-Ferrand', ag2r);
+    const tours = await insertProject(client, parella, 'Tours', ag2r);
+    const peugeot = await insertProject(client, parella, 'Peugeot', peugeotClient);
 
     await insertProjectIdentityAndSettings(client, parella, clermont, { workspaceLocale: 'fr', contentLocale: 'fr' });
     await insertProjectIdentityAndSettings(client, parella, tours, { workspaceLocale: 'fr', contentLocale: 'fr' });

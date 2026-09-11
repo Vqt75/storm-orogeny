@@ -31,6 +31,7 @@ async function cleanAll() {
   await pool.query('delete from organization_grants');
   await pool.query('delete from tenant_memberships');
   await pool.query('delete from projects');
+  await pool.query('delete from clients');
   await pool.query('delete from users');
   await pool.query('delete from tenants');
 }
@@ -46,7 +47,15 @@ test.before(async () => {
   await seedTenantMembership(pool, { tenantId: tenant.id, userId: creator.id, permissionBundle: 'organization_admin' });
   await seedTenantMembership(pool, { tenantId: tenant.id, userId: noCap.id, permissionBundle: 'member' });
 
-  ids = { tenant: tenant.id, creator: creator.id, noCap: noCap.id };
+  // Client de fixture -- Lot A exige désormais clientId à la création
+  // de projet ; ce Client sert tous les tests de ce fichier qui
+  // attendent un succès (201), jamais un texte libre.
+  const { rows: [client] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Fixture V2','client-fixture-v2') returning id",
+    [tenant.id]
+  );
+
+  ids = { tenant: tenant.id, creator: creator.id, noCap: noCap.id, client: client.id };
 
   app = createApp({ logger: silentLogger, pool, config });
   server = http.createServer(app);
@@ -68,7 +77,7 @@ test('création avec projects.create -> 201, payload minimal {name} accepté', a
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Projet Minimal V2' })
+    body: JSON.stringify({ name: 'Projet Minimal V2', clientId: ids.client })
   });
   assert.equal(res.status, 201);
   const body = await res.json();
@@ -83,7 +92,7 @@ test('sans projects.create -> 403, aucun projet créé', async () => {
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.noCap),
     headers: { ...withUser(ids.noCap).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Ne devrait jamais exister' })
+    body: JSON.stringify({ name: 'Ne devrait jamais exister', clientId: ids.client })
   });
   assert.equal(res.status, 403);
   const after = await pool.query('select count(*)::int as n from projects');
@@ -95,7 +104,7 @@ test('nom vide -> refusé, aucun projet créé', async () => {
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: '   ' })
+    body: JSON.stringify({ name: '   ', clientId: ids.client })
   });
   assert.equal(res.status, 400);
   const after = await pool.query('select count(*)::int as n from projects');
@@ -106,7 +115,7 @@ test('contentLocale/workspaceLocale dérivés depuis Accept-Language quand absen
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json', 'Accept-Language': 'es-ES,es;q=0.9,en;q=0.5' },
-    body: JSON.stringify({ name: 'Projet Locale Dérivée' })
+    body: JSON.stringify({ name: 'Projet Locale Dérivée', clientId: ids.client })
   });
   assert.equal(res.status, 201);
   const { id } = await res.json();
@@ -119,7 +128,7 @@ test('sans Accept-Language exploitable -> repli sur fr, jamais une erreur', asyn
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json', 'Accept-Language': 'xx-XX' },
-    body: JSON.stringify({ name: 'Projet Sans Locale Exploitable' })
+    body: JSON.stringify({ name: 'Projet Sans Locale Exploitable', clientId: ids.client })
   });
   assert.equal(res.status, 201);
   const { id } = await res.json();
@@ -131,7 +140,7 @@ test('contentLocale explicite dans le payload -> respecté, prioritaire sur Acce
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json', 'Accept-Language': 'de-DE' },
-    body: JSON.stringify({ name: 'Projet Locale Explicite', contentLocale: 'it' })
+    body: JSON.stringify({ name: 'Projet Locale Explicite', clientId: ids.client, contentLocale: 'it' })
   });
   assert.equal(res.status, 201);
   const { id } = await res.json();
@@ -182,7 +191,7 @@ test('transaction atomique -- rollback complet si l\'écriture échoue en cours 
     const res = await fetch(`${baseUrl}/api/projects`, {
       method: 'POST', ...withUser(ids.creator),
       headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Devrait tout annuler V2' })
+      body: JSON.stringify({ name: 'Devrait tout annuler V2', clientId: ids.client })
     });
     assert.equal(res.status, 500);
   } finally {
@@ -210,7 +219,7 @@ test('une seule membership, projects.create -> succès (cas 1)', async () => {
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Projet Mono Organisation' })
+    body: JSON.stringify({ name: 'Projet Mono Organisation', clientId: ids.client })
   });
   assert.equal(res.status, 201);
 });
@@ -228,7 +237,7 @@ test('deux memberships, projects.create dans les DEUX -> 409 ORGANIZATION_CONTEX
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Ne devrait jamais être créé' })
+    body: JSON.stringify({ name: 'Ne devrait jamais être créé', clientId: ids.client })
   });
   assert.equal(res.status, 409);
   const body = await res.json();
@@ -251,7 +260,7 @@ test('après retrait de la seconde organisation créable, la création redevient
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Projet Après Nettoyage' })
+    body: JSON.stringify({ name: 'Projet Après Nettoyage', clientId: ids.client })
   });
   assert.equal(res.status, 201);
 });
@@ -266,7 +275,7 @@ test('deux memberships, projects.create dans UNE SEULE -> succès dans CETTE org
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(ids.creator),
     headers: { ...withUser(ids.creator).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Projet Organisation Unique Créable' })
+    body: JSON.stringify({ name: 'Projet Organisation Unique Créable', clientId: ids.client })
   });
   assert.equal(res.status, 201, 'une seule organisation réellement créable -- jamais un 409, malgré deux memberships');
   const { id: projectId } = await res.json();
@@ -309,7 +318,7 @@ test('deux memberships, projects.create dans AUCUNE -> refus d\'autorisation (40
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(userNoCreate.id),
     headers: { ...withUser(userNoCreate.id).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Ne devrait jamais être créé non plus' })
+    body: JSON.stringify({ name: 'Ne devrait jamais être créé non plus', clientId: ids.client })
   });
   assert.equal(res.status, 403, 'refus d\'autorisation standard, jamais un 409 de contexte quand aucune organisation n\'est réellement créable');
   const body = await res.json();
@@ -336,11 +345,15 @@ test('cas A -- membership bundle SANS projects.create, mais grant actif supplém
      values ($1,$2,'organization_admin','direct',$3)`,
     [tenant.id, tm.id, user.id]
   );
+  const { rows: [localClient] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Grant Seul V2','client-grant-seul-v2') returning id",
+    [tenant.id]
+  );
 
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(user.id),
     headers: { ...withUser(user.id).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Projet Via Grant Seul' })
+    body: JSON.stringify({ name: 'Projet Via Grant Seul', clientId: localClient.id })
   });
   assert.equal(res.status, 201, 'le grant actif doit suffire, indépendamment du bundle de la membership elle-même');
   const { id: projectId } = await res.json();
@@ -362,7 +375,7 @@ test('cas B -- bundle de membership historiquement porteur, mais grant correspon
   const res = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(user.id),
     headers: { ...withUser(user.id).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Ne devrait plus être autorisé' })
+    body: JSON.stringify({ name: 'Ne devrait plus être autorisé', clientId: ids.client })
   });
   assert.equal(res.status, 403, 'le bundle legacy de la membership ne doit plus suffire une fois son grant révoqué');
   const after = await pool.query('select count(*)::int as n from projects');
@@ -383,7 +396,7 @@ test('cas C -- union de plusieurs grants actifs -- additive, jamais "le dernier 
   const res1 = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(user.id),
     headers: { ...withUser(user.id).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Ne devrait pas être autorisé (union de member)' })
+    body: JSON.stringify({ name: 'Ne devrait pas être autorisé (union de member)', clientId: ids.client })
   });
   assert.equal(res1.status, 403, 'union de deux grants member ne doit jamais produire projects.create par accident');
 
@@ -392,10 +405,14 @@ test('cas C -- union de plusieurs grants actifs -- additive, jamais "le dernier 
      values ($1,$2,'organization_admin','direct',$3)`,
     [tenant.id, tm.id, user.id]
   );
+  const { rows: [localClient] } = await pool.query(
+    "insert into clients (tenant_id, name, normalized_slug) values ($1,'Client Union Grants V2','client-union-grants-v2') returning id",
+    [tenant.id]
+  );
   const res2 = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST', ...withUser(user.id),
     headers: { ...withUser(user.id).headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Projet Union Additive' })
+    body: JSON.stringify({ name: 'Projet Union Additive', clientId: localClient.id })
   });
   assert.equal(res2.status, 201, 'l\'union doit rester additive -- le nouveau grant s\'ajoute, jamais un remplacement');
 });

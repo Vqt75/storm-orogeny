@@ -93,3 +93,20 @@ export async function listProjectModules(pool, projectId) {
   );
   return rows;
 }
+
+// renameProject -- verrouillage optimiste via `version`, même motif
+// que updateProjectIdentityColors (project_identity.version). Retourne
+// null si la version fournie est périmée (0 ligne affectée) -- la
+// route traduit cela en 409, jamais une écriture silencieuse. Aucun
+// effet de bord d'Accès Public dans ce Lot A (n'existe pas encore) --
+// ce renommage mute uniquement l'identité du Projet lui-même.
+export async function renameProject(pool, { projectId, name, expectedVersion }) {
+  const { rows: [row] } = await pool.query(
+    `update projects
+     set name = $1, version = version + 1
+     where id = $2 and version = $3
+     returning id, name, version`,
+    [name, projectId, expectedVersion]
+  );
+  return row ?? null;
+}

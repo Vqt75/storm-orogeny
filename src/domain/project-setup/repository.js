@@ -3,10 +3,10 @@
 // transaction (Lot 2, POST /api/projects) — chaque fonction accepte un
 // client déjà ouvert (pas le pool), jamais sa propre connexion.
 
-export async function insertProject(client, { tenantId, name }) {
+export async function insertProject(client, { tenantId, name, clientId }) {
   const { rows: [row] } = await client.query(
-    'insert into projects (tenant_id, name) values ($1, $2) returning id',
-    [tenantId, name]
+    'insert into projects (tenant_id, name, client_id) values ($1, $2, $3) returning id',
+    [tenantId, name, clientId]
   );
   return row.id;
 }

@@ -37,10 +37,12 @@ import {
 import { createPublication } from '../domain/publication/repository.js';
 import { recordPageView, recordMatchResult, recordMoodFeedback } from '../domain/pilotage/telemetry.js';
 import { findUserByEmail } from '../domain/users/repository.js';
+import { createClient, searchClients } from '../domain/clients/repository.js';
 import { DEMO_USER_EMAIL as PLATFORM_DEMO_IDENTITY_EMAIL } from '../http/routes/demoIdentity.js';
 
 const DEMO_TENANT_NAME = 'Asteria (Démo)';
 const DEMO_PROJECT_NAME = 'Équinoxe';
+const DEMO_CLIENT_NAME = 'Asteria';
 const CONTENT_AUTHOR_EMAIL = 'camille.renaud@demo.storm.local';
 
 async function findOrCreateDemoTenant(pool) {
@@ -48,6 +50,30 @@ async function findOrCreateDemoTenant(pool) {
   if (rows[0]) return rows[0].id;
   const { rows: [created] } = await pool.query('insert into tenants (name) values ($1) returning id', [DEMO_TENANT_NAME]);
   return created.id;
+}
+
+// Client démo explicite -- Asteria est à la fois l'Organisation (tenant
+// démo) ET, dans la narration fictive, le Client pour lequel le projet
+// Équinoxe est livré (un même organisme peut être les deux). Jamais un
+// Client synthétique générique ("Non attribué") -- une identité
+// fictive nommée, réelle au sens du modèle Client (recherchable,
+// renommable comme n'importe quel autre Client). Réutilise le
+// repository Client existant -- jamais une insertion SQL dupliquant la
+// normalisation.
+async function findOrCreateDemoClient(pool, tenantId) {
+  const existing = await searchClients(pool, { tenantId, query: DEMO_CLIENT_NAME });
+  const exact = existing.find(c => c.name === DEMO_CLIENT_NAME);
+  if (exact) return exact.id;
+  const { client, conflict } = await createClient(pool, { tenantId, name: DEMO_CLIENT_NAME });
+  if (conflict) {
+    // Course rare entre deux exécutions concurrentes du seed -- relit
+    // simplement ce qui vient d'être créé par l'autre exécution.
+    const retry = await searchClients(pool, { tenantId, query: DEMO_CLIENT_NAME });
+    const found = retry.find(c => c.name === DEMO_CLIENT_NAME);
+    if (found) return found.id;
+    throw new Error('Impossible de créer ou retrouver le Client démo Asteria.');
+  }
+  return client.id;
 }
 
 // Nettoyage scopé : supprime uniquement les projects de CE tenant --
@@ -153,8 +179,8 @@ async function seedDemo() {
   );
 
   const { rows: [project] } = await pool.query(
-    'insert into projects (tenant_id, name) values ($1,$2) returning id',
-    [tenantId, DEMO_PROJECT_NAME]
+    'insert into projects (tenant_id, name, client_id) values ($1,$2,$3) returning id',
+    [tenantId, DEMO_PROJECT_NAME, await findOrCreateDemoClient(pool, tenantId)]
   );
   const projectId = project.id;
 
@@ -644,7 +670,7 @@ async function generateDemoTelemetry(pool, { tenantId, projectId, questionIdByTe
   logger.info({ inserted }, 'Télémétrie démo générée');
 }
 
-export { seedDemo, generateDemoTelemetry, DEMO_TENANT_NAME, DEMO_PROJECT_NAME, CONTENT_AUTHOR_EMAIL, findOrCreateDemoTenant, grantPlatformDemoIdentityAccess, PLATFORM_DEMO_IDENTITY_EMAIL, QUESTIONS };
+export { seedDemo, generateDemoTelemetry, DEMO_TENANT_NAME, DEMO_PROJECT_NAME, DEMO_CLIENT_NAME, CONTENT_AUTHOR_EMAIL, findOrCreateDemoTenant, grantPlatformDemoIdentityAccess, PLATFORM_DEMO_IDENTITY_EMAIL, QUESTIONS };
 
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';

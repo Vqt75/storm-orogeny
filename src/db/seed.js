@@ -23,6 +23,8 @@ import path from 'node:path';
 async function clearAll(client) {
   await client.query('delete from project_memberships');
   await client.query('delete from tenant_memberships');
+  await client.query('delete from project_public_access');
+  await client.query('delete from project_publications');
   await client.query('delete from projects');
   await client.query('delete from clients');
   await client.query('delete from users');

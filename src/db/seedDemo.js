@@ -53,10 +53,13 @@ async function findOrCreateDemoTenant(pool) {
 // Nettoyage scopé : supprime uniquement les projects de CE tenant --
 // cascade vers tout le contenu Studio, l'identité, les publications et
 // la télémétrie (toutes ces tables référencent projects(tenant_id,id)
-// on delete cascade, confirmé par lecture des migrations). Jamais un
+// on delete cascade, confirmé par lecture des migrations). Exception :
+// project_public_access est en on delete RESTRICT (jamais cascade,
+// voir migration 0019) -- nettoyée explicitement avant. Jamais un
 // clearAll() global, jamais une suppression de la tenant elle-même
 // (on delete restrict).
 async function cleanDemoTenantContent(pool, tenantId) {
+  await pool.query('delete from project_public_access where tenant_id = $1', [tenantId]);
   await pool.query('delete from projects where tenant_id = $1', [tenantId]);
   await pool.query('delete from tenant_memberships where tenant_id = $1', [tenantId]);
   await pool.query('delete from users where email = $1', [CONTENT_AUTHOR_EMAIL]);

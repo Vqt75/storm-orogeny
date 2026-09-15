@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Storm Studio — Accès au site · Orogeny</title><link rel="stylesheet" href="/fonts/roboto.css">
+<link rel="stylesheet" href="/studio-shell.css">
+<style>
+/* Uniquement ce qui est spécifique à cette page -- le chrome (topbar,
+   nav, head, Command Layer) vient entièrement de studio-shell.css.
+   .action et .sheet/.sheet-card/.sheet-actions/.cancel/.delete
+   reprennent exactement les valeurs déjà établies ailleurs dans Studio
+   (studio-identite.html, studio-ambassadeurs.html) -- jamais un second
+   vocabulaire de boutons/dialogues. */
+:root{--i:var(--ink);--m:var(--muted);--l:var(--line)}
+.stack{display:grid;gap:14px}
+.section{border-radius:28px;background:rgba(255,255,255,.73);padding:24px;box-shadow:0 11px 30px rgba(17,17,17,.035)}
+.section-title{margin:0;font-size:26px;line-height:1.08;letter-spacing:-.04em;font-weight:700}
+.section-sub{margin:8px 0 0;color:var(--m);font-size:13px;line-height:1.5;max-width:620px}
+.section-body{margin-top:26px}
+.empty{min-height:250px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+.empty .state-title{margin-top:0}
+.status-row{display:flex;align-items:center;gap:8px;color:var(--graphite);font-size:13px;font-weight:680}
+.state-dot.off{background:var(--quiet)}
+.state-title{margin:17px 0 0;font-size:34px;line-height:1.04;letter-spacing:-.045em;font-weight:690;max-width:650px}
+.state-copy{margin:12px 0 0;color:var(--m);font-size:14px;line-height:1.55;max-width:650px}
+
+.action{border:1px solid rgba(17,17,17,.14);background:#fff;color:#111;border-radius:999px;padding:9px 13px;font-size:12px;font-weight:720;cursor:pointer;display:inline-flex;align-items:center}
+.action:hover{background:#f6f6f4}
+.action.dark{background:#111;color:#fff;border-color:#111}
+.action.danger{color:#c23a2e}
+.action:disabled{opacity:.4;cursor:default}
+
+.address-row{min-height:58px;display:flex;align-items:center;gap:10px;padding:8px 9px 8px 16px;border-radius:18px;background:rgba(17,17,17,.035);box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.address{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--graphite);font-size:13px;font-weight:560}
+.linkline{display:flex;align-items:center;gap:14px;margin-top:14px}
+.textlink{border:0;background:transparent;padding:0;color:var(--i);font-size:12px;font-weight:700;text-decoration:none}
+.textlink:hover{text-decoration:underline}
+
+.qr-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:28px;align-items:center}
+.qr-box{width:190px;aspect-ratio:1;padding:14px;border-radius:24px;background:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 10px 28px rgba(17,17,17,.05)}
+.qr-box img{display:block;width:100%;height:100%}
+.qr-box.inactive{opacity:.22;filter:grayscale(1)}
+.qr-copy strong{display:block;font-size:17px;letter-spacing:-.025em}
+.qr-copy p{margin:7px 0 0;color:var(--m);font-size:13px;line-height:1.5;max-width:430px}
+.qr-actions{display:flex;gap:8px;margin-top:17px;flex-wrap:wrap}
+
+.note{margin:0;padding:12px 14px;border-radius:15px;background:rgba(181,122,18,.08);color:#5f5130;font-size:11px;line-height:1.5}
+.note strong{display:block;color:#4d432a;font-size:12px;margin-bottom:3px}
+.note-actions{display:flex;justify-content:flex-start;margin-top:12px}
+.note .action{background:rgba(181,122,18,.10);color:#4d432a;border-color:transparent}
+
+.access-meta{margin-top:18px;padding-top:18px;border-top:1px solid var(--l);display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.meta-item{font-size:12px;line-height:1.5;color:var(--m)}
+.meta-item strong{display:block;margin-bottom:3px;color:var(--i);font-weight:700}
+
+.management{display:flex;align-items:center;justify-content:space-between;gap:28px;padding-top:18px;margin-top:20px;border-top:1px solid var(--l)}
+.management-copy strong{display:block;font-size:13px}
+.management-copy span{display:block;margin-top:4px;color:var(--m);font-size:11px;line-height:1.45;max-width:500px}
+
+.sheet{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(10,10,12,.20);backdrop-filter:blur(7px)}
+.sheet-card{width:min(430px,100%);padding:24px;border:1px solid rgba(255,255,255,.8);border-radius:24px;background:rgba(249,249,247,.96);box-shadow:0 28px 80px rgba(17,17,17,.18)}
+.sheet-card h2{margin:0;font-size:24px;letter-spacing:-.04em}
+.sheet-card p{margin:10px 0 22px;color:var(--m);font-size:13px;line-height:1.55}
+.sheet-actions{display:flex;justify-content:flex-end;gap:7px}
+.sheet-actions button{min-height:42px;padding:0 14px;border:0;border-radius:13px;font-weight:690}
+.cancel{background:rgba(17,17,17,.05)}
+.delete{background:#111;color:#fff}
+
+@media(max-width:900px){.section{padding:18px}}
+@media(max-width:620px){.qr-layout,.access-meta{grid-template-columns:1fr}.qr-box{width:170px}.management{align-items:flex-start;flex-direction:column}}
+</style></head>
+<body><div class="shell"><header class="top"><div class="brand"><strong>Storm</strong><span id="brandProject">Projet</span></div><div class="acts"><button class="project" id="projectLink">Projet</button><button class="avatar" id="avatarBtn">VC</button></div></header><main><div class="grid"><nav aria-label="Studio"><button data-domain="homepage">Homepage</button><button data-domain="project">Le projet</button><button data-domain="spaces">Espaces</button><button data-domain="news">Actualités</button><button data-domain="ambassadors">Ambassadeurs</button><button data-domain="questions">Questions</button><button data-domain="identity">Identité</button><button class="active" data-domain="public-access" aria-current="page">Accès au site</button></nav><section><p class="eyebrow">Studio</p><h1>Accès au site</h1><p class="lead">Retrouvez l’adresse publique du projet et les éléments à diffuser aux collaborateurs.</p><div class="stack" id="stack"></div></section></div></main></div><div class="cmd" id="commandLayer"><div class="cmdin" id="commandState" aria-live="polite"></div></div>
+<div class="sheet" id="rotateSheet" hidden role="dialog" aria-modal="true" aria-labelledby="rotateTitle">
+  <div class="sheet-card">
+    <h2 id="rotateTitle">Régénérer le lien ?</h2>
+    <p>L’adresse actuelle et son QR code cesseront immédiatement de fonctionner. Il faudra redistribuer les nouveaux éléments.</p>
+    <div class="sheet-actions">
+      <button class="cancel" id="cancelRotate" type="button">Annuler</button>
+      <button class="delete" id="confirmRotate" type="button">Régénérer</button>
+    </div>
+  </div>
+</div>
+<script>
+// STUDIO — ACCÈS AU SITE. Consomme exclusivement le service authentifié
+// /api/projects/:id/public-access (+ /rotate, /acknowledge, /qr) --
+// jamais de reconstruction locale d'URL depuis projectId/slugs/UUID.
+const state={access:null,load:"loading"};
+const stack=document.getElementById("stack"),commandState=document.getElementById("commandState");
+const rotateSheet=document.getElementById("rotateSheet");
+const projectId=(()=>{const m=location.pathname.match(/^\/projects\/([^/]+)\/studio\/public-access\/?$/);return m?decodeURIComponent(m[1]):""})();
+function devHeaders(){const d=new URLSearchParams(location.search).get("devUser");return d?{"X-Storm-Dev-User":d}:{}}
+function preserve(u){const d=new URLSearchParams(location.search).get("devUser");return d?`${u}${u.includes("?")?"&":"?"}devUser=${encodeURIComponent(d)}`:u}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function api(url,opt={}){const h={Accept:"application/json",...devHeaders(),...(opt.headers||{})};if(opt.body&&!(opt.body instanceof FormData))h["Content-Type"]="application/json";const r=await fetch(url,{...opt,credentials:"same-origin",headers:h});const t=r.headers.get("content-type")||"";const b=r.status===204?null:(t.includes("application/json")?await r.json():await r.text());if(!r.ok){const e=new Error(b?.error?.message||b?.message||`HTTP ${r.status}`);e.status=r.status;throw e}return b}
+function cmd(h){commandState.innerHTML=h;commandState.querySelector('[data-cmd="close"]')?.addEventListener("click",renderCmd)}
+
+function renderCmd(){
+  if(state.load==="loading")return cmd('<span class="command-message">Chargement…</span>');
+  if(!state.access||!state.access.hasPublicAccess)return cmd('<span class="command-message"><span class="state-dot state-dot-warning"></span>Site non publié</span>');
+  if(state.access.status==="active")return cmd(`<span class="command-message"><span class="state-dot state-dot-success"></span>Publié</span><a class="command-link" href="${esc(state.access.publicUrl)}" target="_blank" rel="noopener">Voir le site ↗</a>`);
+  return cmd('<span class="command-message"><span class="state-dot off"></span>Site hors ligne</span>');
+}
+
+function qrUrl(fmt){return `/api/projects/${projectId}/public-access/qr?format=${fmt}${(()=>{const d=new URLSearchParams(location.search).get("devUser");return d?`&devUser=${encodeURIComponent(d)}`:""})()}`}
+
+function render(){
+  const a=state.access;
+  if(state.load==="loading"){stack.innerHTML="";return}
+  if(!a||!a.hasPublicAccess){
+    stack.innerHTML=`<article class="section empty">
+      <div class="state-title">Le site n’est pas encore accessible.</div>
+      <p class="state-copy">L’adresse publique et son QR code seront créés lors de la première publication.</p>
+    </article>`;
+    return;
+  }
+
+  const pending=a.redistributionPending;
+  const noteHtml=pending?`<div class="note">
+    <strong>Le lien du site a changé.</strong>
+    L’ancienne adresse et l’ancien QR code ont expiré. Pensez à redistribuer les nouveaux éléments.
+    <div class="note-actions"><button class="action" id="ackBtn" type="button">J’ai redistribué le nouveau lien</button></div>
+  </div>`:"";
+
+  if(a.status==="active"){
+    stack.innerHTML=`${noteHtml}
+    <article class="section">
+      <h2 class="section-title">Adresse du site</h2>
+      <p class="section-sub">Cette adresse reste la même lorsque vous republiez le contenu du projet.</p>
+      <div class="section-body">
+        <div class="address-row"><div class="address">${esc(a.publicUrl)}</div><button class="action dark" data-copy="${esc(a.publicUrl)}" type="button">Copier</button></div>
+        <div class="linkline"><a class="textlink" href="${esc(a.publicUrl)}" target="_blank" rel="noreferrer">Voir le site ↗</a></div>
+        <div class="access-meta">
+          <div class="meta-item"><strong>Accès non listé</strong>Toute personne disposant du lien peut ouvrir le site.</div>
+          <div class="meta-item"><strong>Indexation désactivée</strong>Le site n’est pas destiné à apparaître dans les moteurs de recherche.</div>
+        </div>
+        <div class="management">
+          <div class="management-copy"><strong>Régénérer le lien</strong><span>L’ancienne adresse cessera immédiatement de fonctionner. À utiliser uniquement si le lien doit être remplacé.</span></div>
+          <button class="action danger" id="openRotate" type="button">Régénérer</button>
+        </div>
+      </div>
+    </article>
+    <article class="section">
+      <h2 class="section-title">QR code</h2>
+      <p class="section-sub">Il pointe vers la même adresse publique.</p>
+      <div class="section-body">
+        <div class="qr-layout">
+          <div class="qr-box"><img src="${qrUrl('png')}" alt="QR code du site public"></div>
+          <div class="qr-copy"><strong>Prêt à être diffusé</strong><p>Utilisez-le sur un support imprimé ou dans une communication projet.</p>
+            <div class="qr-actions"><a class="action" href="${qrUrl('png')}" download="qr-site-public.png">Télécharger en PNG</a><a class="action" href="${qrUrl('svg')}" download="qr-site-public.svg">Télécharger en SVG</a></div>
+          </div>
+        </div>
+      </div>
+    </article>`;
+  } else {
+    stack.innerHTML=`<article class="section">
+      <div class="status-row"><span class="state-dot off"></span>Site hors ligne</div>
+      <div class="state-title">L’adresse est conservée.</div>
+      <p class="state-copy">Elle n’est plus accessible pour le moment. Une republication réactivera exactement le même lien.</p>
+      <div class="section-body"><div class="address-row"><div class="address">${esc(a.publicUrl)}</div><button class="action" disabled type="button">Copier</button></div></div>
+    </article>
+    <article class="section">
+      <h2 class="section-title">QR code</h2>
+      <p class="section-sub">Le QR code reste associé à cette adresse, mais il ne mène actuellement à aucun contenu public.</p>
+      <div class="section-body"><div class="qr-layout"><div class="qr-box inactive"><img src="${qrUrl('png')}" alt=""></div>
+        <div class="qr-copy"><strong>Temporairement inactif</strong><p>Il redeviendra fonctionnel lorsque le projet sera republié.</p></div>
+      </div></div>
+    </article>`;
+  }
+
+  document.getElementById("ackBtn")?.addEventListener("click",async e=>{
+    e.target.disabled=true;
+    try{await api(`/api/projects/${projectId}/public-access/acknowledge`,{method:"POST"});e.target.textContent="Redistribution confirmée"}
+    catch(err){e.target.disabled=false}
+  });
+  document.getElementById("openRotate")?.addEventListener("click",()=>{rotateSheet.hidden=false});
+}
+
+document.addEventListener("click",async e=>{
+  const copy=e.target.closest("[data-copy]");
+  if(copy){
+    const old=copy.textContent;
+    try{await navigator.clipboard.writeText(copy.dataset.copy);copy.textContent="Copié"}
+    catch{copy.textContent="À copier"}
+    setTimeout(()=>copy.textContent=old,1100);
+  }
+});
+
+document.getElementById("cancelRotate").onclick=()=>{rotateSheet.hidden=true};
+document.getElementById("confirmRotate").onclick=async()=>{
+  rotateSheet.hidden=true;
+  cmd('<span class="command-message">Régénération…</span>');
+  try{
+    await api(`/api/projects/${projectId}/public-access/rotate`,{method:"POST"});
+    await hydrate();
+  }catch(err){
+    cmd(`<span class="command-message"><span class="state-dot state-dot-error"></span>${esc(err.message||"Régénération impossible.")}</span><button class="cb" data-cmd="close" type="button">Fermer</button>`);
+  }
+};
+
+async function hydrate(){
+  state.load="loading";render();renderCmd();
+  try{
+    const [ctx,me,access]=await Promise.all([
+      api(`/api/projects/${projectId}/context`),
+      api("/api/me"),
+      api(`/api/projects/${projectId}/public-access`)
+    ]);
+    document.getElementById("brandProject").textContent=ctx.project?.name||"Projet";
+    document.getElementById("avatarBtn").textContent=initials(me.displayName);
+    state.access=access;
+    state.load="ready";
+  }catch(e){
+    state.load="error";
+    stack.innerHTML=`<article class="section empty"><div class="state-title">Impossible de charger l’Accès au site.</div><p class="state-copy">${esc(e.message||"Réessayez.")}</p></article>`;
+  }
+  render();renderCmd();
+}
+function initials(name){return String(name||"P").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"P"}
+
+document.getElementById("projectLink").onclick=()=>location.assign(preserve(`/projects/${projectId}`));
+const STUDIO_DOMAIN_PATHS={homepage:"homepage",project:"project",spaces:"spaces",news:"news",ambassadors:"ambassadors",questions:"questions",identity:"identity","public-access":""};
+document.querySelectorAll("nav button[data-domain]").forEach(b=>b.onclick=()=>{
+  if(b.dataset.domain==="public-access")return;
+  const seg=STUDIO_DOMAIN_PATHS[b.dataset.domain];
+  location.assign(preserve(`/projects/${projectId}/studio${seg?"/"+seg:""}`));
+});
+hydrate();
+</script></body></html>

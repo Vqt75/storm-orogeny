@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import QRCode from 'qrcode';
 import { logger } from '../../logger.js';
 import {
   listProjectsForUser, findProjectIdentity, findProjectSettings, listProjectModules, renameProjectAtomic
@@ -548,16 +549,48 @@ export function createProjectsRouter({ pool, storageAdapter, config }) {
         return;
       }
       const rawCapability = decryptCurrentCapability(current, config.publicAccessEncryptionKey);
+      const publicPath = `/public/${current.client_slug}/${current.project_slug}/${rawCapability}`;
+      // URL absolue -- nécessaire pour "Voir le site"/Copier/QR. Aucun
+      // hostname public canonique n'est encore configuré (V1) --
+      // dérivée pragmatiquement de l'origine de la requête Studio
+      // elle-même, jamais codée en dur.
       res.status(200).json({
         hasPublicAccess: true,
         status: current.status,
-        publicUrl: `/public/${current.client_slug}/${current.project_slug}/${rawCapability}`,
+        publicUrl: `${req.protocol}://${req.get('host')}${publicPath}`,
         clientSlug: current.client_slug,
         projectSlug: current.project_slug,
         redistributionPending: isRedistributionPending(current),
         createdReason: current.created_reason,
         createdAt: current.created_at
       });
+    }
+  );
+
+  // QR de l'URL publique courante -- même autorisation que la lecture
+  // d'état (PUBLICATION_PUBLISH). Généré à la demande, jamais stocké --
+  // toujours à jour après une rotation, sans étape de régénération
+  // séparée. png (par défaut) ou svg via ?format=svg.
+  router.get(
+    '/:projectId/public-access/qr',
+    requireProjectCapability(pool, ProjectCapability.PUBLICATION_PUBLISH),
+    async (req, res, next) => {
+      const current = await findCurrentAccess(pool, req.project.id);
+      if (!current) { next(Errors.notFound('Accès Public')); return; }
+      const rawCapability = decryptCurrentCapability(current, config.publicAccessEncryptionKey);
+      const publicUrl = `${req.protocol}://${req.get('host')}/public/${current.client_slug}/${current.project_slug}/${rawCapability}`;
+      const format = req.query.format === 'svg' ? 'svg' : 'png';
+      try {
+        if (format === 'svg') {
+          const svg = await QRCode.toString(publicUrl, { type: 'svg', margin: 1 });
+          res.status(200).set('Content-Type', 'image/svg+xml').set('Cache-Control', 'no-store').send(svg);
+        } else {
+          const png = await QRCode.toBuffer(publicUrl, { type: 'png', width: 512, margin: 1 });
+          res.status(200).set('Content-Type', 'image/png').set('Cache-Control', 'no-store').send(png);
+        }
+      } catch (err) {
+        next(err);
+      }
     }
   );
 

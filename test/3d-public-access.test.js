@@ -488,7 +488,7 @@ test('Service Accès Public -- PUBLICATION_PUBLISH peut lire l\'état complet, V
   assert.equal(okRes.status, 200);
   const body = await okRes.json();
   assert.equal(body.hasPublicAccess, true);
-  assert.ok(body.publicUrl.startsWith('/public/'));
+  assert.ok(body.publicUrl.includes('/public/'), 'publicUrl doit être une URL absolue contenant le chemin public');
   assert.ok(!('capability_hash' in body));
   assert.ok(!('capability_encrypted' in body));
   assert.ok(!body.publicUrl.includes(ids.project), 'l\'UUID projet ne doit jamais apparaître dans publicUrl');

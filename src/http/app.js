@@ -163,6 +163,15 @@ export function createApp({ logger, pool, config, storageAdapter }) {
     res.sendFile(path.join(PUBLIC_DIR, 'studio-identite.html'));
   });
 
+  // Studio — Accès au site (Lot B/C). Même principe.
+  app.get('/projects/:projectId/studio/public-access', (req, res, next) => {
+    if (!UUID_PATTERN.test(req.params.projectId)) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(PUBLIC_DIR, 'studio-acces-au-site.html'));
+  });
+
   // Pilotage — hors Studio (accès via Project Shell, jamais depuis la
   // navigation croisée des 6 domaines Studio). Même principe de route.
   app.get('/projects/:projectId/pilotage', (req, res, next) => {

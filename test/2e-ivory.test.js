@@ -243,9 +243,29 @@ test('Ivory E2E (garde-fou) : showMilestones/showAskPrompt toujours consultés d
 test('Ivory E2E (garde-fou) : aucun contenu POC Tectonic (fallbackProjectContent) ne doit jamais réapparaître', () => {
   const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
   assert.ok(!source.includes('fallbackProjectContent'), 'le contenu POC fabriqué ne doit jamais être réintroduit');
-  // Phrase spécifique au fallback retiré -- jamais une donnée de démo
-  // FAQ légitime par ailleurs présente dans le fichier (demoMode).
+  // Phrase spécifique au fallback retiré -- jamais un mot générique
+  // légitimement présent ailleurs dans le fichier.
   assert.ok(!source.includes('Un nouvel environnement pour travailler autrement'));
+});
+
+test('Ivory E2E (garde-fou) : aucun repli FAQ de démo (fallbackFaqItems/demoMode) -- Storm Match ne connaît que les Questions publiées', () => {
+  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
+  assert.ok(!source.includes('fallbackFaqItems'), 'le repli FAQ fictif ne doit jamais être réintroduit');
+  assert.ok(!source.includes('allowDemoFallback'), 'aucun paramètre de repli démo ne doit subsister');
+  assert.ok(!/meta\??\.demoMode/.test(source), 'le rendu ne doit jamais dépendre de manifest.meta.demoMode');
+  // Réponses spécifiques de l'ancien repli FAQ -- jamais les suggestions
+  // statiques de questions, qui restent légitimes.
+  assert.ok(!source.includes('prévu la semaine du 14 octobre'), 'aucune réponse FAQ fictive ne doit servir de repli');
+  assert.ok(!source.includes('Le flex office intégral n’est pas le modèle retenu'), 'aucune réponse FAQ fictive ne doit servir de repli');
+
+  const match = source.match(/function faqItemsForQuestions\([^)]*\)\s*\{[\s\S]*?\n\}/);
+  assert.ok(match, 'faqItemsForQuestions introuvable');
+  const faqItemsForQuestions = new Function(`${match[0]}; return faqItemsForQuestions;`)();
+  assert.deepEqual(faqItemsForQuestions({ intro: {}, items: [] }), []);
+  assert.deepEqual(faqItemsForQuestions({ intro: {} }), []);
+  assert.deepEqual(faqItemsForQuestions(undefined), []);
+  const published = [{ id: 'q1', title: 'Quand ?', answer: 'Bientôt.' }];
+  assert.deepEqual(faqItemsForQuestions({ items: published }), published);
 });
 
 test('Ivory E2E (garde-fou) : mécanisme d\'auth Tectonic retiré du CODE VIVANT (constante/fonction, pas un simple mot dans un commentaire)', () => {

@@ -148,6 +148,9 @@ export function buildCandidate(snapshot) {
   return {
     project: s.project,
     identity: s.identity,
+    // Langue de contenu public figée au Snapshot -- jamais
+    // workspace_locale, qui reste interne à Studio.
+    contentLocale: s.contentLocale,
     homepage: s.homepage,
     articles: (s.articles ?? []).map(mapArticle),
     questions: (s.questions ?? []).map(mapQuestion),

@@ -1356,99 +1356,13 @@ function renderNews(news) {
 }
 
 // ── Questions Experience v2 : moteur Pangea conservé + couche Ivory ──
-function fallbackFaqItems() {
-  // POC fallback only: adapted from Pangea's historical built-in FAQ.
-  // It disappears automatically as soon as the public Manifest contains
-  // real published FAQ entries.
-  return [
-    {
-      id:'date-demenagement', category:'calendrier', title:'Quand aura lieu le déménagement ?',
-      status:'confirmed', statusLabel:'Réponse confirmée',
-      answer:"Le déménagement est actuellement prévu la semaine du 14 octobre.\n\nLa date précise de bascule par équipe sera confirmée dès que le planning logistique sera totalement sécurisé.",
-      note:"Nous préférons partager une date confirmée plutôt qu’un calendrier prématuré qui devrait ensuite être corrigé.",
-      keywords:['date','quand','demenagement','demenager','transfert','installation','semaine','arrivee','jour j','calendrier','planning'],
-      phrases:['quand aura lieu le demenagement','quelle est la date du demenagement'],
-      intentSignals:['date','demenagement','quand'], emotionSignals:[], negativeSignals:[], priority:8
-    },
-    {
-      id:'flex-office', category:'espaces', title:'Est-ce que nous aurons un poste attribué ?',
-      status:'partial', statusLabel:'Réponse partielle',
-      answer:"Les principes d’occupation des espaces seront précisés en fonction de l’organisation retenue sur le nouveau site.\n\nLe flex office intégral n’est pas le modèle retenu par défaut. Le sujet sera co-construit dans les ateliers.",
-      note:"Une communication spécifique expliquera les règles de fonctionnement des espaces de travail.",
-      keywords:['flex office','flexoffice','poste','bureau','place','attribution','desk','placement','poste attribue','mon bureau'],
-      phrases:['est ce que j aurai un bureau','aurons nous un poste attribue','est ce du flex office'],
-      intentSignals:['poste','bureau','attribue','flex'], emotionSignals:[], negativeSignals:[], priority:7
-    },
-    {
-      id:'concentration', category:'espaces', title:'Y aura-t-il des espaces pour travailler au calme ?',
-      status:'confirmed', statusLabel:'Réponse confirmée',
-      answer:"Oui. Le nouveau site intègre des espaces dédiés à la concentration individuelle : bulles de travail, zones silencieuses et cabines phoniques.",
-      note:"L’objectif est de pouvoir choisir un environnement adapté quand une tâche demande davantage de calme.",
-      keywords:['concentration','calme','bruit','silence','open space','cabine','bulle','focus','isolement','travailler sereinement','phonique'],
-      phrases:['ou travailler au calme','y aura t il des espaces calmes','comment se concentrer'],
-      intentSignals:['calme','concentration','bruit'], emotionSignals:['stress'], negativeSignals:[], priority:7
-    },
-    {
-      id:'restauration', category:'services', title:'Comment fonctionnera la restauration ?',
-      status:'waiting', statusLabel:'En attente de décision',
-      answer:"Les modalités exactes de restauration ne sont pas encore arrêtées à ce stade.\n\nPlusieurs options sont actuellement à l’étude. Une information plus précise sera publiée une fois les arbitrages rendus.",
-      note:"Le déjeuner est aussi un moment important dans la journée de travail ; le sujet est donc traité comme un véritable usage.",
-      keywords:['restauration','manger','repas','dejeuner','cantine','food','restaurant','pause dejeuner','titres restaurant','ticket restaurant','lunch'],
-      phrases:['comment va fonctionner la restauration','y aura t il une cantine','ou est ce qu on mange'],
-      intentSignals:['restauration','dejeuner','manger'], emotionSignals:[], negativeSignals:[], priority:6
-    },
-    {
-      id:'casier', category:'espaces', title:'Est-ce que chacun aura un casier ?',
-      status:'partial', statusLabel:'Réponse partielle',
-      answer:"Des solutions de rangement personnel sont prévues dans le cadre du projet.\n\nL’idée est que chacun puisse disposer d’un espace personnel même dans un environnement partagé. Les modalités précises seront communiquées avant l’installation.",
-      note:"",
-      keywords:['casier','casiers','rangement','locker','affaires personnelles','stockage','placard','espace personnel'],
-      phrases:['aurai je un casier','y aura t il des casiers','ou ranger mes affaires'],
-      intentSignals:['casier','rangement'], emotionSignals:[], negativeSignals:[], priority:5
-    },
-    {
-      id:'teletravail', category:'rh', title:'Est-ce que les règles de télétravail vont changer ?',
-      status:'confirmed', statusLabel:'Réponse confirmée',
-      answer:"Le déménagement n’entraîne pas de remise en cause des accords de télétravail en vigueur.\n\nLes règles applicables restent celles définies dans votre accord ou votre charte d’équipe.",
-      note:"",
-      keywords:['teletravail','remote','travail distance','jours sur site','hybride','presentiel','jours bureau','travail maison','home office'],
-      phrases:['est ce que le teletravail change','combien de jours de teletravail'],
-      intentSignals:['teletravail','hybride'], emotionSignals:[], negativeSignals:[], priority:5
-    },
-    {
-      id:'ambassadeurs', category:'ambassadeurs', title:'À quoi servent les ambassadeurs ?',
-      status:'confirmed', statusLabel:'Réponse confirmée',
-      answer:"Les ambassadeurs sont des collègues volontaires qui relaient les informations, recueillent les questions et font remonter les besoins des équipes.\n\nIls constituent un point de contact de proximité tout au long du projet.",
-      note:"",
-      keywords:['ambassadeur','ambassadeurs','relais','referent','volontaire','correspondant'],
-      phrases:['a quoi servent les ambassadeurs','qui sont les ambassadeurs'],
-      intentSignals:['ambassadeurs','relais'], emotionSignals:[], negativeSignals:[], priority:5
-    },
-    {
-      id:'visites', category:'decouverte', title:'Pourra-t-on visiter le futur site avant le déménagement ?',
-      status:'confirmed', statusLabel:'Réponse confirmée',
-      answer:"Des temps de découverte du site sont prévus avant l’installation afin de permettre aux équipes de mieux se repérer et de se projeter.\n\nLes modalités pratiques seront communiquées à mesure que les créneaux seront stabilisés.",
-      note:"",
-      keywords:['visite','visites','voir','decouverte','venir voir','visiter','decouvrir le site','avant d arriver'],
-      phrases:['peut on visiter le site','quand peut on voir les nouveaux bureaux'],
-      intentSignals:['visite','site','decouverte'], emotionSignals:[], negativeSignals:[], priority:4
-    }
-  ];
-}
-
-// Storm Match — repli générique cantonné à un mode démo/dev explicite.
-// Jamais activé par défaut : en fonctionnement normal, aucune
-// connaissance projet publiée = Storm Match s'abstient proprement
-// (voir showUnknown() dans wireInteractions, déjà existant, déjà
-// product-compatible — pas besoin d'un nouvel état).
-// Le droit d'utiliser le repli est transmis explicitement par chaque
-// appelant (manifest.meta.demoMode), jamais lu depuis un état global —
-// une fonction de rendu ne doit pas dépendre silencieusement du
-// dernier render() exécuté ailleurs dans le runtime.
-function faqItemsForQuestions(questions, allowDemoFallback) {
-  const published = Array.isArray(questions && questions.items) ? questions.items : [];
-  if (published.length) return published;
-  return allowDemoFallback ? fallbackFaqItems() : [];
+// Storm Match — dérive les entrées exclusivement des Questions
+// réellement publiées (manifest.content.questions.items). Aucune
+// connaissance projet publiée = liste vide : Storm Match s'abstient
+// proprement (voir showUnknown() dans wireInteractions). Jamais de
+// contenu FAQ fictif injecté en repli.
+function faqItemsForQuestions(questions) {
+  return Array.isArray(questions && questions.items) ? questions.items : [];
 }
 
 function faqStatusLabel(entry) {
@@ -1485,10 +1399,10 @@ function questionRelatedLink(entry) {
   return null;
 }
 
-function renderQuestions(questions, allowDemoFallback) {
+function renderQuestions(questions) {
   if (!questions) return '';
   const intro = questions.intro || {};
-  const items = faqItemsForQuestions(questions, allowDemoFallback);
+  const items = faqItemsForQuestions(questions);
   const rawTitle = String(intro.title || '').trim();
   const openingTitle = !rawTitle || /^Une réponse,?\s*chaque fois\.?$/i.test(rawTitle)
     ? 'Une question sur le projet ?'
@@ -5775,7 +5689,7 @@ function wireInteractions(root, manifest, actions) {
   const contactStatus = root.querySelector('#tct-contact-status');
 
   if (input && askBtn && resultBox && manifest.content.questions) {
-    const items = faqItemsForQuestions(manifest.content.questions, manifest.meta?.demoMode === true);
+    const items = faqItemsForQuestions(manifest.content.questions);
     const win = root.ownerDocument && root.ownerDocument.defaultView;
     let debounceTimer = 0;
     let lastQuestion = '';
@@ -6355,7 +6269,7 @@ export function render(manifest, root, actions) {
         });
       }
       if (key === 'questions') {
-        return renderQuestions(manifest.content.questions, manifest.meta?.demoMode === true);
+        return renderQuestions(manifest.content.questions);
       }
       return SECTION_RENDERERS[key](manifest.content[key]);
     })

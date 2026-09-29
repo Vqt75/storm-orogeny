@@ -127,7 +127,7 @@ test('Publication : pipeline complet réussit et produit un manifest valide (Hom
   // Invariant d'atomicité : le Snapshot capture TOUS les 6 domaines
   // Studio dès ce slice, même si le Candidate V0 n'en sélectionne qu'un.
   const snapshotKeys = Object.keys(row.rows[0].snapshot).sort();
-  assert.deepEqual(snapshotKeys, ['ambassadors', 'articles', 'assetContentTypes', 'homepage', 'identity', 'leProjet', 'project', 'questions', 'spaces'].sort());
+  assert.deepEqual(snapshotKeys, ['ambassadors', 'articles', 'assetContentTypes', 'contentLocale', 'homepage', 'identity', 'leProjet', 'project', 'questions', 'spaces'].sort());
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
 });
@@ -386,6 +386,166 @@ test('Publication Slice 1 : Questions compilées sans aucun signal de scoring, c
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
   await pool.query('delete from project_questions where id=$1', [question.id]);
+});
+
+// ── Langue de contenu public : figée par publication ──
+// content_locale est capturé au Snapshot (même transaction REPEATABLE
+// READ), transporté par le Candidate puis exposé dans manifest.meta.
+// workspace_locale reste strictement interne à Studio. Studio n'expose
+// pas encore de route d'édition des réglages de langue : le changement
+// est simulé par écriture directe dans project_settings.
+
+async function setProjectLocales({ contentLocale, workspaceLocale }) {
+  await pool.query(
+    `insert into project_settings (tenant_id, project_id, workspace_locale, content_locale)
+     values ($1,$2,$3,$4)
+     on conflict (project_id) do update set workspace_locale=excluded.workspace_locale, content_locale=excluded.content_locale`,
+    [ids.tenantA, ids.project, workspaceLocale, contentLocale]
+  );
+}
+
+async function publishNow() {
+  const res = await fetch(`${baseUrl}/api/projects/${ids.project}/publications`, { method: 'POST', ...withUser(ids.editor) });
+  assert.equal(res.status, 201);
+  return res.json();
+}
+
+async function storedPublication(id) {
+  const { rows: [row] } = await pool.query('select snapshot, candidate, manifest from project_publications where id=$1', [id]);
+  return row;
+}
+
+test('Langue publique : content_locale capturé dans Snapshot, Candidate et manifest.meta', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await setProjectLocales({ contentLocale: 'fr', workspaceLocale: 'de' });
+
+  const body = await publishNow();
+  assert.equal(body.manifest.meta.contentLocale, 'fr');
+  assert.deepEqual(Object.keys(body.manifest.meta).sort(), ['contentLocale', 'generatedAt', 'revision']);
+  assert.equal(typeof body.manifest.meta.generatedAt, 'string');
+  assert.equal(body.manifest.meta.revision, body.revision);
+
+  const row = await storedPublication(body.id);
+  assert.equal(row.snapshot.contentLocale, 'fr');
+  assert.equal(row.candidate.contentLocale, 'fr');
+  assert.equal(row.manifest.meta.contentLocale, 'fr');
+
+  const publicManifest = await (await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`)).json();
+  assert.equal(publicManifest.meta.contentLocale, 'fr');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Langue publique : changer content_locale dans Studio sans republier laisse la publication N inchangée', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await setProjectLocales({ contentLocale: 'fr', workspaceLocale: 'de' });
+  const n = await publishNow();
+
+  await setProjectLocales({ contentLocale: 'en', workspaceLocale: 'de' });
+
+  const row = await storedPublication(n.id);
+  assert.equal(row.manifest.meta.contentLocale, 'fr', 'la publication stockée ne doit jamais relire content_locale live');
+  assert.equal(row.snapshot.contentLocale, 'fr');
+  const publicManifest = await (await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`)).json();
+  assert.equal(publicManifest.meta.contentLocale, 'fr', 'le runtime public sert la locale figée de la publication active, jamais la valeur Studio courante');
+  assert.equal(publicManifest.meta.revision, n.revision);
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Langue publique : la publication N+1 capture la nouvelle content_locale', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await setProjectLocales({ contentLocale: 'fr', workspaceLocale: 'de' });
+  const n = await publishNow();
+  await setProjectLocales({ contentLocale: 'en', workspaceLocale: 'de' });
+  const n1 = await publishNow();
+
+  assert.equal(n1.revision, n.revision + 1);
+  assert.equal(n1.manifest.meta.contentLocale, 'en');
+  const publicManifest = await (await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`)).json();
+  assert.equal(publicManifest.meta.contentLocale, 'en');
+  assert.equal(publicManifest.meta.revision, n1.revision);
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Langue publique : la publication N historique conserve sa locale après activation de N+1', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await setProjectLocales({ contentLocale: 'fr', workspaceLocale: 'de' });
+  const n = await publishNow();
+  await setProjectLocales({ contentLocale: 'en', workspaceLocale: 'de' });
+  const n1 = await publishNow();
+
+  const { rows } = await pool.query('select id, status, manifest from project_publications where id = ANY($1)', [[n.id, n1.id]]);
+  const historical = rows.find(r => r.id === n.id);
+  const active = rows.find(r => r.id === n1.id);
+  assert.equal(historical.status, 'superseded');
+  assert.equal(historical.manifest.meta.contentLocale, 'fr');
+  assert.equal(active.status, 'active');
+  assert.equal(active.manifest.meta.contentLocale, 'en');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Langue publique : workspace_locale absent du Snapshot, du Candidate et du Manifest', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await setProjectLocales({ contentLocale: 'fr', workspaceLocale: 'de' });
+  const body = await publishNow();
+
+  const row = await storedPublication(body.id);
+  const publicManifest = await (await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`)).json();
+  for (const [label, doc] of [['snapshot', row.snapshot], ['candidate', row.candidate], ['manifest', row.manifest], ['manifest public', publicManifest]]) {
+    const json = JSON.stringify(doc);
+    assert.ok(!/workspace_?locale/i.test(json), `${label} ne doit jamais transporter workspace_locale`);
+  }
+  assert.equal(row.candidate.workspaceLocale, undefined);
+  assert.equal(row.manifest.meta.workspaceLocale, undefined);
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+});
+
+test('Langue publique : ordre des Questions déterministe (position), identique d\'une publication à l\'autre', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_questions where project_id=$1', [ids.project]);
+  await setProjectLocales({ contentLocale: 'fr', workspaceLocale: 'de' });
+  for (const [question, position] of [['Q ordre C', 2], ['Q ordre A', 0], ['Q ordre B', 1]]) {
+    await fetch(`${baseUrl}/api/projects/${ids.project}/studio/questions`, {
+      method: 'POST', ...withUser(ids.editor), body: jsonBody({ question, answerRuns: [{ text: `Réponse ${question}` }], position })
+    });
+  }
+
+  const first = await publishNow();
+  const second = await publishNow();
+  const titles = m => m.content.questions.items.map(i => i.title);
+  assert.deepEqual(titles(first.manifest), ['Q ordre A', 'Q ordre B', 'Q ordre C']);
+  assert.deepEqual(titles(second.manifest), titles(first.manifest));
+  for (const item of first.manifest.content.questions.items) {
+    assert.deepEqual(Object.keys(item).sort(), ['answer', 'id', 'title']);
+  }
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_questions where project_id=$1', [ids.project]);
+});
+
+test('Langue publique : changer content_locale ne modifie jamais le contenu des Questions publiées', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_questions where project_id=$1', [ids.project]);
+  await setProjectLocales({ contentLocale: 'fr', workspaceLocale: 'de' });
+  await fetch(`${baseUrl}/api/projects/${ids.project}/studio/questions`, {
+    method: 'POST', ...withUser(ids.editor), body: jsonBody({ question: 'Quand ?', answerRuns: [{ text: 'Bientôt, ' }, { text: 'vraiment', italic: true }], position: 0 })
+  });
+
+  const fr = await publishNow();
+  await setProjectLocales({ contentLocale: 'en', workspaceLocale: 'de' });
+  const en = await publishNow();
+
+  assert.equal(fr.manifest.meta.contentLocale, 'fr');
+  assert.equal(en.manifest.meta.contentLocale, 'en');
+  assert.deepEqual(en.manifest.content.questions, fr.manifest.content.questions);
+  assert.equal(en.manifest.content.questions.items[0].answer, 'Bientôt, //vraiment//');
+
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  await pool.query('delete from project_questions where project_id=$1', [ids.project]);
 });
 
 test('Publication Slice 1 : aucun champ Studio interne (version/updatedAt) ne fuite dans le Manifest', async () => {

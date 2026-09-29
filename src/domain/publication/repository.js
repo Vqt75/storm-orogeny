@@ -7,7 +7,7 @@
 // Candidate/Compiler ne consomment pour l'instant que Homepage. Un
 // snapshot partiel aujourd'hui obligerait à revalider l'atomicité plus
 // tard, sur un chemin déjà considéré acquis.
-import { findProjectIdentity } from '../projects/repository.js';
+import { findProjectIdentity, findProjectSettings } from '../projects/repository.js';
 import { findCurrentAccess, createFirstAccess } from '../publicAccess/repository.js';
 import { normalizeSlug } from '../shared/slug.js';
 import {
@@ -47,6 +47,14 @@ async function buildSnapshot(client, { projectId }) {
     theme: identityRow.theme
   } : null;
 
+  // Langue de contenu public figée dans la publication, lue dans la
+  // MÊME transaction REPEATABLE READ que le reste du Snapshot : un
+  // changement ultérieur dans Studio n'atteint jamais une publication
+  // existante, seulement la suivante. workspace_locale (langue de
+  // l'interface Studio) reste strictement interne -- jamais capturé ici.
+  const settingsRow = await findProjectSettings(client, projectId);
+  const contentLocale = settingsRow?.content_locale ?? null;
+
   const homepageContent = await findSectionContent(client, { projectId, sectionKey: 'homepage' });
   // fields est déjà stocké en camelCase (voir Homepage V3) — aucun
   // mapping nécessaire, c'est la forme authentique telle qu'écrite par
@@ -80,6 +88,7 @@ async function buildSnapshot(client, { projectId }) {
   return {
     project,
     identity,
+    contentLocale,
     homepage,
     leProjet: { intro: leProjetContent?.fields ?? {}, sections: narrativeSections, milestones, team },
     spaces,

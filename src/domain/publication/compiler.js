@@ -748,7 +748,9 @@ export function compile(candidate, context) {
   content.team = compileTeam(candidate, projectId);
   content.home = compileHome(candidate, content.news, content.timeline, warnings);
 
-  const meta = { generatedAt: context?.generatedAt, revision: context?.revision };
+  // contentLocale vient du Candidate (figé au Snapshot), jamais du
+  // CompilationContext ni d'une lecture live de project_settings.
+  const meta = { generatedAt: context?.generatedAt, revision: context?.revision, contentLocale: candidate.contentLocale };
 
   const manifest = { schemaVersion: 1, meta, project, branding, edition, modules, navigation, content };
 

@@ -770,7 +770,7 @@ test('Espaces -- espacements resserrés mais mesurément plus généreux que les
 
 test('Questions -- fixture réelle : champ, exemples, questions fréquentes, contact/escalade tous rendus', () => {
   const questions = { intro: { title: 'TITRE_TEST', description: 'DESC_TEST' }, items: [{ id: 'q1', title: 'QUESTION_TEST_1' }] };
-  const html = renderQuestions(questions, false);
+  const html = renderQuestions(questions);
   for (const needle of ['TITRE_TEST', 'DESC_TEST', 'id="tct-question-input"', 'id="tct-contact-form"', 'QUESTION_TEST_1', 'aria-live="polite"']) {
     assert.ok(html.includes(needle), `contenu perdu : "${needle}"`);
   }
@@ -778,17 +778,17 @@ test('Questions -- fixture réelle : champ, exemples, questions fréquentes, con
 
 test('Questions -- aucun rail horizontal -- surface verticale/utilitaire par défaut, comme demandé', () => {
   const questions = { intro: {}, items: [{ id: 'q1', title: 'A' }, { id: 'q2', title: 'B' }, { id: 'q3', title: 'C' }] };
-  const html = renderQuestions(questions, false);
+  const html = renderQuestions(questions);
   assert.ok(!html.includes('data-tct-rail'));
 });
 
 test('Questions -- questions fréquentes en ol sémantique, jamais retirées', () => {
-  const html = renderQuestions({ intro: {}, items: [{ id: 'q1', title: 'A' }] }, false);
+  const html = renderQuestions({ intro: {}, items: [{ id: 'q1', title: 'A' }] });
   assert.match(html, /<ol>\s*\n\s*<li>/);
 });
 
 test('Questions -- escalade/contact conservée intégralement (nom, email, message, soumission), jamais modifiée', () => {
-  const html = renderQuestions({ intro: {}, items: [] }, false);
+  const html = renderQuestions({ intro: {}, items: [] });
   assert.match(html, /<input type="text" name="name" autocomplete="name" required>/);
   assert.match(html, /<input type="email" name="email" autocomplete="email" required>/);
   assert.match(html, /<textarea name="message" rows="4" required><\/textarea>/);
@@ -802,7 +802,7 @@ test('Questions -- champ de recherche calme, aucun style "AI magic box" (pas de 
 });
 
 test('Questions -- aucun appel réseau introduit par cette passe (moteur Storm Match jamais touché ici, présentation uniquement)', () => {
-  const idx = ivoryJs.indexOf('function renderQuestions(questions, allowDemoFallback)');
+  const idx = ivoryJs.indexOf('function renderQuestions(questions)');
   const end = ivoryJs.indexOf('\nfunction ', idx + 10);
   const body = ivoryJs.slice(idx, end);
   assert.ok(!/fetch\(|XMLHttpRequest|api\(/.test(body));
@@ -828,12 +828,12 @@ test('Questions -- densité compacte assumée, plus resserrée que les autres su
 });
 
 test('Questions -- exemples de question et boutons associés conservés (data-tct-question-example)', () => {
-  const html = renderQuestions({ intro: {}, items: [] }, false);
+  const html = renderQuestions({ intro: {}, items: [] });
   assert.match(html, /data-tct-question-example="Quand aura lieu le déménagement \?"/);
 });
 
 test('Questions -- résultat en aria-live polite, jamais retiré (annonce accessible du contenu dynamique)', () => {
-  const html = renderQuestions({ intro: {}, items: [] }, false);
+  const html = renderQuestions({ intro: {}, items: [] });
   assert.match(html, /id="tct-question-result" class="tct-question-result" aria-live="polite" hidden/);
 });
 
@@ -1301,7 +1301,7 @@ test('Article -- header conserve son rapport d\'échelle (titre dominant 8/12, m
 // ── Questions V2.1 -- titre et saisie dans le même geste ──────────────
 
 test('Questions -- titre et saisie fusionnés dans le même conteneur (.tct-questions-top), jamais deux blocs empilés séparés', () => {
-  const html = renderQuestions({ intro: {}, items: [] }, false);
+  const html = renderQuestions({ intro: {}, items: [] });
   assert.match(html, /<header class="tct-questions-top tct-reveal"[\s\S]*?<h1>[\s\S]*?<div class="tct-question-workbench"[\s\S]*?<\/header>/, 'titre et champ de saisie doivent partager le même header');
 });
 
@@ -1342,7 +1342,7 @@ test('Questions -- escalade réelle utilise les capacités existantes uniquement
 });
 
 test('Questions -- structure FAQ existante (ol sémantique) préservée, jamais transformée en accordion sans raison', () => {
-  const html = renderQuestions({ intro: {}, items: [{ id: 'q1', title: 'A' }] }, false);
+  const html = renderQuestions({ intro: {}, items: [{ id: 'q1', title: 'A' }] });
   assert.match(html, /<ol>\s*\n\s*<li>/);
   assert.ok(!ivoryJs.includes('tct-question-accordion'));
 });
@@ -1597,7 +1597,7 @@ test('Questions -- vraie géographie à deux colonnes pour la réponse (nouveau 
 });
 
 test('Questions -- aside fixe (texte de provenance strictement descriptif, jamais évaluatif) distincte du contenu principal dynamique -- vraie séparation DOM, pas une colonne cosmétique', () => {
-  const html = renderQuestions({ intro: {}, items: [] }, false);
+  const html = renderQuestions({ intro: {}, items: [] });
   const idx = ivoryJs.indexOf('const answerMarkup = entry =>');
   const body = ivoryJs.slice(idx, idx + 900);
   assert.match(body, /<aside class="tct-question-aside">/);

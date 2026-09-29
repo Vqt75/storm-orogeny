@@ -286,7 +286,7 @@ export async function createPublication(pool, { tenantId, projectId, userId, enc
 
 export async function findActivePublication(pool, projectId) {
   const { rows } = await pool.query(
-    `select id, revision, status, manifest, warnings, compiler_version, created_at, compiled_at, activated_at
+    `select id, tenant_id, project_id, revision, status, manifest, warnings, compiler_version, created_at, compiled_at, activated_at
      from project_publications where project_id=$1 and status='active'`,
     [projectId]
   );

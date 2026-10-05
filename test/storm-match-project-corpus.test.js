@@ -372,7 +372,7 @@ function stormMatchSources() {
 
 test('21. domaine stormMatch : aucun projet spécial, aucun corpus codé en dur, aucun repli projet', () => {
   const sources = stormMatchSources();
-  assert.deepEqual(sources.map(s => s.file).sort(), ['activePublicationCorpus.js', 'corpus.js']);
+  assert.deepEqual(sources.map(s => s.file).sort(), ['activePublicationCorpus.js', 'baselineMatcher.js', 'corpus.js', 'runtime.js']);
   for (const { file, source } of sources) {
     assert.ok(!/cobalt|[ée]quinoxe/i.test(source), `${file} ne doit contenir aucun literal projet spécial`);
     assert.ok(!/fallback/i.test(source), `${file} ne doit contenir aucun repli`);

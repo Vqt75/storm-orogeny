@@ -12,6 +12,12 @@
 // tout du cycle d'entraînement d'un classifieur.
 import { createHash } from 'node:crypto';
 
+// Process-local provenance: JSON copies are not trusted publication snapshots.
+const issuedSnapshots = new WeakSet();
+export function isKnowledgeCorpusSnapshot(snapshot) {
+  return snapshot !== null && typeof snapshot === 'object' && issuedSnapshots.has(snapshot);
+}
+
 export const CORPUS_SCHEMA_VERSION = 'storm-match.project-knowledge-corpus/1.1';
 
 export const CorpusState = Object.freeze({
@@ -213,6 +219,7 @@ export function publishedManifestToKnowledgeCorpus({ tenantId, projectId, public
     entries
   };
 
+  issuedSnapshots.add(snapshot);
   return deepFreeze({
     state: entries.length ? CorpusState.READY : CorpusState.EMPTY,
     reason: null,

@@ -224,85 +224,46 @@ test('Ivory E2E (garde-fou) : toutes les dépendances JS statiques importées pa
   }
 });
 
-test('Ivory E2E (garde-fou) : renderHome() lit home.now/home.next/home.featured/home.latest directement, aucun recalcul current/upcoming réintroduit', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  assert.ok(!/currentMilestone\s*\(/.test(source), 'currentMilestone() ne doit jamais être réintroduite -- home.now vient exclusivement du Compiler');
-  assert.ok(!/nextMilestone\s*\(/.test(source), 'nextMilestone() ne doit jamais être réintroduite -- home.next vient exclusivement du Compiler');
-  assert.ok(/home\.latest/.test(source), 'renderHome() doit lire home.latest, jamais recalculer "la dernière actualité hors featured" elle-même');
+test('Ivory public shell has only local style/runtime dependencies',()=>{
+ const html=fs.readFileSync(path.join(IVORY_DIR,'index.html'),'utf8');
+ assert.match(html,/ivory\/ivory\.css/);assert.doesNotMatch(html,/googleapis|gstatic|brand-engine/);
 });
 
-test('Ivory E2E (garde-fou) : showMilestones/showAskPrompt toujours consultés dans renderHome()', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  const renderHomeMatch = source.match(/function renderHome\([^)]*\)\s*\{[\s\S]*?\n\}\n/);
-  assert.ok(renderHomeMatch, 'renderHome() introuvable');
-  const body = renderHomeMatch[0];
-  assert.match(body, /showMilestones/, 'showMilestones doit rester consulté dans renderHome()');
-  assert.match(body, /showAskPrompt/, 'showAskPrompt doit rester consulté dans renderHome()');
+async function publicKnowledgeFixture(questions=[]) {
+  await pool.query('delete from project_publications where project_id=$1',[ids.project]);
+  await pool.query('delete from project_questions where project_id=$1',[ids.project]);
+  await pool.query(`insert into project_settings(tenant_id,project_id,workspace_locale,content_locale) values($1,$2,'en','fr') on conflict(project_id) do update set content_locale='fr'`,[ids.tenantA,ids.project]);
+  for(const [index,q] of questions.entries())await pool.query('insert into project_questions(tenant_id,project_id,question,answer_runs,position) values($1,$2,$3,$4,$5)',[ids.tenantA,ids.project,q.title,JSON.stringify([{text:q.answer}]),index]);
+  const response=await publish(ids.editor,ids.project);assert.equal(response.status,201);const publication=await response.json();
+  return {publication,url:baseUrl+await publicUrlFor(ids.project)};
+}
+test('Ivory server boundary: covered exact answer, ambiguity without merged answer, notCovered',async()=>{
+  const {publication,url}=await publicKnowledgeFixture([{title:'Comment participer au collectif ?',answer:'La réponse exacte.'},{title:'Réserver atelier',answer:'Atelier uniquement.'},{title:'Réserver rencontre',answer:'Rencontre uniquement.'},{title:' ',answer:'Invisible'},{title:'Sans réponse',answer:' '}]);
+  const knowledge=await (await fetch(url+'/knowledge')).json();
+  assert.equal(knowledge.corpusState,'CORPUS_READY');assert.equal(knowledge.entries.length,3);assert.equal(knowledge.corpus,undefined);assert.equal(knowledge.tenantId,undefined);
+  const ask=query=>fetch(url+'/match',{method:'POST',headers:{'Content-Type':'application/json',Origin:baseUrl},body:jsonBody({query,locale:'fr',publicationRevision:publication.revision})}).then(r=>r.json());
+  const covered=await ask('Comment participer au collectif ?');assert.equal(covered.result.state,'covered');assert.equal(covered.result.answer,'La réponse exacte.');
+  const ambiguous=await ask('Réserver');assert.equal(ambiguous.result.state,'ambiguous');assert.equal(ambiguous.result.candidates.length,2);assert.equal(ambiguous.result.answer,undefined);assert.ok(ambiguous.result.candidates.every(c=>c.answer===undefined));
+  const missed=await ask('astronomie quantique');assert.deepEqual(missed.result,{state:'notCovered'});
+  assert.equal((await fetch(url+'/knowledge')).headers.get('Cache-Control'),'no-store');
 });
-
-test('Ivory E2E (garde-fou) : aucun contenu POC Tectonic (fallbackProjectContent) ne doit jamais réapparaître', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  assert.ok(!source.includes('fallbackProjectContent'), 'le contenu POC fabriqué ne doit jamais être réintroduit');
-  // Phrase spécifique au fallback retiré -- jamais un mot générique
-  // légitimement présent ailleurs dans le fichier.
-  assert.ok(!source.includes('Un nouvel environnement pour travailler autrement'));
+test('Ivory server boundary: injected facts, foreign origin, stale publication and locale rejected',async()=>{
+  const {publication,url}=await publicKnowledgeFixture([{title:'Participer',answer:'Réponse'}]);
+  const payload={query:'Participer',locale:'fr',publicationRevision:publication.revision};
+  const post=(body,origin=baseUrl)=>fetch(url+'/match',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:jsonBody(body)});
+  for(const key of ['decision','answer','corpus','caller','selectedEntry'])assert.equal((await post({...payload,[key]:'Injected'})).status,400);
+  assert.equal((await post(payload,'https://foreign.example')).status,403);
+  assert.equal((await fetch(url+'/match',{method:'POST',headers:{'Content-Type':'application/json'},body:jsonBody(payload)})).status,403);
+  assert.equal((await (await post({...payload,locale:'en'})).json()).corpusState,'CORPUS_UNAVAILABLE');
+  assert.equal((await (await post({...payload,publicationRevision:publication.revision+1})).json()).corpusState,'CORPUS_UNAVAILABLE');
 });
-
-test('Ivory E2E (garde-fou) : aucun repli FAQ de démo (fallbackFaqItems/demoMode) -- Storm Match ne connaît que les Questions publiées', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  assert.ok(!source.includes('fallbackFaqItems'), 'le repli FAQ fictif ne doit jamais être réintroduit');
-  assert.ok(!source.includes('allowDemoFallback'), 'aucun paramètre de repli démo ne doit subsister');
-  assert.ok(!/meta\??\.demoMode/.test(source), 'le rendu ne doit jamais dépendre de manifest.meta.demoMode');
-  // Réponses spécifiques de l'ancien repli FAQ -- jamais les suggestions
-  // statiques de questions, qui restent légitimes.
-  assert.ok(!source.includes('prévu la semaine du 14 octobre'), 'aucune réponse FAQ fictive ne doit servir de repli');
-  assert.ok(!source.includes('Le flex office intégral n’est pas le modèle retenu'), 'aucune réponse FAQ fictive ne doit servir de repli');
-
-  const match = source.match(/function faqItemsForQuestions\([^)]*\)\s*\{[\s\S]*?\n\}/);
-  assert.ok(match, 'faqItemsForQuestions introuvable');
-  const faqItemsForQuestions = new Function(`${match[0]}; return faqItemsForQuestions;`)();
-  assert.deepEqual(faqItemsForQuestions({ intro: {}, items: [] }), []);
-  assert.deepEqual(faqItemsForQuestions({ intro: {} }), []);
-  assert.deepEqual(faqItemsForQuestions(undefined), []);
-  const published = [{ id: 'q1', title: 'Quand ?', answer: 'Bientôt.' }];
-  assert.deepEqual(faqItemsForQuestions({ items: published }), published);
-});
-
-test('Ivory E2E (garde-fou) : mécanisme d\'auth Tectonic retiré du CODE VIVANT (constante/fonction, pas un simple mot dans un commentaire)', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  assert.ok(!/const\s+ADMIN_TOKEN_KEY/.test(source), 'la constante de token ne doit jamais être réintroduite');
-  assert.ok(!/href="\/admin"/.test(source), 'le lien direct vers /admin (mécanisme Tectonic) ne doit jamais être réintroduit');
-  assert.ok(!/function\s+ensureAdminAuthOverlay/.test(source), 'l\'overlay de connexion Tectonic ne doit jamais être réintroduit');
-  assert.match(source, /studioUrlFromLocation/, 'le lien Administration doit passer par le calcul d\'URL Studio Orogeny réelle');
-});
-
-test('Ivory E2E (garde-fou) : aucun repli implicite vers Italiana/Georgia dans le CODE VIVANT (identité réelle)', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  assert.ok(!source.includes('Georgia'), 'Georgia ne doit jamais réapparaître comme police nommée en dur -- le modèle cible est "1 police = partout", jamais une police éditoriale historique de Tectonic imposée en repli');
-  // 'Italiana' ne doit plus jamais apparaître dans le CODE VIVANT --
-  // seul un commentaire explicatif peut légitimement la nommer.
-  const livingCodeLines = source.split('\n').filter(line => !line.trim().startsWith('//'));
-  assert.ok(!livingCodeLines.some(line => line.includes('Italiana')), 'Italiana ne doit jamais réapparaître comme défaut codé en dur dans le code vivant');
-});
-
-test('Ivory E2E (garde-fou) : safeFontAssetUrl accepte le vrai schéma d\'URL publique, jamais le legacy /uploads/ inatteignable', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  const fnIdx = source.indexOf('function safeFontAssetUrl(value)');
-  assert.ok(fnIdx >= 0, 'safeFontAssetUrl doit exister');
-  const fnBody = source.slice(fnIdx, source.indexOf('\n}', fnIdx));
-  assert.ok(!fnBody.includes('/^\\/uploads\\/'), 'le motif /uploads/ hérité de Tectonic (jamais servi par Orogeny) ne doit jamais réapparaître dans safeFontAssetUrl');
-  assert.ok(fnBody.includes('\\/public\\/projects\\/'), 'safeFontAssetUrl doit reconnaître le vrai schéma d\'URL publique produit par le Compiler');
-});
-
-test('Ivory E2E (garde-fou) : safeCssFont() rejette entièrement une valeur invalide, ne la mutile jamais caractère par caractère', () => {
-  const source = fs.readFileSync(path.join(IVORY_DIR, 'renderers', 'ivory.js'), 'utf8');
-  assert.ok(!source.includes("replace(/[^a-zA-Z0-9 _-]/g"), 'l\'ancienne regex de suppression caractère par caractère (qui mutilait les noms accentués) ne doit jamais réapparaître');
-  // Vérification comportementale directe -- pas seulement une absence
-  // de motif, la fonction doit réellement se comporter correctement.
-  const match = source.match(/function safeCssFont\([^)]*\)\s*\{[\s\S]*?\n\}/);
-  assert.ok(match, 'safeCssFont introuvable');
-  const safeCssFont = new Function(`${match[0]}; return safeCssFont;`)();
-  assert.equal(safeCssFont('Myriad Pro', 'Roboto'), 'Myriad Pro');
-  assert.equal(safeCssFont('Mériadek Pro', 'Roboto'), 'Mériadek Pro', 'un nom accentué valide doit être préservé intact, jamais mutilé caractère par caractère');
-  assert.equal(safeCssFont('"; color:red; --x:"', 'Roboto'), 'Roboto', 'une tentative d\'injection doit être rejetée entièrement, jamais nettoyée partiellement');
+test('Ivory server boundary: empty distinct from unavailable, publication site remains available',async()=>{
+  const {publication,url}=await publicKnowledgeFixture([{title:' ',answer:'Non éligible'},{title:'Sans réponse',answer:' '}]);
+  assert.equal((await (await fetch(url+'/knowledge')).json()).corpusState,'CORPUS_EMPTY');
+  await pool.query("update project_publications set manifest=jsonb_set(manifest,'{meta,generatedAt}','\"invalid\"'::jsonb) where id=$1",[publication.id]);
+  assert.equal((await (await fetch(url+'/knowledge')).json()).corpusState,'CORPUS_UNAVAILABLE');
+  assert.equal((await fetch(url)).status,200);assert.equal((await fetch(url+'/manifest')).status,200);
+  assert.equal((await fetch(url+'/knowledge')).headers.get('X-Robots-Tag'),'noindex');
+  assert.equal((await fetch(url+'/knowledge')).headers.get('Referrer-Policy'),'no-referrer');
+  assert.equal((await fetch(url.replace(/\/$/, '')+'/../foreign/knowledge')).status,404);
 });

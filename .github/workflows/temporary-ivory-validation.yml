@@ -1,0 +1,109 @@
+name: Temporary Ivory replacement validation
+
+on:
+  push:
+    branches: [implementation/ivory-clean-room]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_bootstrap_only
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_NAME: storm_match_ci
+      DB_USER: storm_orogeny
+      DB_PASSWORD: ci_application_only
+      DB_SSL: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8c5460de51034069f56f05329109fcbe86f04a05
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: implementation
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Bootstrap non-superuser UTF-8 database
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE storm_orogeny LOGIN PASSWORD 'ci_application_only'
+            NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+          CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+          test "$(psql -h 127.0.0.1 -U postgres -d postgres -Atc "SELECT rolsuper FROM pg_roles WHERE rolname='storm_orogeny'")" = f
+      - name: Starting branch baseline 1016 tests
+        working-directory: baseline
+        run: |
+          set -euo pipefail
+          npm ci
+          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/baseline.log"
+          grep -Eq '^(#|ℹ) pass 1016$' "$RUNNER_TEMP/baseline.log"
+          grep -Eq '^(#|ℹ) skipped 0$' "$RUNNER_TEMP/baseline.log"
+      - name: Reset same database service
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DROP DATABASE storm_match_ci WITH (FORCE);
+          CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+      - name: Install implementation
+        working-directory: implementation
+        run: npm ci
+      - name: Focused Ivory and public boundary gates
+        working-directory: implementation
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/3b-ivory-horizontal-rail.test.js test/2e-ivory.test.js | tee "$RUNNER_TEMP/focused.log"
+      - name: Identity public access and Storm Match regression gates
+        working-directory: implementation
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/storm-match-runtime.test.js test/storm-match-project-corpus.test.js test/2d-publication.test.js test/3d-public-access.test.js test/3e-publication-prereq-bugfix.test.js | tee "$RUNNER_TEMP/regression.log"
+      - name: Full deterministic suite 830 tests
+        working-directory: implementation
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/full.log"
+          grep -Eq '^(#|ℹ) pass 830$' "$RUNNER_TEMP/full.log"
+          grep -Eq '^(#|ℹ) skipped 0$' "$RUNNER_TEMP/full.log"
+      - name: Scope and whitespace
+        working-directory: implementation
+        run: |
+          git diff --check 8c5460de51034069f56f05329109fcbe86f04a05 HEAD
+          test -z "$(git diff --name-only 8c5460de51034069f56f05329109fcbe86f04a05 HEAD -- src/domain/stormMatch/ test/storm-match-eval/ db/migrations/ package.json package-lock.json)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ivory-production-validation
+          path: ${{ runner.temp }}/*.log
+          retention-days: 7

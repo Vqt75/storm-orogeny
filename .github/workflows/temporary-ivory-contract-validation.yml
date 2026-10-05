@@ -1,0 +1,74 @@
+name: Temporary Ivory product contract audit
+on:
+  push:
+    branches: [validation/ivory-contract-20261005]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_bootstrap_only
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_NAME: ivory_contract_ci
+      DB_USER: storm_orogeny
+      DB_PASSWORD: ci_application_only
+      DB_SSL: '0'
+      IVORY_EVIDENCE_DIR: ${{ runner.temp }}/ivory-contract-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Non-superuser UTF-8 database
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE storm_orogeny LOGIN PASSWORD 'ci_application_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+          CREATE DATABASE ivory_contract_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+      - run: npm ci
+      - name: Temporary browser tooling outside repository
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ivory-browser" playwright
+          "$RUNNER_TEMP/ivory-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Focused product coverage and real production browser
+        env:
+          IVORY_BROWSER_MODULE: ${{ runner.temp }}/ivory-browser/node_modules/playwright/index.mjs
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 test/ivory-product-contract.test.js test/1b-project-setup-assets.test.js test/2e-ivory.test.js test/3b-ivory-horizontal-rail.test.js test/project-expression-profile.test.js test/2d-publication.test.js test/3d-public-access.test.js test/3e-publication-prereq-bugfix.test.js | tee "$RUNNER_TEMP/focused-contract.log"
+      - name: Full deterministic suite
+        if: always()
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/full-contract.log"
+      - name: Diff check
+        if: always()
+        run: git diff --check a116c924437765aedc434ebc270d366bbe6c7b1d HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ivory-product-contract-evidence
+          path: |
+            ${{ runner.temp }}/*contract.log
+            ${{ runner.temp }}/ivory-contract-evidence
+          retention-days: 7

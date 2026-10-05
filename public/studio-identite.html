@@ -246,10 +246,10 @@ logoInput.onchange=async()=>{
   await handleLogoFile(file);
 };
 async function removeLogo(){
-  // Aucune route de suppression du logo n'existe (hors scope de cette
-  // passe, jamais construite avant) — remplacer par un nouveau fichier
-  // reste le seul chemin. On ne construit pas de route factice ici.
-  state.save="error";renderCmd();
+  try{
+    await api(`/api/projects/${projectId}/logo`,{method:"DELETE",body:JSON.stringify({version:state.identity.version})});
+    state.unpublished=true;await hydrate();
+  }catch(e){state.save=e.status===409?"conflict":"error";renderCmd()}
 }
 
 fontPrimaryInput.onchange=async()=>{

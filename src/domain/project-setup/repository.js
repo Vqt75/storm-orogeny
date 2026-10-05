@@ -98,7 +98,7 @@ export async function insertAsset(client, { tenantId, projectId, kind, storageKe
 }
 
 export async function updateProjectIdentityLogo(pool, { projectId, logoAssetId }) {
-  const result = await pool.query('update project_identity set logo_asset_id = $1 where project_id = $2', [logoAssetId, projectId]);
+  const result = await pool.query('update project_identity set logo_asset_id = $1, version = version + 1, updated_at = now() where project_id = $2', [logoAssetId, projectId]);
   if (result.rowCount === 0) {
     // Ne devrait jamais arriver pour un projet créé via POST /api/projects
     // (project_identity y est toujours créée dans la même transaction) —
@@ -106,6 +106,19 @@ export async function updateProjectIdentityLogo(pool, { projectId, logoAssetId }
     // ce cas se présentait un jour pour une autre raison.
     throw new Error(`Aucune project_identity trouvée pour le projet ${projectId} — mise à jour du logo impossible.`);
   }
+}
+
+// Detach only the draft reference. The asset remains available to immutable
+// publications which already captured it. Never delete storage here.
+export async function removeProjectIdentityLogo(pool, { tenantId, projectId, expectedVersion, userId }) {
+  const { rows } = await pool.query(
+    `update project_identity set logo_asset_id = null, version = version + 1,
+       updated_at = now(), updated_by_user_id = $1
+     where tenant_id = $2 and project_id = $3 and version = $4
+     returning version, updated_at`,
+    [userId, tenantId, projectId, expectedVersion]
+  );
+  return rows[0] ?? null;
 }
 
 // Police — remplace à la fois le fichier (asset) ET le nom de famille

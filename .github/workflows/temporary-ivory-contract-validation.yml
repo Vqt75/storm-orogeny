@@ -29,11 +29,11 @@ jobs:
       DB_USER: storm_orogeny
       DB_PASSWORD: ci_application_only
       DB_SSL: '0'
-      IVORY_EVIDENCE_DIR: ${{ runner.temp }}/ivory-contract-evidence
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -52,6 +52,7 @@ jobs:
           "$RUNNER_TEMP/ivory-browser/node_modules/.bin/playwright" install --with-deps chromium
       - name: Focused product coverage and real production browser
         env:
+          IVORY_EVIDENCE_DIR: ${{ runner.temp }}/ivory-contract-evidence
           IVORY_BROWSER_MODULE: ${{ runner.temp }}/ivory-browser/node_modules/playwright/index.mjs
         run: |
           set -o pipefail

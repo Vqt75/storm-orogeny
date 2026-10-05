@@ -1,0 +1,156 @@
+name: Temporary Storm Match runtime validation
+
+on:
+  push:
+    branches: [validation/storm-match-runtime]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_bootstrap_only
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_NAME: storm_match_ci
+      DB_USER: storm_orogeny
+      DB_PASSWORD: ci_application_only
+      DB_SSL: '0'
+    steps:
+      - name: Checkout authoritative main baseline
+        uses: actions/checkout@v4
+        with:
+          ref: 0511d1df56b4a3c6b074e5b4cc80b88ca6bd5b7e
+          path: baseline
+          persist-credentials: false
+      - name: Checkout exact runtime commit (without CI workflow)
+        uses: actions/checkout@v4
+        with:
+          ref: 1fb5326ae2be6e810c666dc82c6a9003327866ab
+          path: runtime
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Use repository-supported Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Bootstrap non-superuser application role and UTF-8 database
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE storm_orogeny LOGIN PASSWORD 'ci_application_only'
+            NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+          CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+          test "$(psql -h 127.0.0.1 -U postgres -d postgres -Atc "SELECT rolsuper FROM pg_roles WHERE rolname='storm_orogeny'")" = f
+          test "$(psql -h 127.0.0.1 -U postgres -d storm_match_ci -Atc 'SHOW server_encoding')" = UTF8
+          cat > "$RUNNER_TEMP/check-count.py" <<'PY'
+          import re, sys
+          text = open(sys.argv[1], encoding='utf8').read()
+          summary = {}
+          for key in ('tests', 'pass', 'fail', 'skipped', 'cancelled', 'todo'):
+              values = re.findall(r'^(?:#|ℹ) '+key+r' (\d+)\s*$', text, re.M)
+              assert values, f'Missing {key} summary'
+              summary[key] = int(values[-1])
+          assert summary['tests'] == summary['pass'] == int(sys.argv[2]), summary
+          assert all(summary[k] == 0 for k in ('fail', 'skipped', 'cancelled', 'todo')), summary
+          print(summary)
+          PY
+      - name: Install baseline dependencies from lockfile
+        working-directory: baseline
+        run: npm ci
+      - name: Authoritative main serial acceptance gate (983 tests)
+        working-directory: baseline
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/main-baseline.log"
+          python3 "$RUNNER_TEMP/check-count.py" "$RUNNER_TEMP/main-baseline.log" 983
+      - name: Reset dedicated database for runtime validation
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DROP DATABASE storm_match_ci WITH (FORCE);
+          CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+      - name: Install runtime dependencies from unchanged lockfile
+        working-directory: runtime
+        run: npm ci
+      - name: Prove application connection is non-superuser and UTF-8
+        working-directory: runtime
+        run: |
+          node --input-type=module <<'JS'
+          import pg from 'pg';
+          const client = new pg.Client({ host: process.env.DB_HOST, port: Number(process.env.DB_PORT),
+            database: process.env.DB_NAME, user: process.env.DB_USER, password: process.env.DB_PASSWORD });
+          await client.connect();
+          const { rows: [row] } = await client.query("SELECT current_user, rolsuper, current_setting('server_encoding') AS encoding FROM pg_roles WHERE rolname=current_user");
+          if (row.current_user !== 'storm_orogeny' || row.rolsuper || row.encoding !== 'UTF8') throw new Error('Invalid test database role or encoding');
+          console.log(row);
+          await client.end();
+          JS
+      - name: Focused runtime contract gate (22 tests)
+        working-directory: runtime
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/storm-match-runtime.test.js | tee "$RUNNER_TEMP/runtime-focused.log"
+          python3 "$RUNNER_TEMP/check-count.py" "$RUNNER_TEMP/runtime-focused.log" 22
+      - name: FAQ and Ivory compatibility gate
+        working-directory: runtime
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/2h-storm-match-fix.test.js test/2e-ivory.test.js test/3b-ivory-horizontal-rail.test.js | tee "$RUNNER_TEMP/faq-ivory.log"
+      - name: Corpus and publication integration gate
+        working-directory: runtime
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/storm-match-project-corpus.test.js test/2d-publication.test.js test/3e-publication-prereq-bugfix.test.js | tee "$RUNNER_TEMP/corpus-publication.log"
+      - name: Full runtime serial acceptance gate (1005 tests)
+        working-directory: runtime
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/runtime-full.log"
+          python3 "$RUNNER_TEMP/check-count.py" "$RUNNER_TEMP/runtime-full.log" 1005
+      - name: Runtime diff scope and whitespace gate
+        working-directory: runtime
+        run: |
+          set -euo pipefail
+          git diff --check HEAD^ HEAD
+          test -z "$(git diff --name-only HEAD^ HEAD -- test/storm-match-eval/ public/ivory/renderers/ivory.js public/ivory/runtime.js)"
+          test ! -e .github/workflows/temporary-storm-runtime-validation.yml
+          python3 <<'PY'
+          import subprocess
+          expected = {'docs/contracts/storm-match-runtime.md','public/ivory/faq-engine.js','public/shared/lexicalMatcher.js','src/domain/stormMatch/baselineMatcher.js','src/domain/stormMatch/corpus.js','src/domain/stormMatch/runtime.js','test/storm-match-project-corpus.test.js','test/storm-match-runtime.test.js'}
+          actual = set(subprocess.check_output(['git','diff','--name-only','HEAD^','HEAD'], text=True).splitlines())
+          assert actual == expected, actual
+          PY
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storm-runtime-validation-logs
+          path: ${{ runner.temp }}/*.log
+          retention-days: 7
+          if-no-files-found: ignore

@@ -127,7 +127,7 @@ test('Publication : pipeline complet réussit et produit un manifest valide (Hom
   // Invariant d'atomicité : le Snapshot capture TOUS les 6 domaines
   // Studio dès ce slice, même si le Candidate V0 n'en sélectionne qu'un.
   const snapshotKeys = Object.keys(row.rows[0].snapshot).sort();
-  assert.deepEqual(snapshotKeys, ['ambassadors', 'articles', 'assetContentTypes', 'contentLocale', 'homepage', 'identity', 'leProjet', 'project', 'questions', 'spaces'].sort());
+  assert.deepEqual(snapshotKeys, ['ambassadors', 'articles', 'assetContentTypes', 'contentLocale', 'expressionProfile', 'homepage', 'identity', 'leProjet', 'project', 'questions', 'spaces'].sort());
 
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
 });

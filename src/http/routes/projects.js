@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isExpressionProfile } from '../../domain/projects/expressionProfile.js';
 import multer from 'multer';
 import QRCode from 'qrcode';
 import { logger } from '../../logger.js';
@@ -21,7 +22,7 @@ import {
   insertProject, insertProjectIdentity, insertProjectSettings,
   insertProjectModules, insertProjectMembership, insertProjectInvitation,
   insertAsset, updateProjectIdentityLogo, updateProjectIdentityFontAsset,
-  removeProjectIdentitySecondaryFont, updateProjectIdentityColors
+  removeProjectIdentitySecondaryFont, updateProjectIdentityColors, updateProjectExpressionProfile
 } from '../../domain/project-setup/repository.js';
 import { Errors } from '../../errors/AppError.js';
 import { ALLOWED_MIME_TO_EXTENSION, MAX_IMAGE_BYTES, matchesRealFileSignature } from '../../domain/assets/imageValidation.js';
@@ -339,6 +340,31 @@ export function createProjectsRouter({ pool, storageAdapter, config }) {
     }
   );
 
+  router.patch('/:projectId/expression-profile',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    async (req, res, next) => {
+      const { expressionProfile, version } = req.body || {};
+      if (!isExpressionProfile(expressionProfile) || !Number.isInteger(version)) {
+        next(Errors.invalid('expressionProfile doit être balanced, editorial ou panoramic ; version entière requise.'));
+        return;
+      }
+      try {
+        const guard = await withProjectDeletionGuard(pool, {
+          projectId: req.project.id,
+          work: client => updateProjectExpressionProfile(client, {
+            tenantId: req.project.tenant_id, projectId: req.project.id,
+            expressionProfile, expectedVersion: version, userId: req.user.id
+          })
+        });
+        if (!guard.ok || !guard.result) {
+          res.status(409).json({ ok: false, error: { code: guard.ok ? 'STALE_VERSION' : guard.code, message: 'Rechargez le projet avant de réessayer.' } });
+          return;
+        }
+        res.json({ expressionProfile: guard.result.expression_profile, version: guard.result.version, updatedAt: guard.result.updated_at });
+      } catch (err) { next(err); }
+    }
+  );
+
   // Couleurs — verrouillage optimiste, même contrat que les autres
   // domaines Studio. 409 explicite si la version fournie ne correspond
   // plus, jamais un écrasement silencieux d'une modification concurrente.
@@ -417,6 +443,7 @@ export function createProjectsRouter({ pool, storageAdapter, config }) {
           fontSecondary: identity.font_secondary,
           fontSecondaryAssetId: identity.font_secondary_asset_id,
           theme: identity.theme,
+          expressionProfile: identity.expression_profile,
           version: identity.version,
           updatedAt: identity.updated_at
         } : null,

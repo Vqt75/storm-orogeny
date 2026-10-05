@@ -1,3 +1,5 @@
+import { isExpressionProfile } from '../projects/expressionProfile.js';
+
 // Repository Project Setup — fonctions typées, jamais de SQL brut
 // dans les routes. Conçu pour être appelé à l'intérieur d'une seule
 // transaction (Lot 2, POST /api/projects) — chaque fonction accepte un
@@ -157,6 +159,19 @@ export async function findAsset(pool, assetId) {
   const { rows } = await pool.query(
     'select id, tenant_id, project_id, storage_key, content_type from assets where id = $1',
     [assetId]
+  );
+  return rows[0] ?? null;
+}
+
+// Shares identity optimistic versioning; changes remain unpublished drafts.
+export async function updateProjectExpressionProfile(pool, { tenantId, projectId, expressionProfile, expectedVersion, userId }) {
+  if (!isExpressionProfile(expressionProfile)) throw new TypeError('EXPRESSION_PROFILE_INVALID');
+  const { rows } = await pool.query(
+    `update project_identity set expression_profile=$1, version=version+1,
+       updated_at=now(), updated_by_user_id=$2
+     where tenant_id=$3 and project_id=$4 and version=$5
+     returning expression_profile, version, updated_at`,
+    [expressionProfile, userId, tenantId, projectId, expectedVersion]
   );
   return rows[0] ?? null;
 }

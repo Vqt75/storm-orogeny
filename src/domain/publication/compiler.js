@@ -21,6 +21,8 @@
 // modules sont désormais actifs. Il ne reste que Homepage enrichie
 // (Slice 4) avant de brancher Ivory.
 
+import { isExpressionProfile } from '../projects/expressionProfile.js';
+
 export class CompilerBlockingError extends Error {
   constructor(message, code) {
     super(message);
@@ -725,6 +727,10 @@ export function compile(candidate, context) {
   if (!candidate || typeof candidate !== 'object') {
     throw new CompilerBlockingError('Publication Candidate absent ou invalide.', 'CANDIDATE_INVALID');
   }
+  if (!isExpressionProfile(candidate.expressionProfile)) {
+    throw new CompilerBlockingError('Profil d’expression absent ou inconnu.', 'EXPRESSION_PROFILE_INVALID');
+  }
+  const presentation = { expressionProfile: candidate.expressionProfile };
   const projectId = context?.projectId;
   const warnings = [];
 
@@ -752,7 +758,7 @@ export function compile(candidate, context) {
   // CompilationContext ni d'une lecture live de project_settings.
   const meta = { generatedAt: context?.generatedAt, revision: context?.revision, contentLocale: candidate.contentLocale };
 
-  const manifest = { schemaVersion: 1, meta, project, branding, edition, modules, navigation, content };
+  const manifest = { schemaVersion: 1, meta, project, branding, presentation, edition, modules, navigation, content };
 
   validateManifestInvariants(manifest);
 

@@ -1297,3 +1297,64 @@ test('Identité réelle : aucune police uploadée -> repli Roboto, asset null, j
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
 });
 
+
+// Project expression contract: draft updates never modify published history.
+test('Expression profile: explicit balanced default, N immutable, N+1 captures new draft', async () => {
+  await pool.query('delete from project_publications where project_id=$1', [ids.project]);
+  const {rows:[identityBefore]}=await pool.query('select * from project_identity where project_id=$1',[ids.project]);
+  assert.equal(identityBefore.expression_profile,'balanced');
+  const first=await publishNow();
+  const storedFirst=await storedPublication(first.id);
+  assert.equal(storedFirst.snapshot.expressionProfile,'balanced');
+  assert.equal(storedFirst.candidate.expressionProfile,'balanced');
+  assert.deepEqual(first.manifest.presentation,{expressionProfile:'balanced'});
+  const {rows:[versionRow]}=await pool.query('select version from project_identity where project_id=$1',[ids.project]);
+  const {rows:[manager]}=await pool.query("insert into users(email,display_name) values('expression-manager@publication.local','Expression manager') returning id");
+  await seedTenantMembership(pool,{tenantId:ids.tenantA,userId:manager.id,permissionBundle:'member'});
+  await seedProjectMembership(pool,{tenantId:ids.tenantA,projectId:ids.project,userId:manager.id,permissionBundle:'project_admin'});
+  try {
+    const route=`${baseUrl}/api/projects/${ids.project}/expression-profile`;
+    const patch=(body,user=manager.id)=>fetch(route,{method:'PATCH',...withUser(user),body:jsonBody(body)});
+    assert.equal((await patch({expressionProfile:'custom',version:versionRow.version})).status,400);
+    assert.equal((await patch({expressionProfile:'editorial',version:versionRow.version},ids.viewer)).status,403);
+    const res=await patch({expressionProfile:'editorial',version:versionRow.version});
+    assert.equal(res.status,200);
+    const updated=await res.json();
+    assert.equal(updated.expressionProfile,'editorial');
+    assert.equal((await patch({expressionProfile:'panoramic',version:versionRow.version})).status,409);
+    assert.deepEqual(await storedPublication(first.id),storedFirst);
+    const publicFirst=await (await fetch(`${baseUrl}${await publicUrlFor(ids.project)}/manifest`)).json();
+    assert.deepEqual(publicFirst.presentation,{expressionProfile:'balanced'});
+    const second=await publishNow();
+    assert.deepEqual(second.manifest.presentation,{expressionProfile:'editorial'});
+    const storedSecond=await storedPublication(second.id);
+    assert.equal(storedSecond.snapshot.expressionProfile,'editorial');
+    assert.equal(storedSecond.candidate.expressionProfile,'editorial');
+    assert.deepEqual(await storedPublication(first.id),storedFirst);
+    assert.equal(JSON.stringify(second.manifest).match(/"expressionProfile"/g).length,1);
+    assert.deepEqual(second.manifest.branding,first.manifest.branding);
+    const {rows:[identityAfter]}=await pool.query('select * from project_identity where project_id=$1',[ids.project]);
+    for(const key of ['logo_asset_id','primary_color','secondary_color','font_primary','font_secondary','theme'])assert.deepEqual(identityAfter[key],identityBefore[key]);
+  }finally{
+    await pool.query("update project_identity set expression_profile='balanced' where project_id=$1",[ids.project]);
+    await pool.query('delete from project_publications where project_id=$1',[ids.project]);
+  }
+});
+
+test('Expression migration backfills legacy rows and rejects unknown persisted values',async()=>{
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    // A temporary shadow table exercises the real migration without changing public schema.
+    await client.query('create temporary table project_identity (id text primary key) on commit drop');
+    await client.query("insert into project_identity(id) values('legacy')");
+    const {readFile}=await import('node:fs/promises');
+    await client.query(await readFile(new URL('../db/migrations/0020_project_expression_profile.sql',import.meta.url),'utf8'));
+    const {rows:[row]}=await client.query("select expression_profile from project_identity where id='legacy'");
+    assert.equal(row.expression_profile,'balanced');
+    for(const profile of ['balanced','editorial','panoramic']){
+      await client.query('update project_identity set expression_profile=$1',[profile]);
+    }
+    await assert.rejects(client.query("update project_identity set expression_profile='unknown'"),{code:'23514'});
+  }finally{await client.query('ROLLBACK');client.release();}
+});

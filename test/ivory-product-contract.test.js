@@ -48,8 +48,10 @@ test('logo removal repository scopes tenant/project/version, detaches without de
 });
 
 test('complete Studio APIs → Snapshot → Candidate → public Manifest → production consumers; immutable N/N+1 across all seven domains',async()=>{
- const logo=await upload('/logo','logo',png,'image/png');
- const asset=await upload('/studio/assets','file',png,'image/png',{kind:'narrative_media'});
+ const fixtureBytes=name=>process.env.IVORY_FIXTURE_DIR?fs.readFileSync(path.join(process.env.IVORY_FIXTURE_DIR,name)):png;
+ const logo=await upload('/logo','logo',fixtureBytes('logo.png'),'image/png');
+ const asset=await upload('/studio/assets','file',fixtureBytes('media.png'),'image/png',{kind:'narrative_media'});
+ const portrait=await upload('/studio/assets','file',fixtureBytes('portrait.png'),'image/png',{kind:'ambassador_photo'});
  const assetId=asset.assetId;
  assert.ok(assetId);
  const font=fs.readFileSync(path.join(process.cwd(),'node_modules/@fontsource/roboto/files/roboto-latin-400-normal.woff2'));
@@ -65,7 +67,7 @@ test('complete Studio APIs → Snapshot → Candidate → public Manifest → pr
  await api(root()+'/studio/team-members','POST',{name:'Lou Martin',title:'Coordination',badge:'Programme',photoAssetId:assetId,position:0},201);
  const space=await api(root()+'/studio/spaces','POST',{name:'Grand atelier',location:'Rez-de-chaussée',description:'Une table pour pratiquer.',status:'delivered',usages:['Collaborer'],media:[{kind:'view',assetId,label:'Vue de l’atelier',alt:'La table commune',position:0}],position:0},201);
  const article=await api(root()+'/studio/articles','POST',{title:'La terre et les gestes',tag:'Rencontres',publicationDate:'2026-10-05',chapeauRuns:r('Une première matinée.'),position:0,blocks:[{blockType:'heading',runs:r('Prendre le temps'),position:0},{blockType:'paragraph',runs:[{text:'Une méthode ',bold:true},{text:'partagée.',italic:true,underline:true,href:'https://example.test/programme'}],position:1},{blockType:'image',imageAssetId:assetId,position:2}]},201);
- const ambassador=await api(root()+'/studio/ambassadors','POST',{name:'Camille',role:'Ateliers',tag:'Transmission',photoAssetId:assetId,contactable:true,contactChannel:'email',contactValue:'camille@example.test',position:0},201);
+ const ambassador=await api(root()+'/studio/ambassadors','POST',{name:'Camille',role:'Ateliers',tag:'Transmission',photoAssetId:portrait.assetId,contactable:true,contactChannel:'email',contactValue:'camille@example.test',position:0},201);
  const question=await api(root()+'/studio/questions','POST',{question:'Comment participer ?',answerRuns:r('Contactez Camille pour choisir un atelier.'),position:0},201);
  await api(root()+'/studio/questions','POST',{question:' ',answerRuns:r('Invisible'),position:1},201);
  const n=await api(root()+'/publications','POST',undefined,201),publicN=await published();

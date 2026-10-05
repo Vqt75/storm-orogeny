@@ -53,6 +53,7 @@ jobs:
       - name: Focused product coverage and real production browser
         env:
           IVORY_EVIDENCE_DIR: ${{ runner.temp }}/ivory-contract-evidence
+          IVORY_FIXTURE_DIR: ${{ github.workspace }}/.validation-fixtures
           IVORY_BROWSER_MODULE: ${{ runner.temp }}/ivory-browser/node_modules/playwright/index.mjs
         run: |
           set -o pipefail

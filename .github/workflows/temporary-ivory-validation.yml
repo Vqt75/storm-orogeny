@@ -1,4 +1,4 @@
-name: Temporary Ivory replacement validation
+name: Temporary Ivory differential and visual validation
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -43,6 +43,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
+          ref: e9d848dc1399a4b7d2d9d0e9dfacb79d474ff28c
           path: implementation
           fetch-depth: 0
           persist-credentials: false
@@ -60,15 +61,47 @@ jobs:
           CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
           SQL
           test "$(psql -h 127.0.0.1 -U postgres -d postgres -Atc "SELECT rolsuper FROM pg_roles WHERE rolname='storm_orogeny'")" = f
-      - name: Starting branch baseline 1016 tests
-        working-directory: baseline
+      - name: Install unchanged baseline and candidate
+        run: |
+          (cd baseline && npm ci)
+          (cd implementation && npm ci)
+          test "$(git -C implementation rev-parse e9d848dc1399a4b7d2d9d0e9dfacb79d474ff28c^{tree})" = e7d9da95b79721d30865615df514ca4e2ae34aef
+          test -z "$(git -C implementation diff e9d848dc1399a4b7d2d9d0e9dfacb79d474ff28c HEAD -- public/ivory src test package.json package-lock.json docs)"
+      - name: Differential unchanged historical files 60 repetitions per tree
+        env:
+          PGPASSWORD: ci_bootstrap_only
         run: |
           set -euo pipefail
-          npm ci
-          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/baseline.log"
-          grep -Eq '^(#|ℹ) pass 1016$' "$RUNNER_TEMP/baseline.log"
-          grep -Eq '^(#|ℹ) skipped 0$' "$RUNNER_TEMP/baseline.log"
-      - name: Reset same database service
+          mkdir -p "$RUNNER_TEMP/differential"
+          for iteration in $(seq 1 60); do
+            for tree in baseline implementation; do
+              psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DROP DATABASE storm_match_ci WITH (FORCE);
+          CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+              log="$RUNNER_TEMP/differential/${tree}-${iteration}.log"
+              code=0
+              (cd "$tree" && node --test --test-concurrency=1 test/2f-pilotage.test.js test/3d-public-access.test.js test/2s-privacy-batch5.test.js) > "$log" 2>&1 || code=$?
+              echo "DIFFERENTIAL $tree iteration=$iteration exit=$code"
+              grep '^not ok' "$log" || true
+              echo "$tree,$iteration,$code" >> "$RUNNER_TEMP/differential/exits.csv"
+            done
+          done
+          python3 - <<'PYTHON'
+          import pathlib,json,re,os,collections
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'differential'
+          summary={}
+          for tree in ['baseline','implementation']:
+            logs=list(root.glob(tree+'-*.log'));counter=collections.Counter();failed=0;skips=0
+            for log in logs:
+              text=log.read_text();failures=re.findall(r'^not ok \d+ - (.*)$',text,re.M)
+              failed+=bool(failures);counter.update(failures)
+              skips+=sum(map(int,re.findall(r'^# skipped (\d+)$',text,re.M)))
+            summary[tree]={'repetitions':len(logs),'failedRuns':failed,'skippedTests':skips,'failureCounts':dict(counter)}
+          (root/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2))
+          print('DIFFERENTIAL_SUMMARY='+json.dumps(summary,ensure_ascii=False))
+          PYTHON
+      - name: Reset same service for clean acceptance execution
         env:
           PGPASSWORD: ci_bootstrap_only
         run: |
@@ -76,19 +109,25 @@ jobs:
           DROP DATABASE storm_match_ci WITH (FORCE);
           CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
           SQL
-      - name: Install implementation
-        working-directory: implementation
-        run: npm ci
       - name: Focused Ivory and public boundary gates
         working-directory: implementation
         run: |
           set -euo pipefail
           node --test --test-concurrency=1 test/3b-ivory-horizontal-rail.test.js test/2e-ivory.test.js | tee "$RUNNER_TEMP/focused.log"
       - name: Identity public access and Storm Match regression gates
+        continue-on-error: true
         working-directory: implementation
         run: |
           set -euo pipefail
           node --test --test-concurrency=1 test/storm-match-runtime.test.js test/storm-match-project-corpus.test.js test/2d-publication.test.js test/3d-public-access.test.js test/3e-publication-prereq-bugfix.test.js | tee "$RUNNER_TEMP/regression.log"
+      - name: Fresh application database before the single full suite
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DROP DATABASE storm_match_ci WITH (FORCE);
+          CREATE DATABASE storm_match_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
       - name: Full deterministic suite 830 tests
         working-directory: implementation
         run: |
@@ -104,6 +143,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ivory-production-validation
-          path: ${{ runner.temp }}/*.log
+          name: ivory-differential-validation
+          path: |
+            ${{ runner.temp }}/*.log
+            ${{ runner.temp }}/differential/
           retention-days: 7

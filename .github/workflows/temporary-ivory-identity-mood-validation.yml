@@ -29,11 +29,11 @@ jobs:
       DB_USER: storm_orogeny
       DB_PASSWORD: ci_application_only
       DB_SSL: '0'
-      IVORY_EVIDENCE_DIR: ${{ runner.temp }}/ivory-hotfix-evidence
+      IVORY_EVIDENCE_DIR: /tmp/ivory-hotfix-evidence
       IVORY_FIXTURE_DIR: ${{ github.workspace }}/.validation-fixtures
       IVORY_FONT_FIXTURE_DIR: ${{ github.workspace }}/.validation-fixtures
-      IVORY_BROWSER_MODULE: ${{ runner.temp }}/ivory-browser/node_modules/playwright/index.mjs
-      IVORY_BASELINE_DIR: ${{ runner.temp }}/ivory-baseline
+      IVORY_BROWSER_MODULE: /tmp/ivory-browser/node_modules/playwright/index.mjs
+      IVORY_BASELINE_DIR: /tmp/ivory-baseline
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,8 +53,8 @@ jobs:
       - run: npm ci
       - name: Temporary browser tooling and unchanged production baseline outside repository
         run: |
-          npm install --prefix "$RUNNER_TEMP/ivory-browser" playwright
-          "$RUNNER_TEMP/ivory-browser/node_modules/.bin/playwright" install --with-deps chromium
+          npm install --prefix "/tmp/ivory-browser" playwright
+          "/tmp/ivory-browser/node_modules/.bin/playwright" install --with-deps chromium
           mkdir -p "$IVORY_BASELINE_DIR/renderers"
           git show dad58c4936cf1cbdd163ff6e5624c618dde5aab3:public/ivory/ivory.css > "$IVORY_BASELINE_DIR/ivory.css"
           git show dad58c4936cf1cbdd163ff6e5624c618dde5aab3:public/ivory/renderers/ivory.js > "$IVORY_BASELINE_DIR/renderers/ivory.js"
@@ -78,5 +78,5 @@ jobs:
           name: ivory-identity-weather-hotfix-evidence
           path: |
             ${{ runner.temp }}/*hotfix.log
-            ${{ runner.temp }}/ivory-hotfix-evidence
+            /tmp/ivory-hotfix-evidence
           retention-days: 14

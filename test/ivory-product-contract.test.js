@@ -40,7 +40,7 @@ async function browserEvidence(publication,revision,articleId){
    await page.waitForFunction(()=>document.getAnimations().every(a=>a.playState!=='running'));
    await page.evaluate(async()=>{await Promise.all([...document.images].filter(i=>i.getBoundingClientRect().top<innerHeight&&i.getBoundingClientRect().bottom>0).map(i=>i.decode().catch(()=>{})));});
   };
-  const capture=async(name)=>{await settled();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);if(process.env.IVORY_EVIDENCE_DIR){fs.mkdirSync(process.env.IVORY_EVIDENCE_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.IVORY_EVIDENCE_DIR,`${revision}-${name}.png`)});}};
+  const capture=async(name)=>{await settled();if(process.env.IVORY_EVIDENCE_DIR){fs.mkdirSync(process.env.IVORY_EVIDENCE_DIR,{recursive:true});const layout=await page.evaluate(()=>({width:innerWidth,scrollX,header:[...document.querySelectorAll('.header-inner,.header .brand,.header .desktop-nav,.header .question-link,.header .menu-button')].map(n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return {text:n.textContent,rect:{left:r.left,right:r.right,width:r.width},display:s.display,visibility:s.visibility,opacity:s.opacity,gutter:s.getPropertyValue('--gutter')};})}));fs.writeFileSync(path.join(process.env.IVORY_EVIDENCE_DIR,`${revision}-${name}-layout.json`),JSON.stringify(layout,null,2));}assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);if(process.env.IVORY_EVIDENCE_DIR){fs.mkdirSync(process.env.IVORY_EVIDENCE_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.IVORY_EVIDENCE_DIR,`${revision}-${name}.png`)});}};
   for(const [size,viewport] of [['desktop',{width:1440,height:900}],['mobile',{width:390,height:844}]]){
    await page.setViewportSize(viewport);
    for(const [hash,title] of [['home',publication.manifest.content.home.message],['timeline',publication.manifest.content.project.intro.title],['news','Actualités'],['news-'+articleId,publication.manifest.content.news.items[0].title],['ambassadors','Ambassadeurs'],['questions','Les réponses du projet.']]){
@@ -48,6 +48,7 @@ async function browserEvidence(publication,revision,articleId){
     await page.waitForFunction(v=>document.querySelector('#main h1')?.textContent===v,title);
     await settled();
     if(hash==='home'){
+     if(size==='mobile'){const box=await page.locator('#menu-open').boundingBox();assert.ok(box&&box.x>=0&&box.x+box.width<=viewport.width,JSON.stringify(box));}
      if(revision==='N')assert.equal(await page.locator('.header .brand img').count(),1);
      else {assert.equal(await page.locator('.header .brand img').count(),0);assert.equal(await page.locator('.header .brand').textContent(),'Maison du Rivage');}
     }

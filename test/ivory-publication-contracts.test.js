@@ -45,6 +45,7 @@ for(const count of [0,1,3])test(`image publication retains ${count} ordered medi
  assert.deepEqual(section.asset,section.items[0]||null);assert.deepEqual(c,before);
  const rendered=renderProject({sections:[{...section,asset:section.asset&&publicAsset(section.asset),items:section.items.map(publicAsset)}]});
  assert.equal((rendered.match(/data-media=/g)||[]).length,count);
+ assert.ok(rendered.includes('Les vues'),'configured caption survives even when no media exists');
  if(count===1)assert.ok(rendered.includes('wide-art'));
  if(count===3)assert.ok(rendered.includes('data-rail'));
 });

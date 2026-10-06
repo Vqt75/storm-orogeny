@@ -60,7 +60,7 @@ export function renderProject(project={}, timeline={}, team={}) {
     const id=`chapter-${i}`;
     if(s.type==='image') {
       const items=Array.isArray(s.items)?s.items:(s.asset?[s.asset]:[]);
-      if(!items.length)return '';
+      if(!items.length)return s.caption?`<figure><figcaption>${esc(s.caption)}</figcaption></figure>`:'';
       const visuals=items.length===1?media(items[0],'wide-art',true):`<ul class="gallery-track" data-rail tabindex="0" aria-label="Images du projet">${items.map(a=>`<li class="gallery-item">${media(a,'gallery-art',true)}</li>`).join('')}</ul><div class="gallery-controls"><button data-rail-step="-1">Précédent</button><button data-rail-step="1">Suivant</button></div>`;
       return `<figure>${visuals}${s.caption?`<figcaption>${esc(s.caption)}</figcaption>`:''}</figure>`;
     }

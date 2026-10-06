@@ -48,6 +48,30 @@ export async function verifyIdentityMoodBrowser({base,publication,label,colors,s
    await capture(label+'-mobile');
    await page.locator('#menu-open').click();await page.waitForSelector('#menu-dialog[open]');assert.equal(await page.locator('#menu-title').textContent(),'Maison du Rivage');await capture(label+'-mobile-menu');await page.locator('#menu-dialog [data-close]').click();
   }
+  if(!baseline&&/^[AB]-/.test(label)){
+   await page.setViewportSize({width:1440,height:900});
+   await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();});await page.reload();await settle();
+   await page.locator('.mood-fab').click();await settledWeather();
+   const weatherFonts=()=>page.locator('.mood-label,.mood-question,.mood-options span,.mood-note,.mood-thanks').evaluateAll(nodes=>nodes.map(n=>({text:n.textContent,font:getComputedStyle(n).fontFamily})));
+   for(const f of await weatherFonts())assert.ok(f.font.includes('ivory-project-primary')&&!f.font.includes('ivory-project-secondary'));
+   await capture(label+'-weather-primary-font');
+   let held,arrived;let arrival=new Promise(resolve=>arrived=resolve);
+   const intercept=route=>{if(JSON.parse(route.request().postData()||'{}').event==='mood_feedback'){held=route;arrived();}else return route.continue();};
+   await page.route('**/telemetry',intercept);
+   const choice=page.locator('[data-mood-value="4"]');await choice.click();await arrival;
+   assert.equal(await page.locator('.mood-options button:disabled').count(),5);assert.equal(await choice.evaluate(n=>n.classList.contains('is-selected')),true);
+   const selected=await choice.evaluate(n=>{const s=getComputedStyle(n),site=getComputedStyle(document.querySelector('.ivory-site'));const parse=hex=>'rgb('+[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)).join(', ')+')';return {background:s.backgroundColor,border:s.borderTopColor,color:s.color,icon:getComputedStyle(n.querySelector('svg')).stroke,opacity:s.opacity,expectedBackground:parse(site.getPropertyValue('--green').trim()),expectedColor:parse(site.getPropertyValue('--on-secondary').trim())};});
+   assert.equal(selected.background,selected.expectedBackground);assert.equal(selected.border,selected.expectedBackground);assert.equal(selected.color,selected.expectedColor);assert.equal(selected.icon,selected.color);assert.equal(selected.opacity,'1');
+   assert.equal(selected.color,label.startsWith('B-')?'rgb(255, 255, 255)':'rgb(0, 0, 0)');
+   await capture(label+'-weather-selected-desktop');await page.setViewportSize({width:390,height:844});await capture(label+'-weather-selected-mobile');
+   await held.abort('failed');await page.waitForFunction(()=>!document.querySelector('.mood-options button').disabled);
+   assert.equal(await page.locator('.mood-options .is-selected').count(),0);assert.equal(await page.locator('.mood-options button:disabled').count(),0);assert.ok(await page.locator('.mood-note').textContent());
+   for(const f of await weatherFonts())assert.ok(f.font.includes('ivory-project-primary'));
+   arrival=new Promise(resolve=>arrived=resolve);await choice.click();await arrival;await held.continue();await page.waitForSelector('.mood-thanks');
+   assert.ok((await weatherFonts()).every(f=>f.font.includes('ivory-project-primary')));
+   await page.unroute('**/telemetry',intercept);
+   reports.push({weatherPolish:{fonts:await weatherFonts(),selected,failureClearsSelection:true,retryReachesThankYou:true}});
+  }
   if(weather&&!baseline){
    await page.setViewportSize({width:1440,height:900});
    await context.clearCookies();await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();sessionStorage.setItem('storm_mood_attention_threshold','40000');});

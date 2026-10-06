@@ -55,7 +55,9 @@ async function makeProject(status = 'archived') {
   return p;
 }
 
-async function makeAsset(projectId, storageKey = `fixture-key-${counter}-${Date.now()}`) {
+// Two inserts can complete in the same millisecond; fixture identity must not.
+let assetCounter = 0;
+async function makeAsset(projectId, storageKey = `fixture-key-${counter}-${++assetCounter}`) {
   await pool.query(
     "insert into assets (tenant_id, project_id, kind, storage_key, content_type, byte_size) values ($1,$2,'logo',$3,'image/png',100)",
     [tenant, projectId, storageKey]

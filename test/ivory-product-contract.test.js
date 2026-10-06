@@ -10,6 +10,7 @@ import { createApp } from '../src/http/app.js';
 import { createStorageAdapter } from '../src/adapters/storage/index.js';
 import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 import { findCurrentAccess, decryptCurrentCapability } from '../src/domain/publicAccess/repository.js';
+import { verifyIdentityMoodBrowser } from './helpers/ivoryIdentityMoodBrowser.js';
 import { removeProjectIdentityLogo } from '../src/domain/project-setup/repository.js';
 import { renderHome, renderProject, renderSpaces, renderNews, renderNewsArticle, renderAmbassadors, renderQuestions, resultMarkup } from '../public/ivory/renderers/ivory.js';
 
@@ -175,4 +176,48 @@ test('complete Studio APIs → Snapshot → Candidate → public Manifest → pr
  if(process.env.IVORY_BROWSER_MODULE)await browserEvidence(await published(),'Nplus1',article.id);
  const {rows:[historic]}=await pool.query('select snapshot,candidate,manifest from project_publications where id=$1',[n.id]);assert.equal(JSON.stringify(historic),frozen);
  if(process.env.IVORY_EVIDENCE_DIR)fs.writeFileSync(path.join(process.env.IVORY_EVIDENCE_DIR,'publication-matrix.json'),JSON.stringify({N:storedN,Nplus1:next.manifest},null,2));
+});
+
+
+test('Studio font uploads in every supported format and published color/logo identity reach the real production browser',async()=>{
+ const fixtureDir=process.env.IVORY_FONT_FIXTURE_DIR;
+ const cases=fixtureDir?[
+  {label:'A-dark-primary-only',ext:'woff2',secondary:null,colors:['#173b55','#e2d2b8'],logo:null},
+  {label:'B-light-primary-wide-logo',ext:'woff',secondary:'ttf',colors:['#f1dba6','#173b55'],logo:'logo-wide.png'},
+  {label:'C-chromatic-square-logo',ext:'ttf',secondary:'otf',colors:['#367c76','#bb526c'],logo:'logo-square.png'},
+  {label:'D-otf-primary',ext:'otf',secondary:'woff2',colors:['#173b55','#e2d2b8'],logo:'logo-wide.png'}
+ ]:[{label:'primary-upload',ext:'woff2',secondary:null,colors:['#173b55','#e2d2b8'],logo:null}];
+ const fontBytes=ext=>fs.readFileSync(fixtureDir?path.join(fixtureDir,'identity.'+ext):path.join(process.cwd(),'node_modules/@fontsource/roboto/files/roboto-latin-400-normal.woff2'));
+ const mime={woff2:'font/woff2',woff:'font/woff',ttf:'font/ttf',otf:'font/otf'};
+ await api(root()+'/expression-profile','PATCH',{expressionProfile:'editorial',version:(await identity()).version});
+ for(const c of cases){
+  const before=await published(),frozen=JSON.stringify(before.manifest);
+  const fontName='Rivage.Font.v2';
+  const primary=await upload('/identity/fonts/primary','font',fontBytes(c.ext),mime[c.ext],{fontName});
+  if(c.secondary)await upload('/identity/fonts/secondary','font',fontBytes(c.secondary),mime[c.secondary],{fontName});
+  else assert.equal((await request(root()+'/identity/fonts/secondary','DELETE')).status,204);
+  await api(root()+'/identity','PATCH',{primaryColor:c.colors[0],secondaryColor:c.colors[1],version:(await identity()).version});
+  if(c.logo)await upload('/logo','logo',fs.readFileSync(path.join(fixtureDir,c.logo)),'image/png');
+  else if((await identity()).logoAssetId)assert.equal((await request(root()+'/logo','DELETE',{version:(await identity()).version})).status,204);
+  assert.equal(JSON.stringify((await published()).manifest),frozen,'draft font/color/logo edits cannot mutate active publication');
+  const publication=await api(root()+'/publications','POST',undefined,201),publicView=await published();
+  assert.deepEqual(publicView.manifest,publication.manifest);
+  const f=publication.manifest.branding.fonts;
+  assert.equal(f.primary.family,fontName);assert.equal(f.primary.asset.url,`assets/${primary.assetId}.${c.ext}`);
+  assert.equal(f.secondary.family,fontName);
+  if(c.secondary)assert.ok(f.secondary.asset.url.endsWith('.'+c.secondary));else assert.deepEqual(f.secondary,f.primary);
+  assert.deepEqual(publication.manifest.branding.colors,{primary:c.colors[0],secondary:c.colors[1]});
+  const {rows:[stored]}=await pool.query('select snapshot,candidate,manifest from project_publications where id=$1',[publication.id]);
+  assert.equal(stored.candidate.identity.fontPrimaryAssetId,primary.assetId);assert.equal(stored.candidate.identity.fontPrimary,fontName);
+  for(const role of ['primary','secondary']){
+   const response=await fetch(base+publicView.url+'/'+f[role].asset.url);assert.equal(response.status,200);
+   assert.ok((await response.arrayBuffer()).byteLength>1000,'published font bytes really served');
+  }
+  const {rows:[historic]}=await pool.query('select manifest from project_publications where project_id=$1 and revision=$2',[project,before.manifest.meta.revision]);
+  assert.ok(historic);assert.equal(JSON.stringify(historic.manifest),frozen);
+  if(process.env.IVORY_BROWSER_MODULE){
+   if(c.label.startsWith('B-')&&process.env.IVORY_BASELINE_DIR)await verifyIdentityMoodBrowser({base,publication:publicView,label:'before-hotfix-light-primary',colors:c.colors,secondary:true,baseline:true});
+   await verifyIdentityMoodBrowser({base,publication:publicView,label:c.label,colors:c.colors,secondary:!!c.secondary,weather:c.label.startsWith('B-')});
+  }
+ }
 });

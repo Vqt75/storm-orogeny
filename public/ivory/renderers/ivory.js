@@ -1,4 +1,5 @@
-import { createMoodSolicitationEngine } from '../mood-engine.js';
+import { resolveProjectColors, resolveProjectFonts } from '../identity.js';
+import { renderMoodExperience, wireMoodExperience } from '../weather.js';
 
 // One public presentation. Published content in, product actions out.
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -115,17 +116,12 @@ function navigation(content,profile) {
 export function render(manifest, root, actions={}) {
   const content=manifest.content||{},profile=profileFor(manifest),name=manifest.project?.name||'Projet';
   document.documentElement.style.setProperty('--motion',profile==='editorial'?'230ms':profile==='panoramic'?'170ms':'200ms');
-  const color=value=>/^#[\da-f]{6}$/i.test(value||'')?value:'#282923';
-  const primary=color(manifest.branding?.colors?.primary),secondary=color(manifest.branding?.colors?.secondary);
-  const luminance=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
-  const accent=luminance(primary)<=.183?primary:'#282923';
-  const onSecondary=luminance(secondary)<=.183?'#ffffff':'#282923';
-  const fontPrimary=safeCssFont(manifest.branding?.fonts?.primary?.family),fontSecondary=safeCssFont(manifest.branding?.fonts?.secondary?.family,fontPrimary);
-  const fontFaces=['primary','secondary'].map(role=>{const font=manifest.branding?.fonts?.[role];const url=safeAssetUrl(font?.asset?.url);return url?`@font-face{font-family:'${safeCssFont(font.family)}';src:url('${url}');font-display:swap}`:'';}).join('');
-  const logo=safeAssetUrl(manifest.branding?.logo?.url),brand=logo?`<img src="${esc(logo)}" alt="${esc(name)}">`:esc(name);
+  const colors=resolveProjectColors(manifest.branding?.colors);
+  const {primary:fontPrimary,secondary:fontSecondary,faces:fontFaces}=resolveProjectFonts(manifest.branding?.fonts,safeAssetUrl,safeCssFont);
+  const logo=safeAssetUrl(manifest.branding?.logo?.url),brand=`${logo?`<img src="${esc(logo)}" alt="">`:''}<span class="brand-name">${esc(name)}</span>`;
   const nav=navigation(content,profile),questionLink=content.questions?'<a class="question-link" href="#questions">Questions</a>':'';
   const mood=manifest.experience?.mood;
-  root.innerHTML=`<style>${fontFaces}</style><div class="ivory-site" data-expression="${profile}" style="--serif:'${fontPrimary}',system-ui,sans-serif;--body:'${fontPrimary}',system-ui,sans-serif;--detail:'${fontSecondary}',system-ui,sans-serif;--red:${accent};--green:${secondary};--on-secondary:${onSecondary}"><a href="#main" class="skip">Aller au contenu</a><header class="header"><div class="wrap header-inner"><a class="brand" href="#home" aria-label="${esc(name)} — accueil">${brand}</a><nav class="desktop-nav" aria-label="Navigation principale">${nav}</nav>${questionLink}<button class="menu-button" id="menu-open" aria-haspopup="dialog" aria-controls="menu-dialog" aria-expanded="false">Menu</button></div></header><main id="main" tabindex="-1"></main><footer class="footer"><div class="wrap footer-line"><a class="brand" href="#home">${brand}</a>${mood?.enabled!==false&&mood?.status!=='suspended'?'<button class="plain" data-mood-open>Partager mon ressenti</button>':''}</div></footer><dialog id="menu-dialog" class="menu-dialog" aria-labelledby="menu-title"><div class="dialog-inside"><div class="dialog-head"><h2 id="menu-title">${esc(name)}</h2><button data-close class="close-dialog" aria-label="Fermer le menu">×</button></div><nav aria-label="Navigation mobile"><a href="#home">Accueil</a>${nav}${questionLink}</nav></div></dialog><dialog class="media-dialog" id="media-dialog" aria-label="Image du projet"><div class="dialog-inside"><div class="media-actions"><button data-zoom class="plain">Agrandir</button><button data-close class="plain">Fermer</button></div><img alt=""></div></dialog><dialog id="mood-dialog" aria-labelledby="mood-title"><div class="dialog-inside"><div class="dialog-head"><h2 id="mood-title">${esc(mood?.question||'Comment vous sentez-vous par rapport au projet aujourd’hui ?')}</h2><button data-close class="close-dialog" aria-label="Fermer">×</button></div><div class="mood-choices">${['Très difficile','Difficile','Mitigé','Bien','Très bien'].map((label,i)=>`<button data-mood="${i+1}">${label}</button>`).join('')}</div><p role="status" id="mood-status"></p></div></dialog></div>`;
+  root.innerHTML=`<style>${fontFaces}</style><div class="ivory-site" data-expression="${profile}" style="--serif:'${fontPrimary}',system-ui,sans-serif;--body:'${fontPrimary}',system-ui,sans-serif;--detail:'${fontSecondary}',system-ui,sans-serif;--red:${colors.accent};--green:${colors.secondary};--primary:${colors.primary};--primary-soft:${colors.primarySoft};--on-primary:${colors.onPrimary};--on-secondary:${colors.onSecondary}"><a href="#main" class="skip">Aller au contenu</a><header class="header"><div class="wrap header-inner"><a class="brand" href="#home" aria-label="${esc(name)} — accueil">${brand}</a><nav class="desktop-nav" aria-label="Navigation principale">${nav}</nav>${questionLink}<button class="menu-button" id="menu-open" aria-haspopup="dialog" aria-controls="menu-dialog" aria-expanded="false">Menu</button></div></header><main id="main" tabindex="-1"></main><footer class="footer"><div class="wrap footer-line"><a class="brand" href="#home">${brand}</a></div></footer><dialog id="menu-dialog" class="menu-dialog" aria-labelledby="menu-title"><div class="dialog-inside"><div class="dialog-head"><h2 id="menu-title">${esc(name)}</h2><button data-close class="close-dialog" aria-label="Fermer le menu">×</button></div><nav aria-label="Navigation mobile"><a href="#home">Accueil</a>${nav}${questionLink}</nav></div></dialog><dialog class="media-dialog" id="media-dialog" aria-label="Image du projet"><div class="dialog-inside"><div class="media-actions"><button data-zoom class="plain">Agrandir</button><button data-close class="plain">Fermer</button></div><img alt=""></div></dialog>${renderMoodExperience(mood)}</div>`;
   const $=s=>root.querySelector(s),main=$('#main');
   let query='',result=null,knowledge={corpusState:'CORPUS_UNAVAILABLE'},request=0,currentPath='',trigger=null;
   const positions=new Map();let observer=null;
@@ -165,20 +161,11 @@ export function render(manifest, root, actions={}) {
     if(b.dataset.railStep){const rail=b.parentElement.previousElementSibling;rail.scrollBy({left:Number(b.dataset.railStep)*rail.clientWidth*.8,behavior:reduce()?'instant':'smooth'});}
     if(b.dataset.media){const dialog=$('#media-dialog'),img=dialog.querySelector('img');img.src=b.dataset.media;img.alt=b.dataset.alt||'';img.classList.remove('zoomed');dialog.querySelector('[data-zoom]').textContent='Agrandir';open(dialog,b);}
     if(b.hasAttribute('data-zoom')){const img=$('#media-dialog img');img.classList.toggle('zoomed');b.textContent=img.classList.contains('zoomed')?'Vue entière':'Agrandir';}
-    if(b.hasAttribute('data-mood-open'))open($('#mood-dialog'),b);
-    if(b.dataset.mood){const stamp=new Date().toISOString().slice(0,10),key=`project-mood:${location.pathname}:${stamp}`;let answered=false;try{answered=localStorage.getItem(key)==='1';}catch{}if(answered){$('#mood-status').textContent='Vous avez déjà partagé votre ressenti aujourd’hui.';return;}const buttons=[...root.querySelectorAll('[data-mood]')];buttons.forEach(x=>x.disabled=true);try{const response=await actions.submitMood?.({value:Number(b.dataset.mood)});if(response?.ok){try{localStorage.setItem(key,'1');}catch{}$('#mood-status').textContent='Merci pour votre retour.';}else{buttons.forEach(x=>x.disabled=false);$('#mood-status').textContent='Votre retour n’a pas pu être envoyé. Réessayez.';}}catch{buttons.forEach(x=>x.disabled=false);$('#mood-status').textContent='Votre retour n’a pas pu être envoyé. Réessayez.';}}
+
   });
   root.addEventListener('keydown',e=>{if(e.target.matches('[data-rail]')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();e.target.scrollBy({left:(e.key==='ArrowRight'?1:-1)*e.target.clientWidth*.8,behavior:reduce()?'instant':'smooth'});}});
   root.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',()=>{$('#menu-open').setAttribute('aria-expanded','false');if(trigger?.isConnected)trigger.focus();}));
-  const moodButton=root.querySelector('[data-mood-open]');
-  const solicitation=moodButton?createMoodSolicitationEngine({
-    legacyNudgeKey:`project-mood:${location.pathname.split('/').slice(0,4).join('/')}:nudge`,
-    storageKeyPrefix:`project-mood:${location.pathname.split('/').slice(0,4).join('/')}`,
-    hasAnswered:()=>{try{return localStorage.getItem(`project-mood:${location.pathname}:${new Date().toISOString().slice(0,10)}`)==='1';}catch{return false;}},
-    isBusy:()=>!!root.querySelector('dialog[open]')||document.activeElement?.matches('input,textarea'),
-    onNudge:()=>{if(!reduce())moodButton.animate?.([{opacity:.3},{opacity:1}],{duration:200});return true;}
-  }):null;
-  solicitation?.start();
+  const stopMood=wireMoodExperience(root,actions);
   const navigate=()=>{if(document.startViewTransition&&!reduce())document.startViewTransition(()=>route());else route();};window.addEventListener('hashchange',navigate);route(false);loadKnowledge();
-  return ()=>{window.removeEventListener('hashchange',navigate);observer?.disconnect();solicitation?.stop();request++;};
+  return ()=>{window.removeEventListener('hashchange',navigate);observer?.disconnect();stopMood();request++;};
 }

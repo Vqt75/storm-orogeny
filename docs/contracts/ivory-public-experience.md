@@ -10,7 +10,13 @@ prototype fixtures, client names, feature flags or legacy renderer fallback.
 The renderer consumes project name, published logo/colors/font assets, editorial
 content and media. Primary font remains the main font; secondary font serves
 supporting editorial details. Color contrast resolves readable foregrounds
-without choosing client identity values. No external font request.
+without discarding either configured source color: source colors remain on
+controls, surfaces and non-text accents; foregrounds/tints are resolved for
+contrast. No external font request. Uploaded font files receive distinct internal
+CSS aliases per role, so display names containing punctuation or identical
+family names cannot discard or overwrite an uploaded face. When there is no
+secondary font, the primary face serves both roles. A configured logo appears
+alongside the project name; without a logo the name remains the home identity.
 
 `presentation.expressionProfile` selects balanced, editorial or panoramic
 composition, spacing, media proportions, navigation emphasis and motion.
@@ -55,20 +61,29 @@ Existing route hashes (`home`, `timeline`, `spaces`, `space-{id}`, `news`,
 restores collection position and focus. Rails retain native scrolling, keyboard
 and boundary-aware controls. Native dialogs restore focus and preserve context.
 Reduced motion keeps all destinations/states without animation/smooth scrolling.
-Optional anonymous mood response remains available, with daily scoped storage,
-retry on failure and the generic quiet solicitation engine retained.
+Optional anonymous mood response has one canonical entry: a compact fixed
+“Météo du projet” button at the lower right. Manual activation opens a small
+non-modal contextual panel. The unchanged shared `mood-engine.js` alone governs
+meaningful exposure (35-second fallback), calm moments and the 25–40-second
+attention threshold. Its invitation briefly reveals the label and emits one
+expanding ring; it never opens the panel. Reduced motion retains the label
+without the ring. Global historical daily invitation/answer keys are respected,
+as are the replacement’s existing answer keys. Already-answered visitors can
+still open the acknowledgement manually. Storage failures cannot break the site;
+failed submission can be retried. The anonymous mood telemetry API is unchanged.
 
 ## Material and scope
 
 Opaque editorial content throughout. The only blur is the transient dialog
-backdrop for navigation, media and mood layers. Disabling blur leaves opaque
+backdrop for navigation and media layers. The weather panel is opaque. Disabling blur leaves opaque
 readable layers; no content glass, decorative arrows, universal round cards,
 synthetic badges, chat framing or client-specific branches.
 
 Superseded renderer/CSS/markup, legacy FAQ presentation glue and the unused
 brand-engine script are removed. The historical FAQ facade remains solely for
 compatibility and uses the single shared lexical algorithm; Ivory imports no
-lexical engine. Generic mood scheduling remains, not its old floating UI.
+lexical engine. Generic mood scheduling remains; its floating weather interaction is preserved
+inside the accepted presentation, without reinstating the old renderer.
 Old presentation-specific source assertions are replaced by behavioral content,
 security/state/profile/accessibility tests. Public lifecycle/publication tests
 and the domain runtime contracts remain acceptance gates.

@@ -372,8 +372,8 @@ function ambassadorContactHref(person) {
   }
   if (channel === 'phone') {
     // Formatting only: no scheme, extension, letters or control characters.
-    if (!/^\+?[0-9 ().-]+$/.test(raw)) return '';
-    const number = raw.replace(/[ ().-]/g, '');
+    if (!/^\+?[0-9 \u00a0\u202f().-]+$/.test(raw)) return '';
+    const number = raw.replace(/[ \u00a0\u202f().-]/g, '');
     return /^\+?[0-9]{7,15}$/.test(number) ? `tel:${number}` : '';
   }
   if (channel === 'teams') {

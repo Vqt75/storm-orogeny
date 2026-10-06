@@ -18,7 +18,7 @@ test('published news tag is exact escaped editorial metadata on lead, rows, deta
 });
 
 test('phone formats compile safely and the existing public contact path accepts tel',()=>{
- for(const [raw,number] of [['01 23 45 67 89','0123456789'],['+33 (1) 23-45.67.89','+33123456789'],['+44 20 7946 0958','+442079460958']]){
+ for(const [raw,number] of [['01 23 45 67 89','0123456789'],['+33\u202f1\u00a023 45 67 89','+33123456789'],['+33 (1) 23-45.67.89','+33123456789'],['+44 20 7946 0958','+442079460958']]){
   const c=candidate();c.ambassadors=[{name:'Camille',contactChannel:'phone',contactValue:raw}];
   const roster=published(c).ambassadors.roster;
   assert.equal(roster[0].contactHref,'tel:'+number);

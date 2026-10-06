@@ -1745,6 +1745,7 @@ dialog::backdrop {
 .person .person-contact { grid-column:4; justify-self:start; }
 .people-list .person:has(.portrait:empty) { grid-template-columns:100px 1fr 1fr 120px; }
 @media (max-width:760px) {
+  [data-expression="panoramic"] .gallery-item { flex-basis:80%; }
   .person .person-identity,.person .person-context,.person .person-contact { grid-column:2; }
   .people-list .person:has(.portrait:empty) { grid-template-columns:70px 1fr; }
 }

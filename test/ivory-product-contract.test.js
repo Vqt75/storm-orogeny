@@ -38,7 +38,7 @@ async function browserEvidence(publication,revision,articleId){
   const settled=async()=>{
    await page.evaluate(async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
    await page.waitForFunction(()=>document.getAnimations().every(a=>a.playState!=='running'));
-   await page.evaluate(async()=>{await Promise.all([...document.images].filter(i=>i.getBoundingClientRect().top<innerHeight&&i.getBoundingClientRect().bottom>0).map(i=>i.decode().catch(()=>{})));});
+   await page.evaluate(async()=>{await Promise.all([...document.images].filter(i=>i.getBoundingClientRect().top<innerHeight&&i.getBoundingClientRect().bottom>0).map(i=>i.decode().catch(()=>{})));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
   };
   const capture=async(name)=>{await settled();if(process.env.IVORY_EVIDENCE_DIR){fs.mkdirSync(process.env.IVORY_EVIDENCE_DIR,{recursive:true});const layout=await page.evaluate(()=>({width:innerWidth,scrollX,header:[...document.querySelectorAll('.header-inner,.header .brand,.header .desktop-nav,.header .question-link,.header .menu-button')].map(n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return {text:n.textContent,rect:{left:r.left,right:r.right,width:r.width},display:s.display,visibility:s.visibility,opacity:s.opacity,gutter:s.getPropertyValue('--gutter')};})}));fs.writeFileSync(path.join(process.env.IVORY_EVIDENCE_DIR,`${revision}-${name}-layout.json`),JSON.stringify(layout,null,2));}assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);if(process.env.IVORY_EVIDENCE_DIR){fs.mkdirSync(process.env.IVORY_EVIDENCE_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.IVORY_EVIDENCE_DIR,`${revision}-${name}.png`)});}};
   for(const [size,viewport] of [['desktop',{width:1440,height:900}],['mobile',{width:390,height:844}]]){
@@ -67,7 +67,7 @@ async function browserEvidence(publication,revision,articleId){
     }
     await capture(hash+'-'+size);
     if(hash==='timeline'){
-     const rail=page.locator('#main figure').first().locator('[data-rail]');await rail.scrollIntoViewIfNeeded();await capture('image-sequence-'+size);
+     const rail=page.locator('#main figure').first().locator('[data-rail]');await rail.scrollIntoViewIfNeeded();if(size==='mobile')assert.ok((await rail.locator('.gallery-item').first().boundingBox()).width>viewport.width*.65,'mobile images remain readable, not desktop thumbnails');await capture('image-sequence-'+size);
      await rail.evaluate(r=>{r.scrollLeft=r.scrollWidth;});await capture('image-sequence-end-'+size);
     }
     if(hash==='ambassadors'&&size==='mobile'){await page.locator('.person').last().scrollIntoViewIfNeeded();await capture('ambassadors-bottom-mobile');}

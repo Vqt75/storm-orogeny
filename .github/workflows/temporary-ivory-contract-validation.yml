@@ -1,7 +1,7 @@
 name: Temporary Ivory product contract audit
 on:
   push:
-    branches: [validation/ivory-contract-20261005]
+    branches: [validation/ivory-contract-close-20261006]
   workflow_dispatch:
 permissions:
   contents: read
@@ -57,7 +57,7 @@ jobs:
           IVORY_BROWSER_MODULE: ${{ runner.temp }}/ivory-browser/node_modules/playwright/index.mjs
         run: |
           set -o pipefail
-          node --test --test-concurrency=1 test/ivory-product-contract.test.js test/1b-project-setup-assets.test.js test/2e-ivory.test.js test/3b-ivory-horizontal-rail.test.js test/project-expression-profile.test.js test/2d-publication.test.js test/3d-public-access.test.js test/3e-publication-prereq-bugfix.test.js | tee "$RUNNER_TEMP/focused-contract.log"
+          node --test --test-concurrency=1 test/ivory-product-contract.test.js test/ivory-publication-contracts.test.js test/storm-match-runtime.test.js test/storm-match-project-corpus.test.js test/1b-project-setup-assets.test.js test/2e-ivory.test.js test/3b-ivory-horizontal-rail.test.js test/project-expression-profile.test.js test/2d-publication.test.js test/3d-public-access.test.js test/3e-publication-prereq-bugfix.test.js | tee "$RUNNER_TEMP/focused-contract.log"
       - name: Full deterministic suite
         if: always()
         run: |

@@ -1734,3 +1734,17 @@ dialog::backdrop {
 }
 
 .quote-band cite{font-family:var(--detail,var(--body));letter-spacing:normal}
+
+/* Published editorial metadata; no categorical badges. */
+.news-meta { display:flex; flex-wrap:wrap; column-gap:18px; row-gap:4px; font:16px/1.5 var(--detail); color:var(--quiet); }
+.news-meta span { white-space:pre-wrap; overflow-wrap:anywhere; }
+.news-row .news-meta { align-content:start; }
+/* Reserve roster columns even when optional fields are absent. */
+.person .person-identity { grid-column:2; }
+.person .person-context { grid-column:3; }
+.person .person-contact { grid-column:4; justify-self:start; }
+.people-list .person:has(.portrait:empty) { grid-template-columns:100px 1fr 1fr 120px; }
+@media (max-width:760px) {
+  .person .person-identity,.person .person-context,.person .person-contact { grid-column:2; }
+  .people-list .person:has(.portrait:empty) { grid-template-columns:70px 1fr; }
+}

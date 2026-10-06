@@ -1,0 +1,71 @@
+name: Temporary durable PostgreSQL storage validation
+on:
+  push:
+    branches: [validation/durable-assets-20261006]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_bootstrap_only
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_NAME: ivory_hotfix_ci
+      DB_USER: storm_orogeny
+      DB_PASSWORD: ci_application_only
+      DB_SSL: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Non-superuser UTF-8 database
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE storm_orogeny LOGIN PASSWORD 'ci_application_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+          CREATE DATABASE ivory_hotfix_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+      - run: npm ci
+      - name: Durable storage and real Studio/public routes
+        env:
+          STORAGE_DRIVER: postgres
+          TEST_ASSET_STORAGE_DRIVER: postgres
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 test/postgres-storage.test.js test/1b-project-setup-assets.test.js test/2d-publication.test.js test/3d-public-access.test.js test/ivory-product-contract.test.js test/ivory-publication-contracts.test.js | tee "$RUNNER_TEMP/focused-storage.log"
+      - name: Full deterministic suite
+        if: always()
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/full-storage.log"
+      - name: Diff and protected domains
+        if: always()
+        run: |
+          git diff --check 1eabec36a23ff05e54acb61965049187a16f34e4 HEAD
+          test -z "$(git diff --name-only 1eabec36a23ff05e54acb61965049187a16f34e4 HEAD -- public/ivory src/domain/stormMatch test/storm-match-eval)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: durable-storage-validation
+          path: ${{ runner.temp }}/*storage.log
+          retention-days: 14

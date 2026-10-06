@@ -11,7 +11,7 @@ import { createStorageAdapter } from '../src/adapters/storage/index.js';
 import { seedTenantMembership, seedProjectMembership } from './helpers/memberships.js';
 
 const TEST_STORAGE_DIR = path.join(process.cwd(), '.test-storage-3a');
-const config = { ...loadConfig(), storage: { localDir: TEST_STORAGE_DIR } };
+const config = { ...loadConfig(), storage: { driver: process.env.TEST_ASSET_STORAGE_DRIVER ?? 'local', localDir: TEST_STORAGE_DIR } };
 const pool = getPool(config);
 const storageAdapter = createStorageAdapter(config);
 const silentLogger = { info() {}, warn() {}, error() {} };

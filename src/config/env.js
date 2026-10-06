@@ -91,10 +91,10 @@ export function loadConfig() {
         : requireString('DB_PASSWORD', 'storm_orogeny_dev'),
       ssl: process.env.DB_SSL === '1'
     },
-    // Storage — implémentation locale uniquement pour l'instant,
-    // strictement derrière l'adapter (voir docs/adr/0003-storage-adapter.md).
-    // Jamais gravé comme solution métier durable.
+    // Production uploads must survive replacement of the application instance.
+    // Local storage remains available only outside production.
     storage: {
+      driver: requireString('STORAGE_DRIVER', nodeEnv === 'production' ? 'postgres' : 'local'),
       localDir: requireString('STORAGE_LOCAL_DIR', 'storage-data')
     },
     // trust proxy -- nombre de sauts de reverse proxy à faire

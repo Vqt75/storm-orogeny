@@ -52,3 +52,18 @@ test('reduced motion disables the wave and the weather panel adds no decorative 
  assert.match(css,/\.mood-fab\.is-wave \{animation:none!important\}/);
  assert.match(css,/@keyframes moodWave/);assert.doesNotMatch(css,/\.mood-panel[^}]*backdrop-filter/);
 });
+
+
+test('all weather typography uses the primary font role, including options and status',()=>{
+ const css=readFileSync(new URL('../public/ivory/ivory.css',import.meta.url),'utf8').split('/* One contextual weather control')[1];
+ assert.doesNotMatch(css,/--detail/);
+ for(const selector of ['mood-label','mood-question','mood-options span','mood-note','mood-thanks'])assert.match(css,new RegExp('\\.'+selector+' \\{[^}]*var\\(--body\\)'));
+});
+test('selected weather choice uses resolved secondary foreground with inherited icon stroke',()=>{
+ const css=readFileSync(new URL('../public/ivory/ivory.css',import.meta.url),'utf8');
+ assert.match(css,/\.mood-options button\.is-selected \{background:var\(--green\);border-color:var\(--green\);color:var\(--on-secondary\);opacity:1\}/);
+ assert.match(css,/\.mood-fab svg,\.mood-options svg \{[^}]*stroke:currentColor/);
+ const source=readFileSync(new URL('../public/ivory/weather.js',import.meta.url),'utf8');
+ assert.ok(source.indexOf("button.classList.add('is-selected')")<source.indexOf('await actions.submitMood'));
+ assert.match(source,/if\(!response\?\.ok\)\{button.classList.remove\('is-selected'\)/);
+});

@@ -42,11 +42,11 @@ export function wireMoodExperience(root,actions) {
   const submit=async e=>{
     const button=e.target.closest('[data-mood-value]');if(!button||pending||hasAnswered())return;
     const value=Number(button.dataset.moodValue);if(!Number.isInteger(value)||value<1||value>5)return;
-    pending=true;body.querySelectorAll('button').forEach(b=>b.disabled=true);
+    pending=true;button.classList.add('is-selected');body.querySelectorAll('button').forEach(b=>b.disabled=true);
     let response;try{response=await actions.submitMood?.({value});}catch{}
     if(disposed)return;
     pending=false;
-    if(!response?.ok){body.querySelectorAll('button').forEach(b=>b.disabled=false);body.querySelector('.mood-note').textContent=response?.error||'Enregistrement impossible pour le moment.';return;}
+    if(!response?.ok){button.classList.remove('is-selected');body.querySelectorAll('button').forEach(b=>b.disabled=false);body.querySelector('.mood-note').textContent=response?.error||'Enregistrement impossible pour le moment.';return;}
     answered=true;try{win.localStorage.setItem('storm_mood_last_answered',today());win.localStorage.setItem(currentAnswerKey(),'1');}catch{}
     renderAnswered();later(()=>close(),1000);
   };

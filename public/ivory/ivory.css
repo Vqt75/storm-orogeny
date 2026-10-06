@@ -1789,9 +1789,10 @@ dialog::backdrop {
 .mood-options button {min-height:54px;padding:9px 3px;display:grid;place-items:center;gap:6px;border:1px solid var(--line);border-radius:6px}
 .mood-options button:hover,.mood-options button:focus-visible {background:var(--primary-soft);border-color:var(--red)}
 .mood-options button:disabled {opacity:.55;cursor:wait}
+.mood-options button.is-selected {background:var(--green);border-color:var(--green);color:var(--on-secondary);opacity:1}
 .mood-options svg {width:22px;height:22px}
-.mood-options span {font:11px/1.2 var(--detail)}
-.mood-note {font:12px/1.5 var(--detail);color:var(--quiet);margin-top:16px}
+.mood-options span {font:11px/1.2 var(--body)}
+.mood-note {font:12px/1.5 var(--body);color:var(--quiet);margin-top:16px}
 .mood-thanks {font:16px/1.5 var(--body)}
 @media(max-width:680px) {
   .mood-fab {right:16px;bottom:max(16px,env(safe-area-inset-bottom))}

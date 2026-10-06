@@ -1,0 +1,82 @@
+name: Temporary Ivory weather polish validation
+on:
+  push:
+    branches: [validation/ivory-weather-polish-20261006]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_bootstrap_only
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_NAME: ivory_hotfix_ci
+      DB_USER: storm_orogeny
+      DB_PASSWORD: ci_application_only
+      DB_SSL: '0'
+      IVORY_EVIDENCE_DIR: /tmp/ivory-hotfix-evidence
+      IVORY_FIXTURE_DIR: ${{ github.workspace }}/.validation-fixtures
+      IVORY_FONT_FIXTURE_DIR: ${{ github.workspace }}/.validation-fixtures
+      IVORY_BROWSER_MODULE: /tmp/ivory-browser/node_modules/playwright/index.mjs
+      IVORY_BASELINE_DIR: /tmp/ivory-baseline
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Non-superuser UTF-8 database
+        env:
+          PGPASSWORD: ci_bootstrap_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE storm_orogeny LOGIN PASSWORD 'ci_application_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+          CREATE DATABASE ivory_hotfix_ci OWNER storm_orogeny ENCODING 'UTF8' TEMPLATE template0;
+          SQL
+      - run: npm ci
+      - name: Temporary browser tooling and unchanged production baseline outside repository
+        run: |
+          npm install --prefix "/tmp/ivory-browser" playwright
+          "/tmp/ivory-browser/node_modules/.bin/playwright" install --with-deps chromium
+          mkdir -p "$IVORY_BASELINE_DIR/renderers"
+          git show dad58c4936cf1cbdd163ff6e5624c618dde5aab3:public/ivory/ivory.css > "$IVORY_BASELINE_DIR/ivory.css"
+          git show dad58c4936cf1cbdd163ff6e5624c618dde5aab3:public/ivory/renderers/ivory.js > "$IVORY_BASELINE_DIR/renderers/ivory.js"
+      - name: Focused contracts and real production browser
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 test/ivory-identity-mood.test.js test/ivory-product-contract.test.js test/ivory-publication-contracts.test.js test/storm-match-runtime.test.js test/storm-match-project-corpus.test.js test/1b-project-setup-assets.test.js test/2e-ivory.test.js test/3b-ivory-horizontal-rail.test.js test/project-expression-profile.test.js test/2d-publication.test.js test/3d-public-access.test.js test/3e-publication-prereq-bugfix.test.js test/2f-pilotage.test.js | tee "$RUNNER_TEMP/focused-hotfix.log"
+      - name: Full deterministic suite
+        if: always()
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 test/*.test.js | tee "$RUNNER_TEMP/full-hotfix.log"
+      - name: Diff check and protected paths
+        if: always()
+        run: |
+          git diff --check dad58c4936cf1cbdd163ff6e5624c618dde5aab3 HEAD
+          test -z "$(git diff --name-only dad58c4936cf1cbdd163ff6e5624c618dde5aab3 HEAD -- test/storm-match-eval/ src/domain/stormMatch/ public/ivory/mood-engine.js public/ivory/runtime.js)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ivory-weather-polish-evidence
+          path: |
+            ${{ runner.temp }}/*hotfix.log
+            /tmp/ivory-hotfix-evidence
+          retention-days: 14

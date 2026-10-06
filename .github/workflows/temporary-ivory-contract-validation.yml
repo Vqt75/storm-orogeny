@@ -50,11 +50,39 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/ivory-browser" playwright
           "$RUNNER_TEMP/ivory-browser/node_modules/.bin/playwright" install --with-deps chromium
+          cat > "$RUNNER_TEMP/ivory-browser/settled-preview.mjs" <<'JS'
+          import { chromium as original } from './node_modules/playwright/index.mjs';
+          export const chromium = { launch: async (...args) => {
+            const browser = await original.launch(...args);
+            const newPage = browser.newPage.bind(browser);
+            browser.newPage = async (...pageArgs) => {
+              const page = await newPage(...pageArgs);
+              await page.addInitScript(() => {
+                const start = document.startViewTransition?.bind(document);
+                if (start) document.startViewTransition = (...args) => {
+                  const transition = start(...args);
+                  window.__ivoryVisualTransition = transition.finished.catch(() => {});
+                  return transition;
+                };
+              });
+              const screenshot = page.screenshot.bind(page);
+              page.screenshot = async (...captureArgs) => {
+                await page.evaluate(async () => {
+                  await window.__ivoryVisualTransition;
+                  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                });
+                return screenshot(...captureArgs);
+              };
+              return page;
+            };
+            return browser;
+          }};
+          JS
       - name: Focused product coverage and real production browser
         env:
           IVORY_EVIDENCE_DIR: ${{ runner.temp }}/ivory-contract-evidence
           IVORY_FIXTURE_DIR: ${{ github.workspace }}/.validation-fixtures
-          IVORY_BROWSER_MODULE: ${{ runner.temp }}/ivory-browser/node_modules/playwright/index.mjs
+          IVORY_BROWSER_MODULE: ${{ runner.temp }}/ivory-browser/settled-preview.mjs
         run: |
           set -o pipefail
           node --test --test-concurrency=1 test/ivory-product-contract.test.js test/ivory-publication-contracts.test.js test/storm-match-runtime.test.js test/storm-match-project-corpus.test.js test/1b-project-setup-assets.test.js test/2e-ivory.test.js test/3b-ivory-horizontal-rail.test.js test/project-expression-profile.test.js test/2d-publication.test.js test/3d-public-access.test.js test/3e-publication-prereq-bugfix.test.js | tee "$RUNNER_TEMP/focused-contract.log"

@@ -1,26 +1,5 @@
-// OROGENY — Public Runtime, porté depuis Tectonic (Phase 5) sans
-// réécriture ni redesign. Une seule adaptation réelle : Tectonic
-// suppose un déploiement mono-projet (chemin fixe /api/manifest) ;
-// Orogeny est multi-tenant, donc l'identité publique (client/projet/
-// capability) est déduite de l'URL de la page elle-même (servie à
-// /public/:clientSlug/:projectSlug/:capability, Lot B), jamais codée
-// en dur ni passée par une variable globale injectée côté serveur --
-// l'UUID projet interne n'apparaît jamais dans cette URL.
-//
-// Contrat strict, inchangé par rapport à Tectonic :
-//   - lit UNIQUEMENT le Manifest de la publication active (jamais
-//     Studio vivant, jamais un autre endpoint) ;
-//   - refuse proprement un schemaVersion inconnu ;
-//   - route vers le renderer indiqué par manifest.edition.id ;
-//   - une édition inconnue ou non supportée produit une erreur
-//     explicite, JAMAIS un repli silencieux vers Ivory.
-//
-// Aucune logique éditoriale ici — ce fichier ne fait que charger,
-// distribuer, et fournir le "Public Core" partagé (actions
-// d'interaction telles que l'envoi d'un contact). Le rendu lui-même
-// vit dans /ivory/renderers/*.js, qui ne connaît jamais d'endpoint
-// ni de mécanisme de stockage — seulement des actions qu'on lui
-// fournit à appeler.
+// Public loader: active Manifest delivery, same-origin product actions and edition dispatch.
+// The renderer knows published content and product states, never endpoint or engine internals.
 
 const SUPPORTED_SCHEMA_VERSIONS = [1];
 const RENDERERS = {
@@ -119,21 +98,19 @@ async function loadRenderer(editionId) {
 function buildPublicCoreActions(publicPath) {
   const telemetryUrl = `/public/${publicPath.clientSlug}/${publicPath.projectSlug}/${publicPath.capability}/telemetry`;
   return {
-    async submitContact({ name, email, message }) {
-      try {
-        const res = await fetch('/api/public/contact', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, message })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.ok) return { ok: true };
-        return { ok: false, error: data.error || 'Envoi impossible.' };
-      } catch (e) {
-        return { ok: false, error: 'Connexion au serveur impossible.' };
-      }
+    async prepareKnowledge() {
+      const res = await fetch(`/public/${publicPath.clientSlug}/${publicPath.projectSlug}/${publicPath.capability}/knowledge`, { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) return { corpusState: 'CORPUS_UNAVAILABLE' };
+      return res.json();
     },
-
+    async matchKnowledge({ query, locale, publicationRevision }) {
+      const res = await fetch(`/public/${publicPath.clientSlug}/${publicPath.projectSlug}/${publicPath.capability}/match`, {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, locale, publicationRevision })
+      });
+      if (!res.ok) return { corpusState: 'CORPUS_UNAVAILABLE' };
+      return res.json();
+    },
     async submitMood({ value }) {
       const numericValue = Math.round(Number(value));
       if (!Number.isInteger(numericValue) || numericValue < 1 || numericValue > 5) {

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { activePublicationCorpusForAccess } from '../../domain/stormMatch/activePublicationCorpus.js';
+import { prepareCorpus, match } from '../../domain/stormMatch/runtime.js';
 import path from 'node:path';
 import { findActivePublication } from '../../domain/publication/repository.js';
 import { resolvePublicAccess } from '../../domain/publicAccess/repository.js';
@@ -36,12 +38,64 @@ export function createPublicSiteRouter({ pool, publicDir }) {
       res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Page introuvable.' } });
       return null;
     }
-    return resolution.projectId;
+    return resolution;
   }
+
+  // Public host boundary: scope comes only from the resolved access and active publication.
+  // Prepared handles never cross HTTP; client input never supplies a semantic decision.
+  async function knowledge(req, res) {
+    const resolution = await resolveOrRespond(req, res);
+    if (!resolution) return null;
+    const source = await activePublicationCorpusForAccess(pool, resolution);
+    if (!source.snapshot) return { corpusState: 'CORPUS_UNAVAILABLE', entries: [] };
+    const prepared = prepareCorpus(source.snapshot);
+    const entries = source.snapshot.entries.filter(entry => entry.question.trim() && entry.answer.trim())
+      .map(entry => ({ sourceQuestionId: entry.sourceQuestionId, question: entry.question }));
+    return { corpusState: prepared.state, publicationRevision: source.snapshot.publicationRevision,
+      locale: source.snapshot.contentLocale, entries, corpus: prepared.corpus };
+  }
+  router.get('/:clientSlug/:projectSlug/:capability/knowledge', async (req, res, next) => {
+    try {
+      const data = await knowledge(req, res);
+      if (!data) return;
+      const { corpus, ...publicData } = data;
+      res.set('Cache-Control', 'no-store').json(publicData);
+    } catch (err) { next(err); }
+  });
+  router.post('/:clientSlug/:projectSlug/:capability/match', async (req, res, next) => {
+    try {
+      const origin = req.get('Origin');
+      if (!origin || req.get('Sec-Fetch-Site') === 'cross-site' || (origin !== `${req.protocol}://${req.get('host')}`)) {
+        res.status(403).json({ ok: false }); return;
+      }
+      const body = req.body;
+      if (!body || Object.keys(body).sort().join(',') !== 'locale,publicationRevision,query'
+          || typeof body.query !== 'string' || !body.query.trim() || body.query.length > 500
+          || typeof body.locale !== 'string' || !Number.isInteger(body.publicationRevision)) {
+        res.status(400).json({ ok: false }); return;
+      }
+      const data = await knowledge(req, res);
+      if (!data) return;
+      res.set('Cache-Control', 'no-store');
+      if (data.corpusState !== 'CORPUS_READY') {
+        res.json({ corpusState: data.corpusState }); return;
+      }
+      if (data.publicationRevision !== body.publicationRevision || data.locale !== body.locale) {
+        res.json({ corpusState: 'CORPUS_UNAVAILABLE' }); return;
+      }
+      const corpus = data.corpus;
+      const result = match({ corpus, query: body.query, locale: data.locale, caller: {
+        tenantId: corpus.tenantId, projectId: corpus.projectId,
+        publicationRevision: corpus.publicationRevision, corpusFingerprint: corpus.corpusFingerprint
+      }});
+      res.json({ corpusState: 'CORPUS_READY', publicationRevision: data.publicationRevision, result });
+    } catch (err) { next(err); }
+  });
 
   router.get('/:clientSlug/:projectSlug/:capability/manifest', async (req, res, next) => {
     try {
-      const projectId = await resolveOrRespond(req, res);
+      const resolution = await resolveOrRespond(req, res);
+      const projectId = resolution?.projectId;
       if (!projectId) return;
       const publication = await findActivePublication(pool, projectId);
       if (!publication || !publication.manifest) {
@@ -56,7 +110,8 @@ export function createPublicSiteRouter({ pool, publicDir }) {
 
   router.get('/:clientSlug/:projectSlug/:capability', async (req, res, next) => {
     try {
-      const projectId = await resolveOrRespond(req, res);
+      const resolution = await resolveOrRespond(req, res);
+      const projectId = resolution?.projectId;
       if (!projectId) return;
       // Un seul fichier statique pour tous les projets : le runtime
       // déduit lui-même client/projet/capability depuis l'URL courante

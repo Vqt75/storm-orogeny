@@ -88,6 +88,7 @@ async function buildSnapshot(client, { projectId }) {
   return {
     project,
     identity,
+    expressionProfile: identityRow?.expression_profile,
     contentLocale,
     homepage,
     leProjet: { intro: leProjetContent?.fields ?? {}, sections: narrativeSections, milestones, team },

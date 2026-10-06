@@ -1,3 +1,5 @@
+import { isExpressionProfile } from '../projects/expressionProfile.js';
+
 // Repository Project Setup — fonctions typées, jamais de SQL brut
 // dans les routes. Conçu pour être appelé à l'intérieur d'une seule
 // transaction (Lot 2, POST /api/projects) — chaque fonction accepte un
@@ -96,7 +98,7 @@ export async function insertAsset(client, { tenantId, projectId, kind, storageKe
 }
 
 export async function updateProjectIdentityLogo(pool, { projectId, logoAssetId }) {
-  const result = await pool.query('update project_identity set logo_asset_id = $1 where project_id = $2', [logoAssetId, projectId]);
+  const result = await pool.query('update project_identity set logo_asset_id = $1, version = version + 1, updated_at = now() where project_id = $2', [logoAssetId, projectId]);
   if (result.rowCount === 0) {
     // Ne devrait jamais arriver pour un projet créé via POST /api/projects
     // (project_identity y est toujours créée dans la même transaction) —
@@ -104,6 +106,19 @@ export async function updateProjectIdentityLogo(pool, { projectId, logoAssetId }
     // ce cas se présentait un jour pour une autre raison.
     throw new Error(`Aucune project_identity trouvée pour le projet ${projectId} — mise à jour du logo impossible.`);
   }
+}
+
+// Detach only the draft reference. The asset remains available to immutable
+// publications which already captured it. Never delete storage here.
+export async function removeProjectIdentityLogo(pool, { tenantId, projectId, expectedVersion, userId }) {
+  const { rows } = await pool.query(
+    `update project_identity set logo_asset_id = null, version = version + 1,
+       updated_at = now(), updated_by_user_id = $1
+     where tenant_id = $2 and project_id = $3 and version = $4
+     returning version, updated_at`,
+    [userId, tenantId, projectId, expectedVersion]
+  );
+  return rows[0] ?? null;
 }
 
 // Police — remplace à la fois le fichier (asset) ET le nom de famille
@@ -157,6 +172,19 @@ export async function findAsset(pool, assetId) {
   const { rows } = await pool.query(
     'select id, tenant_id, project_id, storage_key, content_type from assets where id = $1',
     [assetId]
+  );
+  return rows[0] ?? null;
+}
+
+// Shares identity optimistic versioning; changes remain unpublished drafts.
+export async function updateProjectExpressionProfile(pool, { tenantId, projectId, expressionProfile, expectedVersion, userId }) {
+  if (!isExpressionProfile(expressionProfile)) throw new TypeError('EXPRESSION_PROFILE_INVALID');
+  const { rows } = await pool.query(
+    `update project_identity set expression_profile=$1, version=version+1,
+       updated_at=now(), updated_by_user_id=$2
+     where tenant_id=$3 and project_id=$4 and version=$5
+     returning expression_profile, version, updated_at`,
+    [expressionProfile, userId, tenantId, projectId, expectedVersion]
   );
   return rows[0] ?? null;
 }

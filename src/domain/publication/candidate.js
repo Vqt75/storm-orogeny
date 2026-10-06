@@ -146,6 +146,7 @@ function mapLeProjet(lp) {
 export function buildCandidate(snapshot) {
   const s = snapshot || {};
   return {
+    expressionProfile: s.expressionProfile,
     project: s.project,
     identity: s.identity,
     // Langue de contenu public figée au Snapshot -- jamais

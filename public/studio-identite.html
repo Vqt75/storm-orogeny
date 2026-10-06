@@ -82,6 +82,16 @@ function render(){
   const projectName=state.context?.project?.name||"Projet";
   stack.innerHTML=`
     <article class="panel">
+      <div class="panel-head"><h2>Expression du site</h2></div>
+      <div class="panel-body">
+        <label for="expressionProfile">Profil</label>
+        <select id="expressionProfile" class="action" aria-describedby="expressionDescription">
+          ${[["balanced","Balanced"],["editorial","Éditorial"],["panoramic","Panoramique"]].map(([value,label])=>`<option value="${value}" ${id.expressionProfile===value?"selected":""}>${label}</option>`).join("")}
+        </select>
+        <p id="expressionDescription" class="note"></p>
+      </div>
+    </article>
+    <article class="panel">
       <div class="panel-head"><h2>Logo</h2></div>
       <div class="panel-body">
         <div class="logo-row">
@@ -148,6 +158,19 @@ function render(){
     </article>
   `;
 
+  const profileSelect=document.getElementById("expressionProfile");
+  const descriptions={balanced:"Texte et médias équilibrés, rythme modéré.",editorial:"Un récit mis en avant, plus d’espace et de calme.",panoramic:"Une exploration plus directe, des médias larges et un rythme dense."};
+  const describeProfile=()=>{document.getElementById("expressionDescription").textContent=descriptions[profileSelect.value]||""};
+  describeProfile();
+  profileSelect.onchange=async()=>{
+    describeProfile();profileSelect.disabled=true;state.save="saving";renderCmd();
+    try{
+      const result=await api(`/api/projects/${projectId}/expression-profile`,{method:"PATCH",body:JSON.stringify({expressionProfile:profileSelect.value,version:state.identity.version})});
+      state.identity.expressionProfile=result.expressionProfile;state.identity.version=result.version;
+      state.unpublished=true;state.save="saved";
+    }catch(e){profileSelect.value=state.identity.expressionProfile;describeProfile();state.save=e.status===409?"conflict":"error"}
+    finally{profileSelect.disabled=false;renderCmd()}
+  };
   document.getElementById("replaceLogo").onclick=()=>{logoInput.value="";logoInput.click()};
   wireDropZone(document.getElementById("logoBox"),handleLogoFile);
   document.getElementById("removeLogo")?.addEventListener("click",removeLogo);
@@ -223,10 +246,10 @@ logoInput.onchange=async()=>{
   await handleLogoFile(file);
 };
 async function removeLogo(){
-  // Aucune route de suppression du logo n'existe (hors scope de cette
-  // passe, jamais construite avant) — remplacer par un nouveau fichier
-  // reste le seul chemin. On ne construit pas de route factice ici.
-  state.save="error";renderCmd();
+  try{
+    await api(`/api/projects/${projectId}/logo`,{method:"DELETE",body:JSON.stringify({version:state.identity.version})});
+    state.unpublished=true;await hydrate();
+  }catch(e){state.save=e.status===409?"conflict":"error";renderCmd()}
 }
 
 fontPrimaryInput.onchange=async()=>{

@@ -305,17 +305,18 @@ test('member (sans project.manage) -> 403 sur upload/suppression de police, jama
 });
 
 test('PATCH identity (couleurs) : verrouillage optimiste -- version correcte accepte, version périmée -> 409, jamais un écrasement silencieux', async () => {
+  const { rows: [before] } = await pool.query('select version from project_identity where project_id=$1', [ids.project]);
   const okRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity`, {
     method: 'PATCH', headers: { 'X-Storm-Dev-User': ids.creator, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ primaryColor: '#112233', secondaryColor: '#445566', version: 1 })
+    body: JSON.stringify({ primaryColor: '#112233', secondaryColor: '#445566', version: before.version })
   });
   assert.equal(okRes.status, 200);
   const okBody = await okRes.json();
-  assert.equal(okBody.version, 2);
+  assert.equal(okBody.version, before.version + 1);
 
   const staleRes = await fetch(`${baseUrl}/api/projects/${ids.project}/identity`, {
     method: 'PATCH', headers: { 'X-Storm-Dev-User': ids.creator, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ primaryColor: '#000000', secondaryColor: '#ffffff', version: 1 })
+    body: JSON.stringify({ primaryColor: '#000000', secondaryColor: '#ffffff', version: before.version })
   });
   assert.equal(staleRes.status, 409);
   const staleBody = await staleRes.json();
@@ -323,7 +324,7 @@ test('PATCH identity (couleurs) : verrouillage optimiste -- version correcte acc
 
   const row = await pool.query('select primary_color, version from project_identity where project_id=$1', [ids.project]);
   assert.equal(row.rows[0].primary_color, '#112233', 'la tentative périmée ne doit jamais avoir modifié la couleur');
-  assert.equal(row.rows[0].version, 2);
+  assert.equal(row.rows[0].version, before.version + 1);
 
   await pool.query('update project_identity set primary_color=null, secondary_color=null, version=1 where project_id=$1', [ids.project]);
 });

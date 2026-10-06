@@ -21,7 +21,7 @@ import { listSupportedLocales } from '../../domain/project-setup/repository.js';
 import {
   insertProject, insertProjectIdentity, insertProjectSettings,
   insertProjectModules, insertProjectMembership, insertProjectInvitation,
-  insertAsset, updateProjectIdentityLogo, updateProjectIdentityFontAsset,
+  insertAsset, updateProjectIdentityLogo, removeProjectIdentityLogo, updateProjectIdentityFontAsset,
   removeProjectIdentitySecondaryFont, updateProjectIdentityColors, updateProjectExpressionProfile
 } from '../../domain/project-setup/repository.js';
 import { Errors } from '../../errors/AppError.js';
@@ -298,6 +298,31 @@ export function createProjectsRouter({ pool, storageAdapter, config }) {
   // n'existe pour elle). Retour immédiat au régime "principale partout"
   // dès la prochaine publication (le Compiler retombe sur son repli
   // déjà existant vers la primaire).
+  router.delete('/:projectId/logo',
+    requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),
+    async (req, res, next) => {
+      const { version } = req.body || {};
+      if (!Number.isInteger(version)) {
+        next(Errors.invalid('version entière requise pour retirer le logo.'));
+        return;
+      }
+      try {
+        const guard = await withProjectDeletionGuard(pool, {
+          projectId: req.project.id,
+          work: client => removeProjectIdentityLogo(client, {
+            tenantId: req.project.tenant_id, projectId: req.project.id,
+            expectedVersion: version, userId: req.user.id
+          })
+        });
+        if (!guard.ok || !guard.result) {
+          res.status(409).json({ ok: false, error: { code: guard.ok ? 'STALE_VERSION' : guard.code, message: 'Rechargez l’identité avant de réessayer.' } });
+          return;
+        }
+        res.status(204).end();
+      } catch (err) { next(err); }
+    }
+  );
+
   router.delete(
     '/:projectId/identity/fonts/secondary',
     requireProjectCapability(pool, ProjectCapability.PROJECT_MANAGE),

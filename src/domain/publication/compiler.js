@@ -362,13 +362,19 @@ function personAltDefault(name, roleOrTag) {
 // du modèle Orogeny correspondent déjà exactement à ce que cette
 // fonction attend -- aucune adaptation de forme nécessaire.
 function ambassadorContactHref(person) {
-  const channel = ['email', 'teams', 'link'].includes(person?.contactChannel) ? person.contactChannel : 'email';
+  const channel = ['email', 'phone', 'teams', 'link'].includes(person?.contactChannel) ? person.contactChannel : 'email';
   const raw = String(person?.contactValue || '').trim();
   if (!raw) return '';
 
   if (channel === 'email') {
     const email = raw.replace(/^mailto:/i, '').trim();
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : '';
+  }
+  if (channel === 'phone') {
+    // Formatting only: no scheme, extension, letters or control characters.
+    if (!/^\+?[0-9 \u00a0\u202f().-]+$/.test(raw)) return '';
+    const number = raw.replace(/[ \u00a0\u202f().-]/g, '');
+    return /^\+?[0-9]{7,15}$/.test(number) ? `tel:${number}` : '';
   }
   if (channel === 'teams') {
     return /^(https?:\/\/|msteams:)/i.test(raw) ? raw : '';
@@ -457,17 +463,10 @@ function compileNarrativeSection(section, projectId, assetContentTypes) {
     };
   }
   if (type === 'image') {
-    // Un seul média compilé -- le premier par position (arbitrage
-    // explicite, Slice 3). Orogeny autorise plusieurs médias même sur
-    // une section 'image' (la validation ne le distingue pas de
-    // 'gallery'), mais Ivory n'attend qu'un seul asset pour ce type.
-    // Les médias en trop restent dans le Snapshot, simplement non
-    // compilés -- jamais une erreur, jamais un warning (ce n'est pas
-    // une incohérence structurelle, juste un excédent que Studio n'a
-    // pas nettoyé).
+    // Keep the first-asset contract for historical consumers, publish every medium.
     const sorted = (Array.isArray(section.media) ? section.media : []).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-    const asset = compileNarrativeSectionMedia(sorted[0], projectId, assetContentTypes);
-    return { ...base, asset, caption: payload.caption || '' };
+    const items = sorted.map(m => compileNarrativeSectionMedia(m, projectId, assetContentTypes)).filter(Boolean);
+    return { ...base, asset: items[0] || null, items, caption: payload.caption || '' };
   }
   if (type === 'gallery') {
     const sorted = (Array.isArray(section.media) ? section.media : []).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -481,10 +480,17 @@ function compileNarrativeSection(section, projectId, assetContentTypes) {
 function compileProjectContent(candidate, projectId) {
   const leProjet = candidate?.leProjet || {};
   const intro = leProjet.intro || {};
-  const sections = (Array.isArray(leProjet.sections) ? leProjet.sections : [])
-    .filter(s => s && s.enabled !== false);
+  const allSections = (Array.isArray(leProjet.sections) ? leProjet.sections : []).filter(Boolean);
+  const sections = allSections.filter(s => s.enabled !== false);
+  // Absent marker keeps legacy auto-placement; an explicit disable is authoritative.
+  const visible = type => {
+    const markers = allSections.filter(s => s.sectionType === type);
+    return markers.length === 0 || markers.some(s => s.enabled !== false);
+  };
   return {
     intro: { title: intro.title || '', body: intro.body || '' },
+    showTimeline: visible('timeline'),
+    showTeam: visible('team'),
     sections: sections.map(s => compileNarrativeSection(s, projectId, candidate?.assetContentTypes)).filter(Boolean)
   };
 }

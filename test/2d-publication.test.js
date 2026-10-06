@@ -926,7 +926,7 @@ test('Publication Slice 3 : enabled=false exclut la section du Manifest sans jam
   await pool.query('delete from project_narrative_sections where id = ANY($1)', [[visible.id, created.id]]);
 });
 
-test('Publication Slice 3 : section image ne compile que le premier média (position la plus basse), gallery les compile tous', async () => {
+test('Publication Slice 3 : section image conserve le premier asset et publie tous les médias ordonnés, comme gallery', async () => {
   await pool.query('delete from project_publications where project_id=$1', [ids.project]);
   const asset1 = await uploadTestAsset('narrative_media', TEST_PNG, 'image/png', 'x.png');
   const asset2 = await uploadTestAsset('narrative_media', TEST_PNG, 'image/png', 'y.png');
@@ -951,6 +951,8 @@ test('Publication Slice 3 : section image ne compile que le premier média (posi
 
   assert.equal(img.asset.url, publicAssetPath(asset1, 'png'), 'doit prendre le média à la position la plus basse (0), pas l\'ordre d\'insertion');
   assert.equal(img.caption, 'Ma légende');
+  assert.deepEqual(img.items.map(a=>a.url), [publicAssetPath(asset1, 'png'), publicAssetPath(asset2, 'png')]);
+  assert.deepEqual(img.asset,img.items[0]);
   assert.equal(gal.items.length, 2, 'gallery doit compiler tous les médias');
   assert.equal(gal.items[0].url, publicAssetPath(asset1, 'png'));
   assert.equal(gal.items[1].url, publicAssetPath(asset2, 'png'));

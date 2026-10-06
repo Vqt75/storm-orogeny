@@ -1749,6 +1749,8 @@ dialog::backdrop {
 .brand-name { overflow-wrap:anywhere; }
 .header .brand { max-width:34%; }
 @media(max-width:760px) {
+  .header { height:auto; min-height:74px; }
+  .header-inner { min-height:74px; padding-block:10px; }
   .header .brand { flex:1; max-width:none; white-space:normal; overflow:visible; }
   .header .brand img { max-width:72px; max-height:32px; }
   .brand-name { min-width:0; font-size:22px; line-height:1.15; }

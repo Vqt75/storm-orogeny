@@ -27,6 +27,7 @@ export async function verifyIdentityMoodBrowser({base,publication,label,colors,s
    return {...await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,primary:getComputedStyle(document.querySelector('#main h1')).fontFamily,body:getComputedStyle(document.querySelector('.ivory-site')).fontFamily,detail:document.querySelector('.news-meta')&&getComputedStyle(document.querySelector('.news-meta')).fontFamily,fonts:[...document.fonts].map(f=>({family:f.family.replace(/["']/g,''),status:f.status})),colors:{primary:getComputedStyle(document.querySelector('.ivory-site')).getPropertyValue('--primary'),secondary:getComputedStyle(document.querySelector('.ivory-site')).getPropertyValue('--green'),weather:getComputedStyle(document.querySelector('.mood-fab')||document.body).backgroundColor},brands:[...document.querySelectorAll('.brand')].map(n=>({text:n.textContent,images:[...n.querySelectorAll('img')].map(i=>({loaded:i.complete&&i.naturalWidth>0,natural:[i.naturalWidth,i.naturalHeight],rect:[i.getBoundingClientRect().width,i.getBoundingClientRect().height]}))})),buttonsWithArrows:[...document.querySelectorAll('button')].filter(b=>/[→↗›]/.test(b.textContent)).length})),platform,requests,errors};
   };
   const capture=async name=>{if(out)await page.screenshot({path:path.join(out,name+'.png')});};
+  const settledWeather=async()=>{await page.waitForFunction(()=>!document.getAnimations().some(a=>a.playState==='running'));};
   await page.goto(base+publication.url+'#home');await settle();
   let metrics=await metric();reports.push({label,viewport:'desktop',baseline,...metrics});await capture(label+'-desktop');
   assert.equal(metrics.overflow,false);assert.deepEqual(errors,[]);
@@ -43,6 +44,7 @@ export async function verifyIdentityMoodBrowser({base,publication,label,colors,s
    assert.equal(metrics.buttonsWithArrows,0);
    await page.setViewportSize({width:390,height:844});await settle();metrics=await metric();reports.push({label,viewport:'mobile',...metrics});assert.equal(metrics.overflow,false);assert.ok(await page.locator('#menu-open').isVisible());
    const bounds=await page.locator('.header .brand-name').boundingBox();assert.ok(bounds&&bounds.width>=55&&bounds.x+bounds.width<=390);
+   const header=await page.locator('.header').boundingBox();assert.ok(bounds.y>=header.y+8&&bounds.y+bounds.height<=header.y+header.height-8,'name must have breathing room inside header');assert.equal(await page.locator('.header .brand').getAttribute('aria-label'),'Maison du Rivage — accueil');
    await capture(label+'-mobile');
    await page.locator('#menu-open').click();await page.waitForSelector('#menu-dialog[open]');assert.equal(await page.locator('#menu-title').textContent(),'Maison du Rivage');await capture(label+'-mobile-menu');await page.locator('#menu-dialog [data-close]').click();
   }
@@ -63,12 +65,12 @@ export async function verifyIdentityMoodBrowser({base,publication,label,colors,s
    await page.clock.runFor(2600);assert.equal(await fab.evaluate(n=>n.classList.contains('is-introduced')),false);
    await page.reload();await settle();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.clock.runFor(45000);
    assert.equal(await fab.evaluate(n=>n.classList.contains('is-introduced')),false,'one nudge per day');
-   await fab.click();await page.clock.runFor(200);assert.equal(await panel.isVisible(),true);assert.equal(await page.locator('dialog[open]').count(),0);await capture('weather-03-panel-desktop');
+   await fab.click();await page.clock.runFor(200);assert.equal(await panel.isVisible(),true);assert.equal(await page.locator('dialog[open]').count(),0);await settledWeather();assert.equal(await panel.evaluate(n=>getComputedStyle(n).opacity),'1');await capture('weather-03-panel-desktop');
    await page.keyboard.press('Escape');await page.clock.runFor(200);assert.equal(await panel.isVisible(),false);assert.equal(await fab.evaluate(n=>n===document.activeElement),true);
-   await page.setViewportSize({width:390,height:844});await page.mouse.move(0,0);await page.locator('#main h1').focus();await capture('weather-04-initial-mobile');
-   await fab.click();await page.clock.runFor(200);await capture('weather-05-panel-mobile');
+   await page.setViewportSize({width:390,height:844});await page.mouse.move(0,0);await page.locator('#main').focus();await settledWeather();await capture('weather-04-initial-mobile');
+   await fab.click();await page.clock.runFor(200);await settledWeather();assert.equal(await panel.evaluate(n=>getComputedStyle(n).opacity),'1');await capture('weather-05-panel-mobile');
    let submissions=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/telemetry')&&JSON.parse(r.postData()).event==='mood_feedback')submissions++;});
-   await page.locator('[data-mood-value="4"]').click();await page.waitForSelector('.mood-thanks');await capture('weather-06-thanks-mobile');
+   await page.locator('[data-mood-value="4"]').click();await page.waitForSelector('.mood-thanks');await settledWeather();await capture('weather-06-thanks-mobile');
    assert.equal(submissions,1);await page.clock.runFor(1100);await page.reload();await settle();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.clock.runFor(45000);
    assert.equal(await fab.evaluate(n=>n.classList.contains('is-wave')),false);await fab.click();await page.clock.runFor(200);assert.equal(await page.locator('.mood-thanks').count(),1);assert.equal(await page.locator('[data-mood-value]').count(),0);
    // Existing global and legacy answered/nudge keys remain authoritative.

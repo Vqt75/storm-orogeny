@@ -43,7 +43,7 @@ async function browserEvidence(publication,revision,articleId){
   const capture=async(name)=>{await settled();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);if(process.env.IVORY_EVIDENCE_DIR){fs.mkdirSync(process.env.IVORY_EVIDENCE_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.IVORY_EVIDENCE_DIR,`${revision}-${name}.png`)});}};
   for(const [size,viewport] of [['desktop',{width:1440,height:900}],['mobile',{width:390,height:844}]]){
    await page.setViewportSize(viewport);
-   for(const [hash,title] of [['home',publication.manifest.content.home.message],['timeline',publication.manifest.content.project.intro.title],['news','Actualités'],['news-'+articleId,publication.manifest.content.news.items[0].title],['ambassadors','Ambassadeurs'],['questions','Questions']]){
+   for(const [hash,title] of [['home',publication.manifest.content.home.message],['timeline',publication.manifest.content.project.intro.title],['news','Actualités'],['news-'+articleId,publication.manifest.content.news.items[0].title],['ambassadors','Ambassadeurs'],['questions','Les réponses du projet.']]){
     await page.goto(base+publication.url+'#'+hash);
     await page.waitForFunction(v=>document.querySelector('#main h1')?.textContent===v,title);
     await settled();

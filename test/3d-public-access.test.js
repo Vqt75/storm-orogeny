@@ -124,7 +124,12 @@ test('Chiffrement AES-GCM -- roundtrip, mauvaise clé échoue, altération déte
   const packed = encryptCapability('secret-de-test', key);
   assert.equal(decryptCapability(packed, key), 'secret-de-test');
   assert.throws(() => decryptCapability(packed, randomBytes(32)));
-  const tampered = packed.slice(0, -1) + (packed.at(-1) === 'a' ? 'b' : 'a');
+  // Changing Base64 padding bits can leave the decoded payload unchanged.
+  const parts = packed.split(':');
+  const alteredBytes = Buffer.from(parts[2], 'base64url');
+  alteredBytes[0] ^= 1;
+  parts[2] = alteredBytes.toString('base64url');
+  const tampered = parts.join(':');
   assert.throws(() => decryptCapability(tampered, key));
 });
 
